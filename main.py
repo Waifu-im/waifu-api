@@ -1,11 +1,8 @@
 import os
 import json
 import random
-import glob
 import asyncio
 import aiomysql
-import xxhash
-import subprocess
 import itsdangerous
 from itsdangerous import URLSafeSerializer, BadSignature
 import quart
@@ -18,7 +15,7 @@ from discord.ext import tasks
 loop=asyncio.get_event_loop()
 app = Quart(__name__)
 
-with open("/home/pi/NSI/API/json/credentials.json",'r') as f:
+with open("json/credentials.json",'r') as f:
     dt=json.load(f)
     db_user=dt['db_user']
     db_password=dt['db_password']
