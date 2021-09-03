@@ -169,7 +169,6 @@ async def principal(typ,categorie):
                     file.append(im["file"]+im["extension"])
                     picture.append("https://api.hori.ovh/image/"+im["file"]+im["extension"])
                 if len(picture)<1:
-                    print(f"This request for {categorie} ended in criteria error.")
                     quart.abort(404,description="No ressources found.")
 
                 data={'code':200,'is_over18':over18,'file':file if len(file)>1 else file[0],'url':picture if len(picture)>1 else picture[0]}
