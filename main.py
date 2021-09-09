@@ -11,6 +11,7 @@ import functools
 from quart import Quart,jsonify,request,current_app
 from werkzeug.exceptions import HTTPException
 from discord.ext import tasks
+import copy
 
 loop=asyncio.get_event_loop()
 app = Quart(__name__)
@@ -46,6 +47,18 @@ def convert_bool(string):
     except:
         return None
     return string
+def methodandimage(method,image,user_id):
+    image=image.lower()
+    try:
+        image=[os.path.splitext(x)[0] for x in image.split(",")]
+        args=[(user_id,im) for im in image]
+    except IndexError:
+        return None,None
+    if method.lower()=='insert':
+        return "INSERT IGNORE INTO FavImages(user_id,image) VALUES(%s,%s)",args
+    elif method.lower()=='delete':
+        return "DELETE FROM FavImages WHERE user_id=%s and image=%s",args
+    return None,None
 
 async def is_valid_token(token_header):
     try:
@@ -127,7 +140,8 @@ async def principal(typ,categorie):
     many=request.args.get("many")
     autho=["nsfw","sfw"]
     typ=typ.lower()
-    categorie=categorie.lower()
+    category_is_int=False
+    
 
     if gif:
         gif=convert_bool(gif)
@@ -140,6 +154,12 @@ async def principal(typ,categorie):
     else:
         over18=False
 
+    try:
+        categorie=int(categorie)
+        category_is_int=True
+    except:
+        categorie=categorie.lower()
+
     if typ in autho:        
         async with app.pool.acquire() as conn:
             async with conn.cursor(aiomysql.DictCursor) as cur:
@@ -149,18 +169,22 @@ async def principal(typ,categorie):
                     gifstr=" and Images.extension='.gif'"
                 else:
                     gifstr=" and not Images.extension='.gif'"
-                if banned_files:
-                    await cur.execute(f"""SELECT Images.file,Images.extension FROM LinkedTags
-                                    JOIN Images ON Images.file=LinkedTags.image
-                                    JOIN Tags ON Tags.id=LinkedTags.tag_id
-                                    WHERE not Images.is_banned and not Images.under_review and Tags.name=%s and Tags.is_over18={1 if over18 else 0}{gifstr} and LinkedTags.image not in %s{' GROUP BY LinkedTags.image' if many else ''}
-                                    ORDER BY RAND() LIMIT {'40' if many else '1'}""",(categorie,banned_files))
+                if category_is_int:
+                    strcategory="Tags.id=%s"
                 else:
-                    await cur.execute(f"""SELECT Images.file,Images.extension FROM LinkedTags
+                    strcategory="Tags.name=%s"
+                if banned_files:
+                    await cur.execute(f"""SELECT Images.file,Images.extension,Tags.id,Tags.name FROM LinkedTags
                                     JOIN Images ON Images.file=LinkedTags.image
                                     JOIN Tags ON Tags.id=LinkedTags.tag_id
-                                    WHERE not Images.is_banned and not Images.under_review and Tags.name=%s and Tags.is_over18={1 if over18 else 0}{gifstr}{' GROUP BY LinkedTags.image' if many else ''}
-                                    ORDER BY RAND() LIMIT {'40' if many else '1'}""",categorie)
+                                    WHERE not Images.is_banned and not Images.under_review and {strcategory} and Tags.is_over18={1 if over18 else 0}{gifstr} and LinkedTags.image not in %s{' GROUP BY LinkedTags.image' if many else ''}
+                                    ORDER BY RAND() LIMIT {'30' if many else '1'}""",(categorie,banned_files))
+                else:
+                    await cur.execute(f"""SELECT Images.file,Images.extension,Tags.id,Tags.name FROM LinkedTags
+                                    JOIN Images ON Images.file=LinkedTags.image
+                                    JOIN Tags ON Tags.id=LinkedTags.tag_id
+                                    WHERE not Images.is_banned and not Images.under_review and {strcategory} and Tags.is_over18={1 if over18 else 0}{gifstr}{' GROUP BY LinkedTags.image' if many else ''}
+                                    ORDER BY RAND() LIMIT {'30' if many else '1'}""",categorie)
 
                 fetch=list(await cur.fetchall())
                 file=[]
@@ -169,9 +193,12 @@ async def principal(typ,categorie):
                     file.append(im["file"]+im["extension"])
                     picture.append("https://api.hori.ovh/image/"+im["file"]+im["extension"])
                 if len(picture)<1:
+                    print(f"This request for {categorie} ended in criteria error.")
                     quart.abort(404,description="No ressources found.")
+                tag_id=fetch[0]['id']
+                tag_name=fetch[0]['name']
 
-                data={'code':200,'is_over18':over18,'file':file if len(file)>1 else file[0],'url':picture if len(picture)>1 else picture[0]}
+                data={'code':200,'is_over18':over18,'tag_id':tag_id,'tag_name':tag_name,'file':file if len(file)>1 else file[0],'url':picture if len(picture)>1 else picture[0]}
                 return jsonify(data)
 
     return quart.abort(404)
@@ -185,9 +212,19 @@ async def fav_():
     info=rule.loads(token)
     user_secret=info["secret"]
     user_id=int(info['id'])
+    #add or remove image part
+    querys=[]
+    insert=request.args.get('insert')
+    delete=request.args.get('delete')
+    if insert:
+        querys.append(methodandimage('insert',insert,user_id))
+    if delete:
+        querys.append(methodandimage('delete',delete,user_id))
     async with app.pool.acquire() as conn:
         async with conn.cursor(aiomysql.DictCursor) as cur:
-            await cur.execute("""SELECT Images.file,Images.extension,Tags.name,Tags.is_over18 FROM FavImages
+            for query in querys:
+                await cur.executemany(query[0],query[1])
+            await cur.execute("""SELECT Images.extension,Tags.name,Tags.id,Tags.is_over18,Tags.description,Images.file FROM FavImages
                                 JOIN Images ON Images.file=FavImages.image
                                 JOIN LinkedTags ON LinkedTags.image=FavImages.image
                                 JOIN Tags on LinkedTags.tag_id=Tags.id
@@ -195,37 +232,65 @@ async def fav_():
                                 and user_id=%s""",user_id)
             images=await cur.fetchall()
     if not images:
-        quart.abort(404,description="You have no Gallery or it is empty.")
-    all_=[]
+        quart.abort(404,description="You have no Gallery or it is now empty.")
+    all_u=[]
+    all_f=[]
     tags_nsfw={}
     tags_sfw={}
-    default_tags={'ero':tags_nsfw,'waifu':tags_sfw}
+    default_tags={'ero':tags_nsfw,'all':tags_sfw}
     for im in images:
         filename=im['file']+im["extension"]
+        url=f"https://api.hori.ovh/image/{filename}"
         if not im["is_over18"]:
             if not im["name"] in tags_sfw:
-                tags_sfw.update({im["name"]:[]})
-            tags_sfw[im["name"]].append(f"https://api.hori.ovh/image/{filename}")
+                newtag=copy.deepcopy(im)
+                del newtag['extension']
+                newtag['file']=[]
+                newtag['is_over18']=True if newtag['is_over18'] else False
+                newtag.update({'url':[]})
+                tags_sfw[im["name"]]=newtag
+            tags_sfw[im["name"]]['url'].append(url)
+            tags_sfw[im["name"]]['file'].append(filename)
         else:
             if not im["name"] in tags_nsfw:
-                tags_nsfw.update({im["name"]:[]})
-            tags_nsfw[im["name"]].append(f"https://api.hori.ovh/image/{filename}")
+                newtag=copy.deepcopy(im)
+                del newtag['extension']
+                newtag['file']=[]
+                newtag['is_over18']=True if newtag['is_over18'] else False
+                newtag.update({'url':[]})
+                tags_sfw[im["name"]]=newtag
+            tags_nsfw[im["name"]]['url'].append(url)
+            tags_nsfw[im["name"]]['file'].append(filename)
 
     files={}
     if tags_sfw:
-        all_.extend(tags_sfw['waifu'])
+        all_f.extend(tags_sfw['all']['file'])
+        all_u.extend(tags_sfw['all']['url'])
         files.update({'sfw':tags_sfw})
     if tags_nsfw:
-        all_.extend(tags_nsfw['ero'])
+        all_f.extend(tags_sfw['all']['file'])
+        all_u.extend(tags_sfw['all']['url'])
         files.update({'nsfw':tags_nsfw})
-    if all_:
-        files.update({'url':all_})
+    if all_f and all_u:
+        files.update({'file':all_f,'url':all_u})
     return jsonify(files)
 
 """endpoints with and without info"""
 @app.route('/endpoints_info/')
 async def endpoints_info():
     return jsonify(await myendpoints_info(over18=None))
+
+@app.route('/endpoints/')
+async def endpoints_():
+    return jsonify(await myendpoints(over18=None))
+
+@app.route('/favicon.ico/')
+async def favicon():
+    return quart.wrappers.response.FileBody("/var/www/virtual_hosts/pics.hori.ovh/favicon/hori_final.ico")
+
+if __name__ == "__main__":
+    get_db.start()
+    loop.run_until_complete(app.run_task(port=8034))
 
 @app.route('/endpoints/')
 async def endpoints_():
