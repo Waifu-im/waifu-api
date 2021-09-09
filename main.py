@@ -291,15 +291,3 @@ async def favicon():
 if __name__ == "__main__":
     get_db.start()
     loop.run_until_complete(app.run_task(port=8034))
-
-@app.route('/endpoints/')
-async def endpoints_():
-    return jsonify(await myendpoints(over18=None))
-
-@app.route('/favicon.ico/')
-async def favicon():
-    return quart.wrappers.response.FileBody("/var/www/virtual_hosts/pics.hori.ovh/favicon/hori_final.ico")
-
-if __name__ == "__main__":
-    get_db.start()
-    loop.run_until_complete(app.run_task(port=8034))
