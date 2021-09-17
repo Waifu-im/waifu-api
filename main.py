@@ -112,7 +112,7 @@ async def myendpoints(over18=None):
             rt=await cur.fetchall()
     
     if over18 is None:
-        return {"sfw":[tag[0] for tag in rt if not tag[1] and tag[0]!="example"],"nsfw":[tag[0] for tag in rt if tag[1]],'example':'https://api.hori.ovh/sfw/waifu/'}
+        return {"sfw":[tag[0] for tag in rt if not tag[1] and tag[0]!="example"],"nsfw":[tag[0] for tag in rt if tag[1]],'example':'https://api.waifu.im/sfw/waifu/'}
     elif over18:
         return [tag[0] for tag in rt if tag[1]]
     else:
@@ -126,7 +126,7 @@ async def myendpoints_info(over18=None):
             rt=await cur.fetchall()
 
     if over18 is None:
-        return {"sfw":[{'name':tag[0],'id':tag[1],'description':tag[3]} for tag in rt if not tag[2] and tag[0]!="example"],"nsfw":[{'name':tag[0],'id':tag[1],'description':tag[3]} for tag in rt if tag[2]],'example':'https://api.hori.ovh/sfw/waifu/'}
+        return {"sfw":[{'name':tag[0],'id':tag[1],'description':tag[3]} for tag in rt if not tag[2] and tag[0]!="example"],"nsfw":[{'name':tag[0],'id':tag[1],'description':tag[3]} for tag in rt if tag[2]],'example':'https://api.waifu.im/sfw/waifu/'}
     elif over18:
         return [{'name':tag[0],'id':tag[1],'description':tag[3]} for tag in rt if tag[2]]
     else:
@@ -136,13 +136,12 @@ async def myendpoints_info(over18=None):
 @app.route("/<typ>/<categorie>/")
 async def principal(typ,categorie):
     gif=request.args.get('gif')
-    banned_files=request.args.get("filter")
+    banned_files=request.args.get("exclude")
     many=request.args.get("many")
     autho=["nsfw","sfw"]
     typ=typ.lower()
-    category_is_int=False
-    
-
+    categorie=str(categorie)
+    categorie=categorie.lower()
     if gif:
         gif=convert_bool(gif)
     if many:
@@ -154,11 +153,6 @@ async def principal(typ,categorie):
     else:
         over18=False
 
-    try:
-        categorie=int(categorie)
-        category_is_int=True
-    except:
-        categorie=categorie.lower()
 
     if typ in autho:        
         async with app.pool.acquire() as conn:
@@ -169,39 +163,35 @@ async def principal(typ,categorie):
                     gifstr=" and Images.extension='.gif'"
                 else:
                     gifstr=" and not Images.extension='.gif'"
-                if category_is_int:
-                    strcategory="Tags.id=%s"
-                else:
-                    strcategory="Tags.name=%s"
                 if banned_files:
                     await cur.execute(f"""SELECT Images.file,Images.extension,Tags.id,Tags.name FROM LinkedTags
                                     JOIN Images ON Images.file=LinkedTags.image
                                     JOIN Tags ON Tags.id=LinkedTags.tag_id
-                                    WHERE not Images.is_banned and not Images.under_review and {strcategory} and Tags.is_over18={1 if over18 else 0}{gifstr} and LinkedTags.image not in %s{' GROUP BY LinkedTags.image' if many else ''}
-                                    ORDER BY RAND() LIMIT {'30' if many else '1'}""",(categorie,banned_files))
+                                    WHERE not Images.is_banned and not Images.under_review and (Tags.id=%s or Tags.name=%s) and Tags.is_over18={1 if over18 else 0}{gifstr} and LinkedTags.image not in %s{' GROUP BY LinkedTags.image' if many else ''}
+                                    ORDER BY RAND() LIMIT {'30' if many else '1'}""",(categorie,categorie,banned_files))
                 else:
                     await cur.execute(f"""SELECT Images.file,Images.extension,Tags.id,Tags.name FROM LinkedTags
                                     JOIN Images ON Images.file=LinkedTags.image
                                     JOIN Tags ON Tags.id=LinkedTags.tag_id
-                                    WHERE not Images.is_banned and not Images.under_review and {strcategory} and Tags.is_over18={1 if over18 else 0}{gifstr}{' GROUP BY LinkedTags.image' if many else ''}
-                                    ORDER BY RAND() LIMIT {'30' if many else '1'}""",categorie)
+                                    WHERE not Images.is_banned and not Images.under_review and (Tags.id=%s or Tags.name=%s) and Tags.is_over18={1 if over18 else 0}{gifstr}{' GROUP BY LinkedTags.image' if many else ''}
+                                    ORDER BY RAND() LIMIT {'30' if many else '1'}""",(categorie,categorie))
 
                 fetch=list(await cur.fetchall())
                 file=[]
                 picture=[]
                 for im in fetch:
                     file.append(im["file"]+im["extension"])
-                    picture.append("https://api.hori.ovh/image/"+im["file"]+im["extension"])
+                    picture.append("https://api.waifu.im/image/"+im["file"]+im["extension"])
                 if len(picture)<1:
                     print(f"This request for {categorie} ended in criteria error.")
-                    quart.abort(404,description="No ressources found.")
+                    quart.abort(404,description=f"Sorry there is no {typ} image matching your criteria with the tag : {categorie}. Please change the criteria or consider changing your tag.")
                 tag_id=fetch[0]['id']
                 tag_name=fetch[0]['name']
 
                 data={'code':200,'is_over18':over18,'tag_id':tag_id,'tag_name':tag_name,'file':file if len(file)>1 else file[0],'url':picture if len(picture)>1 else picture[0]}
                 return jsonify(data)
 
-    return quart.abort(404)
+    return quart.abort(404,f"Sorry there isn't any type named : {typ}. Please retry with either {' or '.join(autho)}.")
 
 @app.route('/fav/')
 @requires_token_authorization
@@ -240,7 +230,7 @@ async def fav_():
     default_tags={'ero':tags_nsfw,'all':tags_sfw}
     for im in images:
         filename=im['file']+im["extension"]
-        url=f"https://api.hori.ovh/image/{filename}"
+        url=f"https://api.waifu.im/image/{filename}"
         if not im["is_over18"]:
             if not im["name"] in tags_sfw:
                 newtag=copy.deepcopy(im)
@@ -258,7 +248,7 @@ async def fav_():
                 newtag['file']=[]
                 newtag['is_over18']=True if newtag['is_over18'] else False
                 newtag.update({'url':[]})
-                tags_sfw[im["name"]]=newtag
+                tags_nsfw[im["name"]]=newtag
             tags_nsfw[im["name"]]['url'].append(url)
             tags_nsfw[im["name"]]['file'].append(filename)
 
@@ -286,7 +276,7 @@ async def endpoints_():
 
 @app.route('/favicon.ico/')
 async def favicon():
-    return quart.wrappers.response.FileBody("/var/www/virtual_hosts/pics.hori.ovh/favicon/hori_final.ico")
+    return quart.wrappers.response.FileBody("../website/static/images/favico.png")
 
 if __name__ == "__main__":
     get_db.start()
