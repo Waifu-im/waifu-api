@@ -12,6 +12,7 @@ from quart import Quart,jsonify,request,current_app
 from werkzeug.exceptions import HTTPException
 from discord.ext import tasks
 import copy
+import aiohttp
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 loop=asyncio.get_event_loop()
 app = Quart(__name__)
@@ -28,6 +29,7 @@ with open("json/credentials.json",'r') as f:
 
 
 app.pool=None
+app.session=aiohttp.ClientSession()
 app.config['JSON_SORT_KEYS'] = False
 
 
@@ -49,18 +51,32 @@ def convert_bool(string):
     except:
         return None
     return string
-def methodandimage(method,image,user_id):
-    image=image.lower()
+
+def format_to_list(images):
+    if not images:
+        return []
+    images=images.lower()
     try:
-        image=[os.path.splitext(x)[0] for x in image.split(",")]
-        args=[(user_id,im) for im in image]
+        return [os.path.splitext(x)[0] for x in images.split(",")]
     except IndexError:
-        return None,None
-    if method.lower()=='insert':
+        return []
+
+async def wich_action(image,insert,delete,user_id,cursor):
+    async with app.pool.acquire() as conn:
+        async with conn.cursor() as cur:
+            for im in image:
+                await cursor.execute("SELECT image FROM FavImages WHERE user_id=%s and image=%s",(user_id,im))
+                rt=await cursor.fetchone()
+                if rt:
+                    delete.append(im)
+                else:
+                    insert.append(im)
+def methodandimage(image,user_id,insert=False,delete=False):
+    args=[(user_id,im) for im in image]
+    if insert:
         return "INSERT IGNORE INTO FavImages(user_id,image) VALUES(%s,%s)",args
-    elif method.lower()=='delete':
+    elif delete:
         return "DELETE FROM FavImages WHERE user_id=%s and image=%s",args
-    return None,None
 
 async def is_valid_token(token_header,request_perms=None):
     if not token_header:
@@ -212,19 +228,36 @@ async def fav_():
     token = token_header.split(" ")[1]
     rule = URLSafeSerializer(app.secret_key)
     info=rule.loads(token)
+    user_id=int(info['id'])
     user_secret=info["secret"]
+    username=None
     rqst_user=request.args.get('id')
-    user_id=rqst_user if rqst_user else int(info['id'])
-    #add or remove image part
-    querys=[]
-    insert=request.args.get('insert')
-    delete=request.args.get('delete')
-    if insert:
-        querys.append(methodandimage('insert',insert,user_id))
-    if delete:
-        querys.append(methodandimage('delete',delete,user_id))
+    if rqst_user:
+        try:
+            resp=await app.session.get(f'127.0.0.1:8033/userinfos/?id={rqst_user}')
+        except:
+            quart.abort(500)
+        if resp.status!=200:
+            quart.abort(500)
+        t=await resp.json()
+        user_id=t.get('id')
+        username=t.get('name')
+
     async with app.pool.acquire() as conn:
         async with conn.cursor(aiomysql.DictCursor) as cur:
+            if username:
+                await cur.execute("INSERT IGNORE INTO User(id,name) VALUES(%s,%s) ON DUPLICATE KEY UPDATE name=%s",(user_id,username,username))
+            querys=[]
+            insert=format_to_list(request.args.get('insert')) 
+            delete=format_to_list(request.args.get('delete')) 
+            toggle=format_to_list(request.args.get('toggle'))
+            if toggle:
+                await wich_action(toggle,insert,delete,user_id,cur)
+            if insert:
+                querys.append(methodandimage(insert,user_id,insert=True))
+            if delete:
+                querys.append(methodandimage(delete,user_id,delete=True))
+            
             for query in querys:
                 await cur.executemany(query[0],query[1])
             await cur.execute("""SELECT Images.extension,Tags.name,Tags.id,Tags.is_over18,Tags.description,Images.file,Images.dominant_color FROM FavImages
