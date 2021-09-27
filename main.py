@@ -71,11 +71,13 @@ async def wich_action(image,insert,delete,user_id,cursor):
                     delete.append(im)
                 else:
                     insert.append(im)
-def methodandimage(image,user_id,insert=False,delete=False):
-    args=[(user_id,im) for im in image]
+def methodandimage(user_id,insert=None,delete=None):
+    
     if insert:
+        args=[(user_id,im) for im in insert]
         return "INSERT IGNORE INTO FavImages(user_id,image) VALUES(%s,%s)",args
     elif delete:
+        args=[(user_id,im) for im in delete]
         return "DELETE FROM FavImages WHERE user_id=%s and image=%s",args
 
 async def is_valid_token(token_header,request_perms=None):
@@ -254,9 +256,9 @@ async def fav_():
             if toggle:
                 await wich_action(toggle,insert,delete,user_id,cur)
             if insert:
-                querys.append(methodandimage(insert,user_id,insert=True))
+                querys.append(methodandimage(user_id,insert=insert))
             if delete:
-                querys.append(methodandimage(delete,user_id,delete=True))
+                querys.append(methodandimage(user_id,delete=delete))
             
             for query in querys:
                 await cur.executemany(query[0],query[1])
