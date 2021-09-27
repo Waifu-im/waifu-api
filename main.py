@@ -14,7 +14,6 @@ from discord.ext import tasks
 import copy
 import aiohttp
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
-loop=asyncio.get_event_loop()
 app = Quart(__name__)
 
 app.asgi_app = ProxyHeadersMiddleware(app.asgi_app, trusted_hosts=["127.0.0.1"])
@@ -27,9 +26,12 @@ with open("json/credentials.json",'r') as f:
     db_name=dt['db_name']
     app.secret_key=dt['secret_key']
 
+async def create_session():
+    app.session=aiohttp.ClientSession()
 
 app.pool=None
-app.session=aiohttp.ClientSession()
+
+
 app.config['JSON_SORT_KEYS'] = False
 
 
@@ -51,21 +53,26 @@ def convert_bool(string):
     except:
         return None
     return string
+def remove_ext(images):
+    if isinstance(images,list):
+        return [os.path.splitext(x)[0] for x in images]
+    else:
+        return os.path.splitext(images)[0]
 
 def format_to_list(images):
     if not images:
         return []
-    images=images.lower()
-    try:
-        return [os.path.splitext(x)[0] for x in images.split(",")]
-    except IndexError:
-        return []
+
+    return [x for x in images.split(",")]
+ 
 
 async def wich_action(image,insert,delete,user_id,cursor):
+    if not image:
+        return
     async with app.pool.acquire() as conn:
         async with conn.cursor() as cur:
             for im in image:
-                await cursor.execute("SELECT image FROM FavImages WHERE user_id=%s and image=%s",(user_id,im))
+                await cursor.execute("SELECT image FROM FavImages WHERE user_id=%s and image=%s",(user_id,remove_ext(im)))
                 rt=await cursor.fetchone()
                 if rt:
                     delete.append(im)
@@ -236,7 +243,7 @@ async def fav_():
     rqst_user=request.args.get('id')
     if rqst_user:
         try:
-            resp=await app.session.get(f'127.0.0.1:8033/userinfos/?id={rqst_user}')
+            resp=await app.session.get(f'http://127.0.0.1:8033/userinfos/?id={rqst_user}')
         except:
             quart.abort(500)
         if resp.status!=200:
@@ -253,12 +260,11 @@ async def fav_():
             insert=format_to_list(request.args.get('insert')) 
             delete=format_to_list(request.args.get('delete')) 
             toggle=format_to_list(request.args.get('toggle'))
-            if toggle:
-                await wich_action(toggle,insert,delete,user_id,cur)
+            await wich_action(toggle,insert,delete,user_id,cur)
             if insert:
-                querys.append(methodandimage(user_id,insert=insert))
+                querys.append(methodandimage(user_id,insert=remove_ext(insert)))
             if delete:
-                querys.append(methodandimage(user_id,delete=delete))
+                querys.append(methodandimage(user_id,delete=remove_ext(delete)))
             
             for query in querys:
                 await cur.executemany(query[0],query[1])
@@ -269,7 +275,7 @@ async def fav_():
                                 WHERE not Images.is_banned
                                 and user_id=%s""",user_id)
             images=await cur.fetchall()
-    if not images:
+    if not images and not insert and not delete:
         quart.abort(404,description="You have no Gallery or it is now empty.")
     all_u=[]
     all_f=[]
@@ -319,6 +325,10 @@ async def fav_():
         files.update({'nsfw':tags_nsfw})
     if all_f and all_u:
         files.update({'file':all_f,'dominant_color':all_d,'url':all_u})
+    if insert:
+        files.update()
+    if delete or insert:
+        files.update({'inserted':insert if insert else [],'deleted':delete if delete else []})
     return jsonify(files)
 
 """endpoints with and without info"""
@@ -336,4 +346,6 @@ async def favicon():
 
 if __name__ == "__main__":
     get_db.start()
+    loop=asyncio.get_event_loop()
+    loop.create_task(create_session())
     loop.run_until_complete(app.run_task(port=8034))
