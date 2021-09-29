@@ -169,7 +169,7 @@ async def fav_():
             if insert:
                 querys.append(methodandimage(user_id,insert=insert))
             if delete:
-                querys.append(methodandimage(user_id,delete=insert))
+                querys.append(methodandimage(user_id,delete=delete))
             
             for query in querys:
                 await cur.executemany(query[0],query[1])
@@ -184,7 +184,7 @@ async def fav_():
         quart.abort(404,description="You have no Gallery or it is now empty.")
     tags_=db_to_json(images)
     if insert or delete:
-        return jsonify({'tags':tags_,'inserted':[i.filename for i in insert],'deleted':[d.filename for d in delete]})
+        return jsonify({'tags':tags_,'inserted':[i.fullfilename for i in insert],'deleted':[d.fullfilename for d in delete]})
     return jsonify(tags=tags_)
     
 
