@@ -178,7 +178,7 @@ async def fav_():
                                 JOIN LinkedTags ON LinkedTags.image=FavImages.image
                                 JOIN Tags on LinkedTags.tag_id=Tags.id
                                 WHERE not Images.is_banned
-                                and user_id=%s""",user_id)
+                                and user_id=%s ORDER BY Images.id DESC""",user_id)
             images=await cur.fetchall()
     if not images and not insert and not delete:
         quart.abort(404,description="You have no Gallery or it is now empty.")
