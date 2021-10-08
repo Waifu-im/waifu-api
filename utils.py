@@ -39,7 +39,6 @@ async def create_session(app):
 
 """converters"""
 def convert_bool(string):
-    print(string)
     string=string.lower()
     try:
         string=json.loads(string)
