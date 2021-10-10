@@ -1,11 +1,11 @@
-from utils import convert_bool,myendpoints,myendpoints_info,create_session,Tags,format_to_image,wich_action,methodandimage,db_to_json
+from utils import convert_bool,myendpoints,myendpoints_info,Tags,format_to_image,wich_action,methodandimage,db_to_json
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from itsdangerous import URLSafeSerializer, BadSignature
 from quart import Quart,jsonify,request,current_app
 from werkzeug.exceptions import HTTPException
 from discord.ext import tasks
+import asyncpg
 import functools
-import aiomysql
 import asyncio
 import aiohttp
 import random
@@ -25,18 +25,15 @@ with open("json/credentials.json",'r') as f:
     db_name=dt['db_name']
     app.secret_key=dt['secret_key']
 
+async def create_session(app):
+    app.session=aiohttp.ClientSession()
+    app.pool = await asyncpg.create_pool(user=db_user,password=db_password,host=db_ip,database=db_name)
+
 app.pool=None
 app.config['JSON_SORT_KEYS'] = False
 
 """tools"""
 
-@tasks.loop(minutes=30)
-async def get_db():
-    loop=asyncio.get_event_loop()
-    if app.pool:
-        await app.pool.clear()
-    else:
-        app.pool = await aiomysql.create_pool(user=db_user,password=db_password,host=db_ip,db=db_name,connect_timeout=10,loop=loop,autocommit=True)
 
 """error handlers"""
 @app.errorhandler(HTTPException)
@@ -75,17 +72,15 @@ async def is_valid_token(token_header,request_perms=None):
 
     else:
         async with app.pool.acquire() as conn:
-            async with conn.cursor() as cur:
-                if request_perms:
-                    perm_name="access_galleries"
-                    await cur.execute("SELECT User.is_admin,Permissions.page FROM User LEFT JOIN Permissions ON Permissions.user_id=User.id WHERE User.id=%s and User.secret=%s and (Permissions.page=%s or User.is_admin) ",(user_id,user_secret,perm_name))
-                else:
-                    await cur.execute("SELECT id,is_admin from User WHERE id=%s and secret=%s ",(user_id,user_secret))
-                authorized=await cur.fetchone()
-                if authorized:
-                    return True
-                else:
-                    quart.abort(403,description=f"Invalid Token, You do not have the permissions to request this route please check that the token is up to date{' and, as you requested the id url parameter that you have the permissions to do so' if request_perms else ''}.")
+            if request_perms:
+                perm_name="access_galleries"
+                authorized=await conn.fetchrow('SELECT "user".is_admin,Permissions.page FROM "user" LEFT JOIN Permissions ON Permissions.user_id="user".id WHERE "user".id=$1 and "user".secret=$2 and (Permissions.page=$3 or "user".is_admin) ',user_id,user_secret,perm_name)
+            else:
+                authorized=await conn.fetchrow('SELECT id,is_admin from "user" WHERE id=$1 and secret=$2 ',user_id,user_secret)
+            if authorized:
+                return True
+            else:
+                quart.abort(403,description=f"Invalid Token, You do not have the permissions to request this route please check that the token is up to date{' and, as you requested the id url parameter that you have the permissions to do so' if request_perms else ''}.")
 
 
 """Routes"""
@@ -96,8 +91,13 @@ async def principal(typ,categorie):
     banned_files=request.args.get("exclude",type=format_to_image)
     autho=["nsfw","sfw"]
     typ=typ.lower()
+    category_str=False
     categorie=str(categorie)
     categorie=categorie.lower()
+    try:
+        categorie=int(categorie)
+    except:
+        category_str=True
 
     if typ=="nsfw":
         over18=True
@@ -106,32 +106,30 @@ async def principal(typ,categorie):
 
     if typ in autho:        
         async with app.pool.acquire() as conn:
-            async with conn.cursor(aiomysql.DictCursor) as cur:
-                if gif==None:
-                    gifstr=""
-                elif gif:
-                    gifstr=" and Images.extension='.gif'"
-                else:
-                    gifstr=" and not Images.extension='.gif'"
-                if banned_files:
-                    await cur.execute(f"""SELECT Images.extension,Tags.name,Tags.id,Tags.is_over18,Tags.description,Images.file,Images.dominant_color FROM LinkedTags
-                                    JOIN Images ON Images.file=LinkedTags.image
-                                    JOIN Tags ON Tags.id=LinkedTags.tag_id
-                                    WHERE not Images.is_banned and not Images.under_review and (Tags.id=%s or Tags.name=%s) and Tags.is_over18={1 if over18 else 0}{gifstr} and LinkedTags.image not in %s{' GROUP BY LinkedTags.image' if many else ''}
-                                    ORDER BY RAND() LIMIT {'30' if many else '1'}""",(categorie,categorie,[im.filename for im in banned_files]))
-                else:
-                    await cur.execute(f"""SELECT Images.extension,Tags.name,Tags.id,Tags.is_over18,Tags.description,Images.file,Images.dominant_color FROM LinkedTags
-                                    JOIN Images ON Images.file=LinkedTags.image
-                                    JOIN Tags ON Tags.id=LinkedTags.tag_id
-                                    WHERE not Images.is_banned and not Images.under_review and (Tags.id=%s or Tags.name=%s) and Tags.is_over18={1 if over18 else 0}{gifstr}{' GROUP BY LinkedTags.image' if many else ''}
-                                    ORDER BY RAND() LIMIT {'30' if many else '1'}""",(categorie,categorie))
+            if gif==None:
+                gifstr=""
+            elif gif:
+                gifstr=" and Images.extension='.gif'"
+            else:
+                gifstr=" and not Images.extension='.gif'"
+            if banned_files:
+                fetch=await conn.fetch(f"""SELECT Images.file,Images.extension,Tags.name,Tags.id,Tags.is_nsfw,Tags.description,Images.dominant_color FROM LinkedTags
+                                JOIN Images ON Images.file=LinkedTags.image
+                                JOIN Tags ON Tags.id=LinkedTags.tag_id
+                                WHERE not Images.is_banned and not Images.under_review and {'Tags.name=$1' if category_str else 'Tags.id=$1'} and {'' if over18 else 'not '}Tags.is_nsfw{gifstr} and not LinkedTags.image = any($2::VARCHAR[])
+                                GROUP BY Images.file,Tags.name,Tags.is_nsfw ORDER BY RANDOM() LIMIT {'30' if many else '1'}""",categorie,[im.filename for im in banned_files])
+            else:
+                fetch=await conn.fetch(f"""SELECT Images.file,Images.extension,Tags.name,Tags.id,Tags.is_nsfw,Tags.description,Images.dominant_color FROM LinkedTags
+                                JOIN Images ON Images.file=LinkedTags.image
+                                JOIN Tags ON Tags.id=LinkedTags.tag_id
+                                WHERE not Images.is_banned and not Images.under_review and {'Tags.name=$1' if category_str else 'Tags.id=$1'} and {'' if over18 else 'not '}Tags.is_nsfw{gifstr}
+                                GROUP BY Images.file,Tags.id,Tags.name,Tags.is_nsfw ORDER BY RANDOM() LIMIT {'30' if many else '1'}""",categorie)
 
-                fetch=list(await cur.fetchall())
-                images=db_to_json(fetch)
-                if not images:
-                    print(f"This request for {categorie} ended in criteria error.")
-                    quart.abort(404,description=f"Sorry there is no {typ} image matching your criteria with the tag : {categorie}. Please change the criteria or consider changing your tag.")
-                return jsonify(code=200,tags=images)
+            images=db_to_json(fetch)
+            if not images:
+                print(f"This request for {categorie} ended in criteria error.")
+                quart.abort(404,description=f"Sorry there is no {typ} image matching your criteria with the tag : {categorie}. Please change the criteria or consider changing your tag.")
+            return jsonify(code=200,tags=images,url='https://api.waifu.im/image/oldjson.png')
 
     return quart.abort(404,f"Sorry there isn't any type named : {typ}. Please retry with either {' or '.join(autho)}.")
 
@@ -158,28 +156,26 @@ async def fav_():
         username=t.get('name')
 
     async with app.pool.acquire() as conn:
-        async with conn.cursor(aiomysql.DictCursor) as cur:
-            if username:
-                await cur.execute("INSERT IGNORE INTO User(id,name) VALUES(%s,%s) ON DUPLICATE KEY UPDATE name=%s",(user_id,username,username))
-            querys=[]
-            insert=request.args.get('insert',type=format_to_image,default=[])
-            delete=request.args.get('delete',type=format_to_image,default=[])
-            toggle=request.args.get('toggle',type=format_to_image)
-            await wich_action(app,toggle,insert,delete,user_id,cur)
-            if insert:
-                querys.append(methodandimage(user_id,insert=insert))
-            if delete:
-                querys.append(methodandimage(user_id,delete=delete))
-            
-            for query in querys:
-                await cur.executemany(query[0],query[1])
-            await cur.execute("""SELECT Images.extension,Tags.name,Tags.id,Tags.is_over18,Tags.description,Images.file,Images.dominant_color FROM FavImages
-                                JOIN Images ON Images.file=FavImages.image
-                                JOIN LinkedTags ON LinkedTags.image=FavImages.image
-                                JOIN Tags on LinkedTags.tag_id=Tags.id
-                                WHERE not Images.is_banned
-                                and user_id=%s ORDER BY Images.id DESC""",user_id)
-            images=await cur.fetchall()
+        if username:
+            await conn.execute('INSERT INTO "user"(id,name) VALUES($1,$2) ON CONFLICT(id) DO UPDATE SET name=$2',user_id,username)
+        querys=[]
+        insert=request.args.get('insert',type=format_to_image,default=[])
+        delete=request.args.get('delete',type=format_to_image,default=[])
+        toggle=request.args.get('toggle',type=format_to_image)
+        await wich_action(app,toggle,insert,delete,user_id,conn)
+        if insert:
+            querys.append(methodandimage(user_id,insert=insert))
+        if delete:
+            querys.append(methodandimage(user_id,delete=delete))
+        
+        for query in querys:
+            await conn.executemany(query[0],query[1])
+        images=await conn.fetch("""SELECT Images.extension,Tags.name,Tags.id,Tags.is_nsfw,Tags.description,Images.file,Images.dominant_color FROM FavImages
+                            JOIN Images ON Images.file=FavImages.image
+                            JOIN LinkedTags ON LinkedTags.image=FavImages.image
+                            JOIN Tags on LinkedTags.tag_id=Tags.id
+                            WHERE not Images.is_banned
+                            and user_id=$1 ORDER BY Images.id DESC""",user_id)
     if not images and not insert and not delete:
         quart.abort(404,description="You have no Gallery or it is now empty.")
     tags_=db_to_json(images)
@@ -191,18 +187,17 @@ async def fav_():
 """endpoints with and without info"""
 @app.route('/endpoints_info/')
 async def endpoints_info():
-    return jsonify(await myendpoints_info(over18=None))
+    return jsonify(await myendpoints_info(app,over18=None))
 
 @app.route('/endpoints/')
 async def endpoints_():
-    return jsonify(await myendpoints(over18=None))
+    return jsonify(await myendpoints(app,over18=None))
 
 @app.route('/favicon.ico/')
 async def favicon():
     return quart.wrappers.response.FileBody("../website/static/images/favico.png")
 
 if __name__ == "__main__":
-    get_db.start()
     loop=asyncio.get_event_loop()
     loop.create_task(create_session(app))
-    loop.run_until_complete(app.run_task(port=8038,host='0.0.0.0'))
+    loop.run_until_complete(app.run_task(port=8034))
