@@ -4,6 +4,7 @@ from itsdangerous import URLSafeSerializer, BadSignature
 from quart import Quart,jsonify,request,current_app
 from werkzeug.exceptions import HTTPException
 from discord.ext import tasks
+import time
 import asyncpg
 import functools
 import asyncio
@@ -71,16 +72,15 @@ async def is_valid_token(token_header,request_perms=None):
         quart.abort(403,description=f"Invalid Token, please check that you did correctly format it in the Authorization header and that the token is up to date.")
 
     else:
-        async with app.pool.acquire() as conn:
-            if request_perms:
-                perm_name="access_galleries"
-                authorized=await conn.fetchrow('SELECT "user".is_admin,Permissions.page FROM "user" LEFT JOIN Permissions ON Permissions.user_id="user".id WHERE "user".id=$1 and "user".secret=$2 and (Permissions.page=$3 or "user".is_admin) ',user_id,user_secret,perm_name)
-            else:
-                authorized=await conn.fetchrow('SELECT id,is_admin from "user" WHERE id=$1 and secret=$2 ',user_id,user_secret)
-            if authorized:
-                return True
-            else:
-                quart.abort(403,description=f"Invalid Token, You do not have the permissions to request this route please check that the token is up to date{' and, as you requested the id url parameter that you have the permissions to do so' if request_perms else ''}.")
+        if request_perms:
+            perm_name="access_galleries"
+            authorized=await app.pool.fetchrow('SELECT Registered_user.is_admin,Permissions.page FROM Registered_user LEFT JOIN Permissions ON Permissions.user_id=Registered_user.id WHERE Registered_user.id=$1 and Registered_user.secret=$2 and (Permissions.page=$3 or Registered_user.is_admin) ',user_id,user_secret,perm_name)
+        else:
+            authorized=await app.pool.fetchrow('SELECT id,is_admin from Registered_user WHERE id=$1 and secret=$2 ',user_id,user_secret)
+        if authorized:
+            return True
+        else:
+            quart.abort(403,description=f"Invalid Token, You do not have the permissions to request this route please check that the token is up to date{' and, as you requested the id url parameter that you have the permissions to do so' if request_perms else ''}.")
 
 
 """Routes"""
@@ -105,33 +105,33 @@ async def principal(typ,categorie):
         over18=False
 
     if typ in autho:        
-        async with app.pool.acquire() as conn:
-            if gif==None:
-                gifstr=""
-            elif gif:
-                gifstr=" and Images.extension='.gif'"
-            else:
-                gifstr=" and not Images.extension='.gif'"
-            if banned_files:
-                fetch=await conn.fetch(f"""SELECT Images.file,Images.extension,Tags.name,Tags.id,Tags.is_nsfw,Tags.description,Images.dominant_color FROM LinkedTags
-                                JOIN Images ON Images.file=LinkedTags.image
-                                JOIN Tags ON Tags.id=LinkedTags.tag_id
-                                WHERE not Images.is_banned and not Images.under_review and {'Tags.name=$1' if category_str else 'Tags.id=$1'} and {'' if over18 else 'not '}Tags.is_nsfw{gifstr} and not LinkedTags.image = any($2::VARCHAR[])
-                                GROUP BY Images.file,Tags.name,Tags.is_nsfw ORDER BY RANDOM() LIMIT {'30' if many else '1'}""",categorie,[im.filename for im in banned_files])
-            else:
-                fetch=await conn.fetch(f"""SELECT Images.file,Images.extension,Tags.name,Tags.id,Tags.is_nsfw,Tags.description,Images.dominant_color FROM LinkedTags
-                                JOIN Images ON Images.file=LinkedTags.image
-                                JOIN Tags ON Tags.id=LinkedTags.tag_id
-                                WHERE not Images.is_banned and not Images.under_review and {'Tags.name=$1' if category_str else 'Tags.id=$1'} and {'' if over18 else 'not '}Tags.is_nsfw{gifstr}
-                                GROUP BY Images.file,Tags.id,Tags.name,Tags.is_nsfw ORDER BY RANDOM() LIMIT {'30' if many else '1'}""",categorie)
+        if gif==None:
+            gifstr=""
+        elif gif:
+            gifstr=" and Images.extension='.gif'"
+        else:
+            gifstr=" and not Images.extension='.gif'"
+        if banned_files:
+            fetch=await app.pool.fetch(f"""SELECT Images.file,Images.extension,Tags.name,Tags.id,Tags.is_nsfw,Tags.description,Images.dominant_color,Images.source FROM LinkedTags
+                            JOIN Images ON Images.file=LinkedTags.image
+                            JOIN Tags ON Tags.id=LinkedTags.tag_id
+                            WHERE not Images.is_banned and not Images.under_review and {'Tags.name=$1' if category_str else 'Tags.id=$1'} and {'' if over18 else 'not '}Tags.is_nsfw{gifstr} and not LinkedTags.image = any($2::VARCHAR[])
+                            GROUP BY Images.file,Tags.name,Tags.is_nsfw ORDER BY RANDOM() LIMIT {'30' if many else '1'}""",categorie,[im.filename for im in banned_files])
+        else:
+            fetch=await app.pool.fetch(f"""SELECT Images.file,Images.extension,Tags.name,Tags.id,Tags.is_nsfw,Tags.description,Images.dominant_color,Images.source FROM LinkedTags
+                            JOIN Images ON Images.file=LinkedTags.image
+                            JOIN Tags ON Tags.id=LinkedTags.tag_id
+                            WHERE not Images.is_banned and not Images.under_review and {'Tags.name=$1' if category_str else 'Tags.id=$1'} and {'' if over18 else 'not '}Tags.is_nsfw{gifstr}
+                            GROUP BY Images.file,Tags.id,Tags.name,Tags.is_nsfw ORDER BY RANDOM() LIMIT {'30' if many else '1'}""",categorie)
 
-            images=db_to_json(fetch)
-            if not images:
-                print(f"This request for {categorie} ended in criteria error.")
-                quart.abort(404,description=f"Sorry there is no {typ} image matching your criteria with the tag : {categorie}. Please change the criteria or consider changing your tag.")
-            return jsonify(code=200,tags=images,url='https://api.waifu.im/image/oldjson.png')
+        images=db_to_json(fetch)
+        if not images:
+            print(f"This request for {categorie} ended in criteria error.")
+            quart.abort(404,description=f"Sorry there is no {typ} image matching your criteria with the tag : {categorie}. Please change the criteria or consider changing your tag.")
+        print([im['url'] for im in images[0]['images']])
+        return jsonify(code=200,tags=images,url='https://api.waifu.im/image/oldjson.png')
 
-    return quart.abort(404,f"Sorry there isn't any type named : {typ}. Please retry with either {' or '.join(autho)}.")
+    return quart.abort(404)
 
 @app.route('/fav/')
 @requires_token_authorization
@@ -157,7 +157,7 @@ async def fav_():
 
     async with app.pool.acquire() as conn:
         if username:
-            await conn.execute('INSERT INTO "user"(id,name) VALUES($1,$2) ON CONFLICT(id) DO UPDATE SET name=$2',user_id,username)
+            await conn.execute('INSERT INTO Registered_user(id,name) VALUES($1,$2) ON CONFLICT(id) DO UPDATE SET name=$2',user_id,username)
         querys=[]
         insert=request.args.get('insert',type=format_to_image,default=[])
         delete=request.args.get('delete',type=format_to_image,default=[])
@@ -170,7 +170,7 @@ async def fav_():
         
         for query in querys:
             await conn.executemany(query[0],query[1])
-        images=await conn.fetch("""SELECT Images.extension,Tags.name,Tags.id,Tags.is_nsfw,Tags.description,Images.file,Images.dominant_color FROM FavImages
+        images=await conn.fetch("""SELECT Images.extension,Tags.name,Tags.id,Tags.is_nsfw,Tags.description,Images.file,Images.dominant_color,Images.source FROM FavImages
                             JOIN Images ON Images.file=FavImages.image
                             JOIN LinkedTags ON LinkedTags.image=FavImages.image
                             JOIN Tags on LinkedTags.tag_id=Tags.id
@@ -183,6 +183,19 @@ async def fav_():
         return jsonify({'tags':tags_,'inserted':[i.fullfilename for i in insert],'deleted':[d.fullfilename for d in delete]})
     return jsonify(tags=tags_)
     
+@app.route("/info/")
+async def image_info():
+    images=request.args.get('images',type=format_to_image,default=[])
+    if not images:
+        quart.abort(404,description='You must provide a "images" url parameter.')
+    image_infos = await app.pool.fetch("""SELECT Images.extension,Tags.name,Tags.id,Tags.is_nsfw,Tags.description,Images.file,Images.dominant_color,Images.source FROM LinkedTags
+                            JOIN Images ON Images.file=LinkedTags.image
+                            JOIN Tags on LinkedTags.tag_id=Tags.id
+                            WHERE not Images.is_banned and LinkedTags.image = any($1::VARCHAR[])""",[image.filename for image in images])
+    if not image_infos:
+        quart.abort(404,description="Sorry you did not provide any valid filename.")
+    infos=db_to_json(image_infos)
+    return jsonify(tags=infos)
 
 """endpoints with and without info"""
 @app.route('/endpoints_info/')
