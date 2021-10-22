@@ -2,38 +2,34 @@ from werkzeug.datastructures import MultiDict
 import aiohttp
 import json
 import os
+import asyncpg
 
 
 """Endpoints infos"""
 async def myendpoints(app,over18=None):
     async with app.pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            await cur.execute("SELECT name,is_over18 FROM Tags")
-            rt=await cur.fetchall()
+        rt=await conn.fetch("SELECT * FROM Tags")
     
     if over18 is None:
-        return {"sfw":[tag[0] for tag in rt if not tag[1] and tag[0]!="example"],"nsfw":[tag[0] for tag in rt if tag[1]],'example':'https://api.waifu.im/sfw/waifu/'}
+        return {"sfw":[tag['name'] for tag in rt if not tag['is_nsfw'] ],"nsfw":[tag['name'] for tag in rt if tag['is_nsfw']],'example':'https://api.waifu.im/sfw/waifu/'}
     elif over18:
-        return [tag[0] for tag in rt if tag[1]]
+        return [tag['name'] for tag in rt if tag['is_nsfw']]
     else:
-        return [tag[0] for tag in rt if not tag[1]]
-
+        return [tag['name'] for tag in rt if not tag['is_nsfw']]
 
 async def myendpoints_info(app,over18=None):
     async with app.pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            await cur.execute("SELECT name,id,is_over18,description FROM Tags")
-            rt=await cur.fetchall()
+        rt=await conn.fetch("SELECT * FROM Tags")
     if over18 is None:
-        return {"sfw":[{'name':tag[0],'id':tag[1],'description':tag[3]} for tag in rt if not tag[2] and tag[0]!="example"],
-                "nsfw":[{'name':tag[0],'id':tag[1],'description':tag[3]} for tag in rt if tag[2]],'example':'https://api.waifu.im/sfw/waifu/'}
+        return {"sfw":[to_dict(tag) for tag in rt if not tag['is_nsfw']],
+                "nsfw":[to_dict(tag) for tag in rt if tag['is_nsfw']],'example':'https://api.waifu.im/sfw/waifu/'}
     elif over18:
-        return [{'name':tag[0],'id':tag[1],'description':tag[3]} for tag in rt if tag[2]]
+        return [to_dict(tag) for tag in rt if tag['is_nsfw']]
     else:
-        return [{'name':tag[0],'id':tag[1],'description':tag[3]} for tag in rt if not tag[2]]
+        return [to_dict(tag) for tag in rt if not tag['is_nsfw']]
 
-async def create_session(app):
-    app.session=aiohttp.ClientSession()
+
+    
 
 
 
@@ -56,42 +52,45 @@ def format_to_image(string):
     except:
         raise ValueError
 
-
+def to_dict(obj):
+    obj=dict(obj)
+    obj['id']=int(obj['id'])
+    return obj
 
 """Determine if an image is already or not in the User gallery for the toggle url param"""
 async def wich_action(app,image,insert,delete,user_id,cursor):
     if not image:
         return
     async with app.pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            for im in image:
-                await cursor.execute("SELECT image FROM FavImages WHERE user_id=%s and image=%s",(user_id,im.filename))
-                rt=await cursor.fetchone()
-                if rt:
-                    delete.append(im)
-                else:
-                    insert.append(im)
+        for im in image:
+            rt=await cursor.fetchrow("SELECT image FROM FavImages WHERE user_id=$1 and image=$2",user_id,im.filename)
+            if rt:
+                delete.append(im)
+            else:
+                insert.append(im)
 
 """Utils to format into apropriate sql qury"""
 def methodandimage(user_id,insert=None,delete=None):
     
     if insert:
         args=[(user_id,im.filename) for im in insert]
-        return "INSERT IGNORE INTO FavImages(user_id,image) VALUES(%s,%s)",args
+        return "INSERT INTO FavImages(user_id,image) VALUES($1,$2) ON CONFLICT (user_id,image) DO NOTHING",args
     elif delete:
         args=[(user_id,im.filename) for im in delete]
-        return "DELETE FROM FavImages WHERE user_id=%s and image=%s",args
+        return "DELETE FROM FavImages WHERE user_id=$1 and image=$2",args
 
 def db_to_json(images):
     tagmapping=[]
     for im in images:
-        tagmapping.append((Tags(im.pop('id'),im.pop('name'),im.pop('is_over18'),im.pop('description')),im))
+        im=dict(im)
+        im['id']=int(im['id'])
+        tagmapping.append((Tags(im.pop('id'),im.pop('name'),im.pop('is_nsfw'),im.pop('description')),im))
     tagmapping=MultiDict(tagmapping)
     default_tags=['ero','all']
     tags_=[]
     for tag,image in tagmapping.items():
         tag_images=tagmapping.getlist(tag.tag_id)
-        tag_images=[dict(t,**{'url':'https://api.waifu.im/image/'+t['file']+t['extension']}) for t in tag_images]
+        tag_images=[dict(t,**{'url':'https://cdn.waifu.im/'+t['file']+t['extension']}) for t in tag_images]
         tags_.append(dict(vars(tag),**{'images':tag_images}))
     return tags_
 
@@ -104,10 +103,10 @@ class Image:
         self.dominant_color=dominant_color
 
 class Tags:
-    def __init__(self,tag_id,name,is_over18,description):
+    def __init__(self,tag_id,name,is_nsfw,description):
         self.tag_id=tag_id
         self.name=name
-        self.is_over18=bool(is_over18)
+        self.is_nsfw=bool(is_nsfw)
         self.description=description
     def __hash__(self):
         return self.tag_id
