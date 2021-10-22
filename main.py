@@ -150,7 +150,7 @@ async def fav_():
         except:
             quart.abort(500)
         if resp.status!=200:
-            quart.abort(500)
+            quart.abort(resp.status)
         t=await resp.json()
         user_id=t.get('id')
         username=t.get('name')
