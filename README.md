@@ -1,5 +1,5 @@
 # WAIFU.IM
-### A really useful and easy to use API that allows you to get anime pictures between more than 10 tags and 4000 images !
+### A really useful and easy to use API that allows you to get anime pictures between more than 14 tags and 4000 images !
 
 The API has originally been created to be an alternative to [waifu.pics](https://github.com/Waifu-pics/waifu-api) because the API didnt match some of my requirement (lack of nsfw endpoint for example), therefore i decided to create this API.
 
