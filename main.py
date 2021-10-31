@@ -217,5 +217,5 @@ async def favicon():
 
 if __name__ == "__main__":
     loop=asyncio.get_event_loop()
-    loop.create_task(create_session(app))
+    loop.run_until_complete(create_session(app))
     loop.run_until_complete(app.run_task(port=8034))
