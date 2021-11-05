@@ -1,0 +1,18 @@
+[Unit]
+Description=API
+After=network-online.target
+Wants=network-online.target systemd-networkd-wait-online.service
+
+StartLimitIntervalSec=500
+StartLimitBurst=10
+
+[Service]
+Type=simple
+WorkingDirectory=/pah/to/cwdir/
+ExecStart=/path/to/venv/bin/hypercorn -b 127.0.0.1:8034 -w 9 main:app
+User=pi
+Restart=always
+StandardOutput=journal
+StandardError=journal
+[Install]
+WantedBy=multi-user.target
