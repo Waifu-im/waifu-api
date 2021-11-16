@@ -5,4 +5,4 @@ The API has originally been created to be an alternative to [waifu.pics](https:/
 Bit by bit the API has been improved and you can now compose a gallery of your favorite pictures, and even upload new ones. Note that any relevant upload is gladly welcomed.
 The API is really easy to use and thought so that any développer would have minimal things to change for every endpoint.
 
-Finally i would like to thanks JSH32(https://github.com/JSH32/) for his precious advices regarding the infrastructure when he didtn't even know me.
+Finally i would like to thanks [JSH32](https://github.com/JSH32/) for his precious advices regarding the infrastructure when he didtn't even know me.
