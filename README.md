@@ -7,8 +7,8 @@ WAIFU.IM has originally been created to be an alternative to [waifu.pics](https:
 
 ![The most popular sfw image at this time !](https://cdn.waifu.im/aa48cd9dc6b64367.jpg)
 
-##Website
+## Website
 You should visite the [website](https://waifu.im) to learn a bit more about waifu.im
 
-##Documentation
+## Documentation
 [here is the documentation](https://waifu.im/docs/)
