@@ -9,7 +9,7 @@ WAIFU.IM has originally been created to be an alternative to [waifu.pics](https:
 
 As you can add pictures to your Gallery we can provide you the top images of the API, here is the most popular one at the day I write this.
 
-[img src="https://cdn.waifu.im/aa48cd9dc6b64367.jpg" width="500">]("https://waifu.im/preview/?image=aa48cd9dc6b64367.jpg")
+[<img src="https://cdn.waifu.im/aa48cd9dc6b64367.jpg" width="500">]("https://waifu.im/preview/?image=aa48cd9dc6b64367.jpg")
 
 ## Website
 You should visite the [website](https://waifu.im) to learn a bit more about waifu.im
