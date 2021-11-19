@@ -5,6 +5,10 @@ An easy to use API that allows you to get waifu pictures between more than 14 ta
 
 WAIFU.IM has originally been created to be an alternative to [waifu.pics](https://waifu.pics), because it didn't match some of my requirements. Bit by bit waifu.im has been improved to an extent that makes me proud to say that it is probably one of the best waifu API. You can now compose a gallery of your favorite pictures, and even upload new ones. Note that any relevant upload is gladly welcomed. It is easy to use and well-thought-out so that most of the endpoints have the same json structure. Finally, I would like to thank [JSH32](https://github.com/JSH32) for his precious advice regarding the infrastructure when he did not even know me.
 
+## Top Images
+
+As you can add pictures to your Gallery we can provide you the top images of the API, here is the most popular one at the day I write this.
+
 <img src="https://cdn.waifu.im/aa48cd9dc6b64367.jpg" width="500">
 
 ## Website
