@@ -16,8 +16,11 @@ async def is_valid_token(request:Request,authorization: str = Header(None),reque
 
     else:
         if request_perms:
-            perm_name="access_galleries"
-            authorized=await request.app.state.pool.fetchrow('SELECT Registered_user.is_admin,Permissions.page FROM Registered_user LEFT JOIN Permissions ON Permissions.user_id=Registered_user.id WHERE Registered_user.id=$1 and Registered_user.secret=$2 and (Permissions.page=$3 or Registered_user.is_admin) ',user_id,user_secret,perm_name)
+            perm_name="manage_galleries"
+            authorized=await request.app.state.pool.fetchrow("""SELECT * from user_permissions
+JOIN permissions ON permissions.name=user_permissions.permission
+JOIN registered_user on registered_user.id=user_permissions.user_id
+WHERE registered_user.id=$1 and registered_user.secret=$2 and (permissions.name=$3 or permissions.position > (SELECT position from permissions where name=$3) or permissions.name='admin')""",user_id,user_secret,perm_name)
         else:
             authorized=await request.app.state.pool.fetchrow('SELECT id,is_admin from Registered_user WHERE id=$1 and secret=$2 ',user_id,user_secret)
         if authorized:
