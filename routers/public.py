@@ -39,18 +39,18 @@ async def principal(request:Request,itype: ImageType,category : str,gif:bool=Non
 
     database=time.perf_counter()
     if not banned_files:
-        fetch=await request.app.state.pool.fetch(f"""SELECT Images.file,Images.extension,Tags.name,Tags.id,Tags.is_nsfw,Tags.description,Images.dominant_color,Images.source FROM LinkedTags
+        fetch=await request.app.state.pool.fetch(f"""SELECT Images.file,Images.extension,Tags.name,Tags.id,Tags.is_nsfw,Tags.description,Images.dominant_color,Images.source,COUNT(FavImages.image) as like,Images.uploaded_at FROM LinkedTags
 JOIN Images ON Images.file=LinkedTags.image
 JOIN Tags ON Tags.id=LinkedTags.tag_id
-{'JOIN FavImages ON FavImages.image=LinkedTags.image' if top else ''}
+LEFT JOIN FavImages ON FavImages.image=LinkedTags.image
 WHERE not Images.is_banned and not Images.under_review and {'Tags.name=$1' if category_str else 'Tags.id=$1'} and {'' if over18 else 'not '}Tags.is_nsfw{gifstr}
 GROUP BY Images.file,Tags.id,Tags.name,Tags.is_nsfw ORDER BY {'count(Images.file) DESC' if top else 'RANDOM()' }  LIMIT {'30' if many else '1'}""",category)
     else:
         #somehow even providing a empty array increase database answer by a lot so i prefer to separate it for now.
-        fetch=await request.app.state.pool.fetch(f"""SELECT Images.file,Images.extension,Tags.name,Tags.id,Tags.is_nsfw,Tags.description,Images.dominant_color,Images.source FROM LinkedTags
+        fetch=await request.app.state.pool.fetch(f"""SELECT Images.file,Images.extension,Tags.name,Tags.id,Tags.is_nsfw,Tags.description,Images.dominant_color,Images.source,COUNT(FavImages.image) as like,Images.uploaded_at FROM LinkedTags
 JOIN Images ON Images.file=LinkedTags.image
 JOIN Tags ON Tags.id=LinkedTags.tag_id
-{'JOIN FavImages ON FavImages.image=LinkedTags.image' if top else ''}
+LEFT JOIN FavImages ON FavImages.image=LinkedTags.image
 WHERE not Images.is_banned and not Images.under_review and {'Tags.name=$1' if category_str else 'Tags.id=$1'} and {'' if over18 else 'not '}Tags.is_nsfw{gifstr} and not LinkedTags.image = any($2::VARCHAR[])
 GROUP BY Images.file,Tags.id,Tags.name,Tags.is_nsfw ORDER BY {'count(Images.file) DESC' if top else 'RANDOM()' }  LIMIT {'30' if many else '1'}""",category,[im.filename for im in banned_files])
     jsonformating=time.perf_counter()
@@ -68,14 +68,16 @@ GROUP BY Images.file,Tags.id,Tags.name,Tags.is_nsfw ORDER BY {'count(Images.file
 async def image_info(request:Request,images:str):
     """Image infos"""
     images=format_to_image(images)
-    image_infos = await request.app.state.pool.fetch("""SELECT Images.extension,Tags.name,Tags.id,Tags.is_nsfw,Tags.description,Images.file,Images.dominant_color,Images.source FROM LinkedTags
+    image_infos = await request.app.state.pool.fetch("""SELECT Images.file,Images.extension,Tags.name,Tags.id,Tags.is_nsfw,Tags.description,Images.dominant_color,Images.source,COUNT(FavImages.image) as like,Images.uploaded_at FROM LinkedTags
                             JOIN Images ON Images.file=LinkedTags.image
                             JOIN Tags on LinkedTags.tag_id=Tags.id
-                            WHERE not Images.is_banned and LinkedTags.image = any($1::VARCHAR[])""",[image.filename for image in images])
+                            LEFT JOIN FavImages ON FavImages.image=LinkedTags.image
+                            WHERE not Images.is_banned and LinkedTags.image = any($1::VARCHAR[])
+                            GROUP BY Images.file,Tags.id,Tags.name,Tags.id,Tags.is_nsfw""",[image.filename for image in images])
     if not image_infos:
         raise HTTPException(404,detail="Sorry you did not provide any valid filename.")
     infos=db_to_json(image_infos)
-    return dict(tags=infos)
+    return jsonable_encoder(dict(tags=infos))
 
 @router.get('/endpoints')
 @router.get('/endpoints/')
