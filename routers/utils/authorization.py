@@ -24,6 +24,7 @@ WHERE registered_user.id=$1 and registered_user.secret=$2 and (permissions.name=
         else:
             authorized=await request.app.state.pool.fetchrow('SELECT id,is_admin from Registered_user WHERE id=$1 and secret=$2 ',user_id,user_secret)
         if authorized:
+            request.state.user_id=user_id
             return info
         else:
             raise HTTPException(status_code=403,detail=f"Invalid Token, You do not have the permissions to request this route please check that the token is up to date{' and, as you requested the id url parameter that you have the permissions to do so' if request_perms else ''}.")
