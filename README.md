@@ -1,5 +1,5 @@
 # WAIFU.IM
-An easy to use API that allows you to get waifu pictures between more than 14 tags and 4000 images !
+ An easy to use API that allows you to get waifu pictures between a variety of different tags and more than 4000 images! 
 
 
 
