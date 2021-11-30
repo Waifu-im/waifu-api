@@ -63,5 +63,5 @@ async def add_logs(request: Request,call_next):
     return response
 
 async def log_request(request):
-    await request.app.state.pool.execute("INSERT INTO api_logs(remote_address,url,user_agent) VALUES($1,$2,$3)",request.client.host,str(request.url),request.headers['User-Agent'])
+    await request.app.state.pool.execute("INSERT INTO api_logs(remote_address,url,user_agent,user_id) VALUES($1,$2,$3,$4)",request.client.host,str(request.url),request.headers['User-Agent'],getattr(request.state,"user_id",None))
 
