@@ -46,7 +46,7 @@ async def fav_(request:Request,user_id:int=None,authorization: str = Header(None
                             and user_id=$1 ORDER BY added_at DESC""",token_user_id)
     if not images and not insert and not delete:
         raise HTTPException(status_code=404,detail="You have no Gallery or it is empty.")
-    tags_=db_to_json(images,tag_mod=True)
+    images_=db_to_json(images)
     if insert or delete:
-        return dict({'tags':tags_,'inserted':[i.filename for i in insert],'deleted':[d.filename for d in delete]})
-    return dict(tags=tags_)
+        return dict({'images':images_,'inserted':[i.filename for i in insert],'deleted':[d.filename for d in delete]})
+    return dict(images=images_)
