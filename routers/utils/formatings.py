@@ -74,7 +74,7 @@ def format_to_image(string):
 async def myendpoints(app,over18=None):
     rt=await app.state.pool.fetch("SELECT * FROM Tags")
     if over18 is None:
-        return {"sfw":[tag['name'] for tag in rt if not tag['is_nsfw'] ],"nsfw":[tag['name'] for tag in rt if tag['is_nsfw']],'example':'https://api.waifu.im/sfw/waifu/'}
+        return {"sfw":[tag['name'] for tag in rt if not tag['is_nsfw'] ],"nsfw":[tag['name'] for tag in rt if tag['is_nsfw']]}
     elif over18:
         return [tag['name'] for tag in rt if tag['is_nsfw']]
     else:
@@ -84,7 +84,7 @@ async def myendpoints_info(app,over18=None):
     rt= await app.state.pool.fetch("SELECT * FROM Tags")
     if over18 is None:
         return {"sfw":[tag for tag in rt if not tag['is_nsfw']],
-                "nsfw":[tag for tag in rt if tag['is_nsfw']],'example':'https://api.waifu.im/sfw/waifu/'}
+                "nsfw":[tag for tag in rt if tag['is_nsfw']]}
     elif over18:
         return [tag for tag in rt if tag['is_nsfw']]
     else:
