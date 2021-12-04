@@ -137,7 +137,6 @@ JOIN Tags ON Tags.id=LinkedTags.tag_id
         print(f"This request for {category} ended in criteria error.")
         raise HTTPException(status_code=404,detail=f"Sorry there is no {itype} image matching your criteria with the tag : {category}. Please change the criteria or consider changing your tag.")
     print(f"Files :"+'\n'.join([im['file']+im['extension'] for im in images]))
-    print(images)
     return JSONResponse(dict(code=200,images=images))
 
 @router.get("/info")
@@ -174,4 +173,3 @@ async def endpoints_(request:Request,full:bool=False):
 async def test_():
     """A test route to see the difference in response time with and without a sql query"""
     return dict(message="this is a test")
-
