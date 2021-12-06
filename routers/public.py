@@ -29,13 +29,11 @@ async def overall(request:Request,gif:bool=None,top:bool=None,many:bool=None,exc
     if not banned_files:
         fetch=await request.app.state.pool.fetch(f"""
 SELECT DISTINCT Q.file,Q.extension,Q.image_id,Q.like,Q.dominant_color,Q.source,Q.uploaded_at,Tags.name,Tags.id,Tags.is_nsfw,Tags.description
-FROM (SELECT {'DISTINCT' if top else ''} Images.file,Images.extension,Images.id as image_id,Images.dominant_color,Images.source,Images.uploaded_at, COUNT(FavImages.image) as like
-    FROM LinkedTags
-    JOIN Images ON Images.file=LinkedTags.image
-    JOIN Tags ON Tags.id=LinkedTags.tag_id
+FROM (SELECT file,extension,id as image_id, COUNT(FavImages.image) as like,dominant_color,source,uploaded_at
+    FROM Images
     LEFT JOIN FavImages ON FavImages.image=Images.file
     WHERE not Images.is_banned and not Images.under_review {gifstr}
-    GROUP BY Images.file,Images.extension,image_id,Images.dominant_color,Images.source,Images.uploaded_at,LinkedTags.tag_id
+    GROUP BY Images.file
     ORDER BY {'COUNT(FavImages.image) DESC' if top else 'RANDOM()'}
     LIMIT {'30' if many else '1'}
     ) AS Q
@@ -46,13 +44,11 @@ JOIN Tags ON Tags.id=LinkedTags.tag_id
         # Somehow even providing a empty array increase database response time by a lot so I prefer to separate it to avoid long response time for nothing.
         fetch=await request.app.state.pool.fetch(f"""
 SELECT DISTINCT Q.file,Q.extension,Q.image_id,Q.like,Q.dominant_color,Q.source,Q.uploaded_at,Tags.name,Tags.id,Tags.is_nsfw,Tags.description
-FROM (SELECT Images.file,Images.extension,Images.id as image_id,Images.dominant_color,Images.source,Images.uploaded_at, COUNT(FavImages.image) as like
-    FROM LinkedTags
-    JOIN Images ON Images.file=LinkedTags.image
-    JOIN Tags ON Tags.id=LinkedTags.tag_id
+FROM (SELECT file,extension,id as image_id, COUNT(FavImages.image) as like,dominant_color,source,uploaded_at
+    FROM Images
     LEFT JOIN FavImages ON FavImages.image=Images.file
     WHERE not Images.is_banned and not Images.under_review {gifstr} and not Images.file = any($2::VARCHAR[])
-    GROUP BY Images.file,LinkedTags.tag_id
+    GROUP BY Images.file
     ORDER BY {'COUNT(FavImages.image) DESC' if top else 'RANDOM()'}
     LIMIT {'30' if many else '1'}
     ) AS Q
@@ -146,13 +142,12 @@ async def image_info(request:Request,images:str):
     images=format_to_image(images)
     image_infos = await request.app.state.pool.fetch("""
 SELECT DISTINCT Q.file,Q.extension,Q.image_id,Q.like,Q.dominant_color,Q.source,Q.uploaded_at,Tags.name,Tags.id,Tags.is_nsfw,Tags.description
-FROM (SELECT Images.file,Images.extension,Images.id as image_id,Images.dominant_color,Images.source,Images.uploaded_at, COUNT(FavImages.image) as like
-    FROM LinkedTags
-    JOIN Images ON Images.file=LinkedTags.image
-    JOIN Tags ON Tags.id=LinkedTags.tag_id
+FROM (SELECT file,extension,id as image_id, COUNT(FavImages.image) as like,dominant_color,source,uploaded_at
+    FROM Images
     LEFT JOIN FavImages ON FavImages.image=Images.file
-    WHERE not Images.is_banned and not Images.under_review and Images.file = any($1::VARCHAR[])
-    GROUP BY Images.file,LinkedTags.tag_id
+    WHERE not Images.is_banned and not Images.under_review and Images.file = any($2::VARCHAR[])
+    GROUP BY Images.file
+    LIMIT {'30' if many else '1'}
     ) AS Q
 JOIN LinkedTags ON LinkedTags.image=Q.file
 JOIN Tags ON Tags.id=LinkedTags.tag_id""",[image.filename for image in images])
@@ -173,3 +168,5 @@ async def endpoints_(request:Request,full:bool=False):
 async def test_():
     """A test route to see the difference in response time with and without a sql query"""
     return dict(message="this is a test")
+
+
