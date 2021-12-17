@@ -1,7 +1,4 @@
 from fastapi import APIRouter, Request, HTTPException, Header, Depends
-from fastapi.responses import JSONResponse
-from fastapi.encoders import jsonable_encoder
-from itsdangerous import URLSafeSerializer, BadSignature
 from fastapi_limiter.depends import RateLimiter
 from .utils import (
     format_to_image,
