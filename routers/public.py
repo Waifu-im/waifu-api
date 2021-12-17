@@ -46,8 +46,7 @@ async def overall(
     banned_files = None
     if exclude:
         try:
-            banned_files = format_to_image(exclude)
-            banned_files += last_images.get()
+            banned_files = format_to_image(exclude+","+",".join(last_images.get()))
         except:
             banned_files = None
 
@@ -119,8 +118,7 @@ async def principal(
     banned_files = None
     if exclude:
         try:
-            banned_files = format_to_image(exclude)
-            banned_files += last_images.get()
+            banned_files = format_to_image(exclude+","+",".join(last_images.get()))
         except:
             banned_files = None
     category_str = False
