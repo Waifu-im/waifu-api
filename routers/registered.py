@@ -13,6 +13,7 @@ from .utils import (
 
 router = APIRouter()
 
+
 @router.get(
     "/fav",
     dependencies=[

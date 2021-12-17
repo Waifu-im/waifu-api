@@ -19,6 +19,7 @@ import time
 last_images = ImageQueue(MANY_LIMIT)
 router = APIRouter()
 
+
 @router.get(
     "/random",
     dependencies=[
