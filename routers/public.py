@@ -12,9 +12,10 @@ from .utils import (
     perrate,
     blacklist_callback,
     MANY_LIMIT,
+    ImageQueue
 )
 import time
-
+last_images = ImageQueue(MANY_LIMIT)
 router = APIRouter()
 """Routes"""
 
@@ -46,6 +47,7 @@ async def overall(
     if exclude:
         try:
             banned_files = format_to_image(exclude)
+            banned_files += last_images.get()
         except:
             banned_files = None
 
@@ -82,7 +84,9 @@ JOIN Tags ON Tags.id=LinkedTags.tag_id
             status_code=404,
             detail=f"Sorry there is no image matching your criteria. Please change the criteria.",
         )
-    print(f"Files :" + "\n".join([im["file"] + im["extension"] for im in images]))
+    images_to_return=[im["file"] + im["extension"] for im in images]
+    print(f"Files :" + "\n".join(images_to_return))
+    last_images.put(images_to_return)
     return JSONResponse(dict(code=200, images=images))
 
 
@@ -116,6 +120,7 @@ async def principal(
     if exclude:
         try:
             banned_files = format_to_image(exclude)
+            banned_files += last_images.get()
         except:
             banned_files = None
     category_str = False
@@ -167,7 +172,9 @@ JOIN Tags ON Tags.id=LinkedTags.tag_id
             status_code=404,
             detail=f"Sorry there is no {itype} image matching your criteria with the tag : {category}. Please change the criteria or consider changing your tag.",
         )
-    print(f"Files :" + "\n".join([im["file"] + im["extension"] for im in images]))
+    images_to_return=[im["file"] + im["extension"] for im in images]
+    print(f"Files :" + "\n".join(images_to_return))
+    last_images.put(images_to_return)
     return JSONResponse(dict(code=200, images=images))
 
 
