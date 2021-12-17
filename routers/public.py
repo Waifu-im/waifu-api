@@ -12,11 +12,9 @@ from .utils import (
     perrate,
     blacklist_callback,
     MANY_LIMIT,
-    ImageQueue,
 )
 import time
 
-last_images = ImageQueue(MANY_LIMIT)
 router = APIRouter()
 
 
@@ -44,7 +42,7 @@ async def overall(
     exclude: str = "",
 ):
     banned_files = None
-    exclude += "," + ",".join(last_images.get())
+    exclude += "," + ",".join(await request.app.state.last_images.get())
     if exclude:
         try:
             banned_files = format_to_image(exclude)
@@ -86,7 +84,7 @@ JOIN Tags ON Tags.id=LinkedTags.tag_id
         )
     images_to_return = [im["file"] + im["extension"] for im in images]
     print(f"Files :" + "\n".join(images_to_return))
-    last_images.put(images_to_return)
+    await request.app.state.last_images.put(images_to_return)
     return JSONResponse(dict(code=200, images=images))
 
 
@@ -117,7 +115,7 @@ async def principal(
 ):
     """Get a random image"""
     banned_files = None
-    exclude += "," + ",".join(last_images.get())
+    exclude += "," + ",".join(await request.app.state.last_images.get())
     if exclude:
         try:
             banned_files = format_to_image(exclude)
@@ -174,7 +172,7 @@ JOIN Tags ON Tags.id=LinkedTags.tag_id
         )
     images_to_return = [im["file"] + im["extension"] for im in images]
     print(f"Files :" + "\n".join(images_to_return))
-    last_images.put(images_to_return)
+    await request.app.state.last_images.put(images_to_return)
     return JSONResponse(dict(code=200, images=images))
 
 

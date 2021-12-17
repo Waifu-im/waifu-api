@@ -7,19 +7,20 @@ class ImageType(str, Enum):
 
 
 class ImageQueue:
-    """Add images to a queue and get 30 most recent files returned to avoid displaying"""
+    """Add images to a queue and get maxsize most recent files returned to avoid displaying"""
 
-    def __init__(self, maxsize):
-        self._queue = []
+    def __init__(self, redis, listname, maxsize):
+        self._redis = redis
         self.maxsize = maxsize
+        self.listname = listname
 
-    def put(self, item):
-        if isinstance(item, list):
-            self._queue = item + self._queue[0:len(item) + 1]
-            del self._queue[self.maxsize + 1:]
-        else:
-            self._queue.insert(0, item)
-            del self._queue[self.maxsize + 1:]
+    async def put(self, item):
+        async with self._redis.pipeline(transaction=True) as pipe:
+            await (
+                pipe.lpush(self.listname, *item if isinstance(item, list) else item)
+                .ltrim(self.listname, 0, self.maxsize - 1)
+                .execute()
+            )
 
-    def get(self):
-        return self._queue
+    async def get(self):
+        return await self._redis.lrange(self.listname, 0, -1)
