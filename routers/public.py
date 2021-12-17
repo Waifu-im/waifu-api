@@ -41,9 +41,10 @@ async def overall(
     gif: bool = None,
     top: bool = None,
     many: bool = None,
-    exclude: str = None,
+    exclude: str = "",
 ):
     banned_files = None
+    exclude+= "," + ",".join(last_images.get())
     if exclude:
         try:
             banned_files = format_to_image(exclude+","+",".join(last_images.get()))
@@ -112,10 +113,11 @@ async def principal(
     gif: bool = None,
     top: bool = None,
     many: bool = None,
-    exclude: str = None,
+    exclude: str = "",
 ):
     """Get a random image"""
     banned_files = None
+    exclude += "," + ",".join(last_images.get())
     if exclude:
         try:
             banned_files = format_to_image(exclude+","+",".join(last_images.get()))
