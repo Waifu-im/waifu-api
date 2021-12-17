@@ -16,9 +16,7 @@ from .utils import (
     blacklist_callback,
 )
 
-
 router = APIRouter()
-
 
 @router.get(
     "/fav",
