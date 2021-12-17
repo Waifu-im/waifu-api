@@ -8,7 +8,7 @@ An easy to use API that allows you to get waifu pictures from an archive of over
 
 ## Top Images
 
-As users can add pictures to their galleries, we recieve information about the top images, here's the most popular one at the day I write this.
+As users can add pictures to their galleries, we receive information about the top images, here's the most popular one at the day I write this.
 
 [<img src="https://cdn.waifu.im/aa48cd9dc6b64367.jpg" width="500">]("https://waifu.im/preview/?image=aa48cd9dc6b64367.jpg")
 
