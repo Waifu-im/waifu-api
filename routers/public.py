@@ -67,7 +67,7 @@ LEFT JOIN FavImages ON FavImages.image=Images.file
 WHERE not Images.under_review {gifstr} {"and Images.file not in ("+",".join(["'"+im.filename+"'" for im in banned_files])+")" if banned_files else ""}
 GROUP BY Images.file
 ORDER BY {'COUNT(FavImages.image) DESC' if top else 'RANDOM()'}
-LIMIT {MANY_LIMIT if many else '1'}
+LIMIT {MANY_LIMIT if many else 1}
 ) AS Q
 JOIN LinkedTags ON LinkedTags.image=Q.file
 JOIN Tags ON Tags.id=LinkedTags.tag_id
@@ -153,7 +153,7 @@ LEFT JOIN FavImages ON FavImages.image=Images.file
 WHERE not Images.under_review and {'Tags.name=$1' if category_str else 'Tags.id=$1'} and {'' if over18 else 'not '}Tags.is_nsfw {gifstr} {"and Images.file not in ("+",".join(["'"+im.filename+"'" for im in banned_files])+")" if banned_files else ""}
 GROUP BY Images.file,LinkedTags.tag_id
 ORDER BY {'COUNT(FavImages.image) DESC' if top else 'RANDOM()'}
-LIMIT {MANY_LIMIT if many else '1'}
+LIMIT {MANY_LIMIT if many else 1}
 ) AS Q
 JOIN LinkedTags ON LinkedTags.image=Q.file
 JOIN Tags ON Tags.id=LinkedTags.tag_id

@@ -1,1 +1,1 @@
-MANY_LIMIT = "30"
+MANY_LIMIT = 30
