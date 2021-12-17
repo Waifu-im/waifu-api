@@ -7,8 +7,6 @@ from .utils import (
     format_to_image,
     db_to_json,
     is_valid_token,
-    myendpoints,
-    myendpoints_info,
     wich_action,
     create_query,
     timesrate,
