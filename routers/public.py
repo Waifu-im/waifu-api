@@ -15,10 +15,9 @@ from .utils import (
     ImageQueue
 )
 import time
+
 last_images = ImageQueue(MANY_LIMIT)
 router = APIRouter()
-"""Routes"""
-
 
 @router.get(
     "/random",
