@@ -12,7 +12,7 @@ from .utils import (
     perrate,
     blacklist_callback,
     MANY_LIMIT,
-    ImageQueue
+    ImageQueue,
 )
 import time
 
@@ -44,10 +44,10 @@ async def overall(
     exclude: str = "",
 ):
     banned_files = None
-    exclude+= "," + ",".join(last_images.get())
+    exclude += "," + ",".join(last_images.get())
     if exclude:
         try:
-            banned_files = format_to_image(exclude+","+",".join(last_images.get()))
+            banned_files = format_to_image(exclude)
         except:
             banned_files = None
 
@@ -84,7 +84,7 @@ JOIN Tags ON Tags.id=LinkedTags.tag_id
             status_code=404,
             detail=f"Sorry there is no image matching your criteria. Please change the criteria.",
         )
-    images_to_return=[im["file"] + im["extension"] for im in images]
+    images_to_return = [im["file"] + im["extension"] for im in images]
     print(f"Files :" + "\n".join(images_to_return))
     last_images.put(images_to_return)
     return JSONResponse(dict(code=200, images=images))
@@ -120,7 +120,7 @@ async def principal(
     exclude += "," + ",".join(last_images.get())
     if exclude:
         try:
-            banned_files = format_to_image(exclude+","+",".join(last_images.get()))
+            banned_files = format_to_image(exclude)
         except:
             banned_files = None
     category_str = False
@@ -172,7 +172,7 @@ JOIN Tags ON Tags.id=LinkedTags.tag_id
             status_code=404,
             detail=f"Sorry there is no {itype} image matching your criteria with the tag : {category}. Please change the criteria or consider changing your tag.",
         )
-    images_to_return=[im["file"] + im["extension"] for im in images]
+    images_to_return = [im["file"] + im["extension"] for im in images]
     print(f"Files :" + "\n".join(images_to_return))
     last_images.put(images_to_return)
     return JSONResponse(dict(code=200, images=images))
