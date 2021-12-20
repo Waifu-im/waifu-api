@@ -22,20 +22,15 @@ from routers.utils import (
     db_ip,
     db_name,
     secret_key,
-    timesrate,
-    perrate,
     default_identifier,
     default_callback,
+    MANY_LIMIT,
+    ImageQueue,
 )
-
-
-"""App initalization"""
 
 app = FastAPI(docs_url=None, redoc_url=None)
 app.include_router(public.router)
 app.include_router(registered.router)
-aiosession = None
-pool = None
 
 
 @app.on_event("startup")
@@ -56,6 +51,7 @@ async def create_session():
     await FastAPILimiter.init(
         redis, identifier=default_identifier, callback=default_callback
     )
+    app.state.last_images = ImageQueue(redis, "api_last_images", MANY_LIMIT)
 
 
 @app.on_event("shutdown")
