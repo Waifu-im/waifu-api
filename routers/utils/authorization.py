@@ -8,7 +8,7 @@ import asyncio
 
 """Get database credentials and ratelimit"""
 
-with open("json/credentials.json", "r") as f:
+with open("private/json/credentials.json", "r") as f:
     dt = json.load(f)
     db_user = dt["db_user"]
     db_password = dt["db_password"]
