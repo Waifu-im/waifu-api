@@ -104,7 +104,8 @@ async def is_valid_token(
         if request_perms:
             perm_name = "manage_galleries"
             authorized = await request.app.state.pool.fetchrow(
-                """SELECT * from user_permissions
+                """
+SELECT * from user_permissions
 JOIN permissions ON permissions.name=user_permissions.permission
 JOIN registered_user on registered_user.id=user_permissions.user_id
 WHERE registered_user.id=$1 and registered_user.secret=$2 and (permissions.name=$3 or permissions.position > (SELECT position from permissions where name=$3) or permissions.name='admin')""",
