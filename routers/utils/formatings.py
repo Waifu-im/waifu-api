@@ -102,7 +102,7 @@ async def wich_action(image, insert, delete, user_id, conn):
         rt = await conn.fetchrow(
             "SELECT image FROM FavImages WHERE user_id=$1 and image=$2",
             user_id,
-            im.filename,
+            im.file,
         )
         if rt:
             delete.append(im)
@@ -115,11 +115,11 @@ async def wich_action(image, insert, delete, user_id, conn):
 
 def create_query(user_id, insert=None, delete=None):
     if insert:
-        args = [(user_id, im.filename) for im in insert]
+        args = [(user_id, im.filen) for im in insert]
         return (
             "INSERT INTO FavImages(user_id,image) VALUES($1,$2) ON CONFLICT (user_id,image) DO NOTHING",
             args,
         )
     elif delete:
-        args = [(user_id, im.filename) for im in delete]
+        args = [(user_id, im.file) for im in delete]
         return "DELETE FROM FavImages WHERE user_id=$1 and image=$2", args
