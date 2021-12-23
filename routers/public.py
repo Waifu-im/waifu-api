@@ -42,7 +42,8 @@ async def overall(
     exclude: str = "",
 ):
     banned_files = None
-    exclude += "," + ",".join(await request.app.state.last_images.get())
+    if not (gif or top):
+        exclude += "," + ",".join(await request.app.state.last_images.get())
     if exclude:
         try:
             banned_files = format_to_image(exclude)
@@ -84,7 +85,8 @@ JOIN Tags ON Tags.id=LinkedTags.tag_id
         )
     images_to_return = [im["file"] + im["extension"] for im in images]
     print(f"Files :" + "\n".join(images_to_return))
-    await request.app.state.last_images.put(images_to_return)
+    if not (gif or top):
+        await request.app.state.last_images.put(images_to_return)
     return JSONResponse(dict(code=200, images=images))
 
 
@@ -115,7 +117,8 @@ async def principal(
 ):
     """Get a random image"""
     banned_files = None
-    exclude += "," + ",".join(await request.app.state.last_images.get())
+    if not (gif or top):
+        exclude += "," + ",".join(await request.app.state.last_images.get())
     if exclude:
         try:
             banned_files = format_to_image(exclude)
@@ -172,7 +175,8 @@ JOIN Tags ON Tags.id=LinkedTags.tag_id
         )
     images_to_return = [im["file"] + im["extension"] for im in images]
     print(f"Files :" + "\n".join(images_to_return))
-    await request.app.state.last_images.put(images_to_return)
+    if not (gif or top):
+        await request.app.state.last_images.put(images_to_return)
     return JSONResponse(dict(code=200, images=images))
 
 
