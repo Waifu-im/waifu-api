@@ -116,6 +116,7 @@ async def principal(
     exclude: str = "",
 ):
     """Get a random image"""
+    over18 = False
     banned_files = None
     if not (gif or top):
         exclude += "," + ",".join(await request.app.state.last_images.get())
@@ -127,18 +128,11 @@ async def principal(
     category_str = False
     category = category.lower()
     try:
-        category = int(categorie)
+        category = int(category)
     except:
         category_str = True
     if itype == ImageType.nsfw:
         over18 = True
-    else:
-        over18 = False
-    if category == 14 or category == "all":
-        raise HTTPException(
-            status_code=404,
-            detail=f"Sorry, the all tag has been removed since it do not makes sense to keep it anymore, and can lead to missunderstandings. the default tag for sfw will be waifu.",
-        )
     if gif is None:
         gifstr = ""
     elif gif:
@@ -171,7 +165,7 @@ JOIN Tags ON Tags.id=LinkedTags.tag_id
         print(f"This request for {category} ended in criteria error.")
         raise HTTPException(
             status_code=404,
-            detail=f"Sorry there is no {itype} image matching your criteria with the tag : {category}. Please change the criteria or consider changing your tag.",
+            detail=f"Sorry there is no {itype} image matching your criteria with the tag : '{category}'. Please change the criteria or consider changing your tag.",
         )
     images_to_return = [im["file"] + im["extension"] for im in images]
     print(f"Files :" + "\n".join(images_to_return))
