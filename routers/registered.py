@@ -78,7 +78,16 @@ async def fav_(
             querys.append(create_query(token_user_id, delete=delete))
 
         for query in querys:
-            await conn.executemany(query[0], query[1])
+            try:
+                await conn.executemany(query[0], query[1])
+            except asyncpg.exceptions.ForeignKeyViolationError:
+                raise HTTPException(
+                    status_code=400, detail="Sorry I cannot insert a non-existing image."
+                )
+            except asyncpg.exceptions.UniqueViolationError:
+                raise HTTPException(
+                    status_code=400, detail="Sorry one of the images you provided is already in the user gallery, please consider using 'toggle' query string."
+                ) 
         images = await conn.fetch(
             """SELECT Images.extension,Tags.name,Tags.id,Tags.is_nsfw,Tags.description,Images.file,Images.id as image_id,Images.dominant_color,Images.source, (SELECT COUNT(FavImages.image) FROM FavImages WHERE image=Images.file) as like, Images.uploaded_at,FavImages.added_at FROM FavImages
                             JOIN Images ON Images.file=FavImages.image
