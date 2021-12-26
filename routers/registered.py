@@ -10,6 +10,7 @@ from .utils import (
     perrate,
     blacklist_callback,
 )
+import asyncpg
 
 router = APIRouter()
 
