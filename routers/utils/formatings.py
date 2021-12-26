@@ -117,7 +117,7 @@ def create_query(user_id, insert=None, delete=None):
     if insert:
         args = [(user_id, im.file) for im in insert]
         return (
-            "INSERT INTO FavImages(user_id,image) VALUES($1,$2) ON CONFLICT (user_id,image) DO NOTHING",
+            "INSERT INTO FavImages(user_id,image) VALUES($1,$2)",
             args,
         )
     elif delete:
