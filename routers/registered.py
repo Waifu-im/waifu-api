@@ -77,10 +77,10 @@ async def fav_(
             querys.append(create_query(token_user_id, insert=insert))
         if delete:
             querys.append(create_query(token_user_id, delete=delete))
-
-        for query in querys:
+        async with conn.transaction():
             try:
-                await conn.executemany(query[0], query[1])
+                for query in querys:
+                    await conn.executemany(query[0], query[1])
             except asyncpg.exceptions.ForeignKeyViolationError:
                 raise HTTPException(
                     status_code=400, detail="Sorry I cannot insert a non-existing image."
