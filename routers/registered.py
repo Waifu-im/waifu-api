@@ -3,14 +3,13 @@ from fastapi_limiter.depends import RateLimiter
 from .utils import (
     format_to_image,
     db_to_json,
-    is_valid_token,
+    CheckPermissions,
     wich_action,
     create_query,
     timesrate,
     perrate,
     blacklist_callback,
 )
-import asyncpg
 
 router = APIRouter()
 
@@ -34,8 +33,7 @@ router = APIRouter()
 async def fav_(
     request: Request,
     user_id: int = None,
-    authorization: str = Header(None),
-    info: dict = Depends(is_valid_token),
+    info: dict = Depends(CheckPermissions(["manage_galleries"])),
     insert: str = None,
     delete: str = None,
     toggle: str = None,
@@ -77,18 +75,9 @@ async def fav_(
             querys.append(create_query(token_user_id, insert=insert))
         if delete:
             querys.append(create_query(token_user_id, delete=delete))
-        async with conn.transaction():
-            try:
-                for query in querys:
-                    await conn.executemany(query[0], query[1])
-            except asyncpg.exceptions.ForeignKeyViolationError:
-                raise HTTPException(
-                    status_code=400, detail="Sorry I cannot insert a non-existing image."
-                )
-            except asyncpg.exceptions.UniqueViolationError:
-                raise HTTPException(
-                    status_code=400, detail="Sorry one of the images you provided is already in the user gallery, please consider using 'toggle' query string."
-                ) 
+
+        for query in querys:
+            await conn.executemany(query[0], query[1])
         images = await conn.fetch(
             """SELECT Images.extension,Tags.name,Tags.id,Tags.is_nsfw,Tags.description,Images.file,Images.id as image_id,Images.dominant_color,Images.source, (SELECT COUNT(FavImages.image) FROM FavImages WHERE image=Images.file) as like, Images.uploaded_at,FavImages.added_at FROM FavImages
                             JOIN Images ON Images.file=FavImages.image
