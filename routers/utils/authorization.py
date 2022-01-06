@@ -6,9 +6,10 @@ import json
 import math
 import asyncio
 
-"""Get database credentials and ratelimit"""
+
 
 with open("private/json/credentials.json", "r") as f:
+    """Get database credentials and ratelimit"""
     dt = json.load(f)
     db_user = dt["db_user"]
     db_password = dt["db_password"]
@@ -18,11 +19,8 @@ with open("private/json/credentials.json", "r") as f:
     timesrate = dt["timesrate"]
     perrate = dt["perrate"]
 
-
-"""Write new ip to nginx configuration"""
-
-
 def APIblacklist(IP, reason):
+    """Write new ip to nginx configuration"""
     with open("/etc/nginx/blacklist/api.conf", "r") as f:
         lines = f.readlines()
         inlines = False
@@ -42,10 +40,11 @@ def APIblacklist(IP, reason):
     return inlines
 
 
-"""Callback and ip identifier for ratelimit"""
+
 
 
 async def default_identifier(request: Request):
+    """IP identifier for ratelimit"""
     path = request.scope["path"]
     if not path.endswith("/"):
         path += "/"
@@ -69,6 +68,7 @@ async def default_callback(request: Request, response: Response, pexpire: int):
 
 
 async def blacklist_callback(request: Request, response: Response, pexpire: int):
+    """Auto-blacklist callback for ratelimit"""
     loop = asyncio.get_event_loop()
     loop.run_in_executor(None, APIblacklist, request.client.host, "Automatic blacklist")
     raise HTTPException(
@@ -77,10 +77,8 @@ async def blacklist_callback(request: Request, response: Response, pexpire: int)
     )
 
 
-"""Token verification"""
-
-
 class CheckPermissions:
+    """Token and permissions verification"""
     def __init__(self, permissions):
         self.permissions = (
             permissions if isinstance(permissions, (list, tuple)) else (permissions,)
