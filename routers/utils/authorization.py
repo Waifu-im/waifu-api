@@ -6,8 +6,6 @@ import json
 import math
 import asyncio
 
-
-
 with open("private/json/credentials.json", "r") as f:
     """Get database credentials and ratelimit"""
     dt = json.load(f)
@@ -19,6 +17,7 @@ with open("private/json/credentials.json", "r") as f:
     timesrate = dt["timesrate"]
     perrate = dt["perrate"]
 
+    
 def APIblacklist(IP, reason):
     """Write new ip to nginx configuration"""
     with open("/etc/nginx/blacklist/api.conf", "r") as f:
@@ -38,9 +37,6 @@ def APIblacklist(IP, reason):
     )
     process.wait()
     return inlines
-
-
-
 
 
 async def default_identifier(request: Request):
