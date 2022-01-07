@@ -10,7 +10,7 @@ from utils import (
     myendpoints_info,
     timesrate,
     perrate,
-    blacklist_callback,
+    blacklist_callbac,
     MANY_LIMIT,
 )
 import time
