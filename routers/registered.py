@@ -38,7 +38,7 @@ router = APIRouter()
 async def fav_(
     request: Request,
     user_id: int = None,
-    info: dict = Depends(CheckPermissions(["manage_galleries"])),
+    info: dict = Depends(CheckPermissions(["manage_galleries"], grant_no_user=True)),
     insert: str = None,
     delete: str = None,
     toggle: str = None,
