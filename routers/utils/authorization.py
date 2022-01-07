@@ -94,14 +94,14 @@ class CheckPermissions:
             )
         info = await self.decode_token(request.app.state.secret_key, authorization)
 
-        if not grant_no_user or user_id:
+        if not self.grant_no_user or user_id:
             allowed_user = await self.has_permissions(
                 request, info["id"], info["secret"], user_id
             )
         else:
             allowed_user = await self.is_valid_token()
         await request.app.state.pool.release(self.connection)
-        if allowed_user
+        if allowed_user:
             return info
         raise HTTPException(
             status_code=403,
