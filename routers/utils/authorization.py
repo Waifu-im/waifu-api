@@ -17,7 +17,7 @@ with open("private/json/credentials.json", "r") as f:
     timesrate = dt["timesrate"]
     perrate = dt["perrate"]
 
-    
+
 def APIblacklist(IP, reason):
     """Write new ip to nginx configuration"""
     with open("/etc/nginx/blacklist/api.conf", "r") as f:
@@ -75,6 +75,7 @@ async def blacklist_callback(request: Request, response: Response, pexpire: int)
 
 class CheckPermissions:
     """Token and permissions verification"""
+
     def __init__(self, permissions):
         self.permissions = (
             permissions if isinstance(permissions, (list, tuple)) else (permissions,)

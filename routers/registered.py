@@ -1,6 +1,10 @@
+import os
+import urllib
+import asyncpg
+
 from fastapi import APIRouter, Request, HTTPException, Header, Depends
 from fastapi_limiter.depends import RateLimiter
-from utils import (
+from .utils import (
     format_to_image,
     db_to_json,
     CheckPermissions,
@@ -9,6 +13,7 @@ from utils import (
     timesrate,
     perrate,
     blacklist_callback,
+    get_user_info,
 )
 
 router = APIRouter()
@@ -40,24 +45,11 @@ async def fav_(
 ):
     """gallerys endpoint"""
     token_user_id = int(info["id"])
-    token_user_secret = info["secret"]
     username = None
     if user_id:
-        resp = await request.app.state.httpsession.get(
-            f"http://127.0.0.1:8033/userinfos/?id={user_id}"
-        )
-        if resp.status == 404:
-            raise HTTPException(
-                status_code=400, detail="Please provide a valid user_id"
-            )
-        if resp.status != 200:
-            raise HTTPException(
-                status_code=500,
-                detail="Sorry, something went wrong with the ipc request.",
-            )
-        t = await resp.json()
+        t = await get_user_info(request.app.state.httpsession, user_id)
         token_user_id = t.get("id")
-        username = t.get("name")
+        username = t.get("full_name")
 
     async with request.app.state.pool.acquire() as conn:
         if username:
@@ -76,8 +68,20 @@ async def fav_(
         if delete:
             querys.append(create_query(token_user_id, delete=delete))
 
-        for query in querys:
-            await conn.executemany(query[0], query[1])
+        async with conn.transaction():
+            try:
+                for query in querys:
+                    await conn.executemany(query[0], query[1])
+            except asyncpg.exceptions.ForeignKeyViolationError:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Sorry you cannot insert a non-existing image.",
+                )
+            except asyncpg.exceptions.UniqueViolationError:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Sorry one of the images you provided is already in the user gallery, please consider using 'toggle' query string.",
+                )
         images = await conn.fetch(
             """SELECT Images.extension,Tags.name,Tags.id,Tags.is_nsfw,Tags.description,Images.file,Images.id as image_id,Images.dominant_color,Images.source, (SELECT COUNT(FavImages.image) FROM FavImages WHERE image=Images.file) as like, Images.uploaded_at,FavImages.added_at FROM FavImages
                             JOIN Images ON Images.file=FavImages.image
@@ -100,3 +104,66 @@ async def fav_(
             }
         )
     return dict(images=images_)
+
+
+@router.get(
+    "/report",
+    status_code=201,
+    dependencies=[
+        Depends(
+            RateLimiter(times=timesrate, seconds=perrate, callback=blacklist_callback)
+        )
+    ],
+)
+@router.get(
+    "/report/",
+    status_code=201,
+    dependencies=[
+        Depends(
+            RateLimiter(times=timesrate, seconds=perrate, callback=blacklist_callback)
+        )
+    ],
+)
+async def report(
+    request: Request,
+    image: str,
+    user_id: int = None,
+    description: str = None,
+    info: dict = Depends(CheckPermissions(["report"])),
+):
+    existed = False
+    image_name = os.path.splitext(image)[0]
+    async with request.app.state.pool.acquire() as conn:
+        if user_id:
+            t = await get_user_info(request.app.state.httpsession, user_id)
+            await conn.execute(
+                "INSERT INTO Registered_user(id,name) VALUES($1,$2) ON CONFLICT(id) DO UPDATE SET name=$2",
+                user_id,
+                t.get("full_name"),
+            )
+        else:
+            user_id = info["id"]
+        try:
+            await conn.execute(
+                "INSERT INTO Reported_images (image,author_id,description) VALUES ($"
+                "1,$2,$3)",
+                image_name,
+                user_id,
+                description if not description else urllib.parse.unquote(description),
+            )
+        except asyncpg.exceptions.ForeignKeyViolationError:
+            raise HTTPException(
+                status_code=400, detail="Sorry you cannot report a non-existing image."
+            )
+        except asyncpg.exceptions.UniqueViolationError:
+            existed = True
+            res = await conn.fetchrow(
+                "SELECT * FROM Reported_images WHERE image=$1", image_name
+            )
+            image_name = res["image"]
+            user_id = res["author_id"]
+            description = res["description"]
+
+    return dict(
+        image=image_name, author_id=user_id, description=description, existed=existed
+    )

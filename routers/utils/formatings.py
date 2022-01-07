@@ -1,7 +1,8 @@
 import os
 from werkzeug.datastructures import MultiDict
 from fastapi.encoders import jsonable_encoder
-from .types import Image,PartialImage,Tags
+from .types import Image, PartialImage, Tags
+
 
 def db_to_json(images, tag_mod=False):
     if tag_mod:
@@ -92,10 +93,8 @@ async def myendpoints_info(app, over18=None):
         return [tag for tag in rt if not tag["is_nsfw"]]
 
 
-"""Determine if an image is already or not in the User gallery for the toggle url param"""
-
-
 async def wich_action(image, insert, delete, user_id, conn):
+    """Determine if an image is already or not in the User gallery for the toggle url param"""
     if not image:
         return
     for im in image:
@@ -110,10 +109,8 @@ async def wich_action(image, insert, delete, user_id, conn):
             insert.append(im)
 
 
-"""Utils to format into apropriate sql query"""
-
-
 def create_query(user_id, insert=None, delete=None):
+    """Utils to format into apropriate sql query"""
     if insert:
         args = [(user_id, im.file) for im in insert]
         return (

@@ -18,8 +18,8 @@ class ImageQueue:
         async with self._redis.pipeline(transaction=True) as pipe:
             await (
                 pipe.lpush(self.listname, *item if isinstance(item, list) else item)
-                    .ltrim(self.listname, 0, self.maxsize - 1)
-                    .execute()
+                .ltrim(self.listname, 0, self.maxsize - 1)
+                .execute()
             )
 
     async def get(self):
