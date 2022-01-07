@@ -9,8 +9,6 @@ from fastapi import FastAPI, Depends, Request
 from starlette.background import BackgroundTask
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.responses import JSONResponse
-import uvicorn
-from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 import aiohttp
 from fastapi_limiter import FastAPILimiter
 

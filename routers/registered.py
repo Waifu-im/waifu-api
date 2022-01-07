@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Request, HTTPException, Header, Depends
 from fastapi_limiter.depends import RateLimiter
-from .utils import (
+from utils import (
     format_to_image,
     db_to_json,
     CheckPermissions,
