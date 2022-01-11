@@ -65,7 +65,7 @@ SELECT DISTINCT Q.file,Q.extension,Q.image_id,Q.like,Q.dominant_color,Q.source,Q
 FROM (SELECT file,extension,id as image_id, COUNT(FavImages.image) as like,dominant_color,source,uploaded_at
 FROM Images
 LEFT JOIN FavImages ON FavImages.image=Images.file
-WHERE not Images.under_review {gifstr} {"and Images.file not in ("+",".join(["'"+im.file+"'" for im in banned_files])+")" if banned_files else ""}
+WHERE not Images.under_review and not Images.hidden {gifstr} {"and Images.file not in ("+",".join(["'"+im.file+"'" for im in banned_files])+")" if banned_files else ""}
 GROUP BY Images.file
 ORDER BY {'COUNT(FavImages.image) DESC' if top else 'RANDOM()'}
 LIMIT {MANY_LIMIT if many else 1}
@@ -154,7 +154,7 @@ FROM LinkedTags
 JOIN Images ON Images.file=LinkedTags.image
 JOIN Tags ON Tags.id=LinkedTags.tag_id
 LEFT JOIN FavImages ON FavImages.image=Images.file
-WHERE not Images.under_review and {'Tags.name=$1' if category_str else 'Tags.id=$1'} and {'' if over18 else 'not '}Tags.is_nsfw {gifstr} {"and Images.file not in ("+",".join(["'"+im.file+"'" for im in banned_files])+")" if banned_files else ""}
+WHERE not Images.under_review and not Images.hidden and {'Tags.name=$1' if category_str else 'Tags.id=$1'} and {'' if over18 else 'not '}Tags.is_nsfw {gifstr} {"and Images.file not in ("+",".join(["'"+im.file+"'" for im in banned_files])+")" if banned_files else ""}
 GROUP BY Images.file,LinkedTags.tag_id
 ORDER BY {'COUNT(FavImages.image) DESC' if top else 'RANDOM()'}
 LIMIT {MANY_LIMIT if many else 1}
