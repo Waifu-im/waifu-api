@@ -99,7 +99,9 @@ class CheckPermissions:
                 request, info["id"], info["secret"], user_id
             )
         else:
-            allowed_user = await self.is_valid_token()
+            allowed_user = await self.is_valid_token(
+                info['id'], info['secret']
+            )
         await request.app.state.pool.release(self.connection)
         if allowed_user:
             return info
