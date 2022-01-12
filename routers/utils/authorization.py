@@ -126,7 +126,7 @@ class CheckPermissions:
                 detail=f"Invalid Token, please check that you did correctly format it in the Authorization header and that the token is up to date.",
             )
 
-    async def is_valid_token(token_user_id, secret):
+    async def is_valid_token(self, token_user_id, secret):
         return bool(
             await self.connection.fetchrow(
                 "SELECT id from Registered_user WHERE id=$1 and secret=$2 ",
