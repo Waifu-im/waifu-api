@@ -42,13 +42,13 @@ async def overall(
     exclude: str = "",
 ):
     banned_files = None
-    if not (gif or top):
-        exclude += "," + ",".join(await request.app.state.last_images.get())
     if exclude:
         try:
             banned_files = format_to_image(exclude)
         except:
-            banned_files = None
+            raise HTTPException(400, detail="Sorry the string you passed for exclude query string was probably to large (max 1700).")
+    if not (gif or top):
+        banned_files += format_to_image(",".join(await request.app.state.last_images.get()))
 
     if gif is None:
         gifstr = ""
@@ -117,13 +117,13 @@ async def principal(
 ):
     """Get a random image"""
     banned_files = None
-    if not (gif or top):
-        exclude += "," + ",".join(await request.app.state.last_images.get())
     if exclude:
         try:
             banned_files = format_to_image(exclude)
         except:
-            banned_files = None
+            raise HTTPException(400, detail="Sorry the string you passed for exclude query string was probably to large (max 1700).")
+    if not (gif or top):
+        banned_files += format_to_image(",".join(await request.app.state.last_images.get()))
     category_str = False
     category = category.lower()
     try:
@@ -201,7 +201,7 @@ async def image_info(request: Request, images: str):
     try:
         images = format_to_image(images)
     except:
-        raise HTTPException(404, detail="Sorry the string you passed was probably to large (max 1700).")
+        raise HTTPException(400, detail="Sorry the string you passed for images query string was probably to large (max 1700).")
     image_infos = await request.app.state.pool.fetch(
         f"""
 SELECT DISTINCT Q.file,Q.extension,Q.image_id,Q.like,Q.dominant_color,Q.source,Q.uploaded_at,Tags.name,Tags.id,Tags.is_nsfw,Tags.description
