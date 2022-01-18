@@ -5,7 +5,7 @@ import asyncpg
 from fastapi import APIRouter, Request, HTTPException, Header, Depends
 from fastapi_limiter.depends import RateLimiter
 from .utils import (
-    format_image_limit,
+    FORMAT_IMAGE_LIMIT,
     format_to_image,
     db_to_json,
     CheckPermissions,
@@ -65,7 +65,7 @@ async def fav_(
             delete = format_to_image(delete)
             toggle = format_to_image(toggle)
         except:
-            raise HTTPException(404, detail=f"Sorry the string you passed for either insert, delete or toggle query string was probably too large (max: {format_image_limit}).")
+            raise HTTPException(404, detail=f"Sorry the string you passed for either insert, delete or toggle query string was probably too large (max: {FORMAT_IMAGE_LIMIT}).")
         await wich_action(toggle, insert, delete, token_user_id, conn)
         if insert:
             querys.append(create_query(token_user_id, insert=insert))
