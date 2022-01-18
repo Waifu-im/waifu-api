@@ -104,6 +104,7 @@ class CheckPermissions:
             )
         await request.app.state.pool.release(self.connection)
         if allowed_user:
+            request.state.user_id = info['id']
             return info
         raise HTTPException(
             status_code=403,
