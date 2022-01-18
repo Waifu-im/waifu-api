@@ -42,7 +42,7 @@ async def overall(
     many: bool = None,
     exclude: str = "",
 ):
-    banned_files = None
+    banned_files = []
     if exclude:
         try:
             banned_files = format_to_image(exclude)
@@ -117,7 +117,7 @@ async def principal(
     exclude: str = "",
 ):
     """Get a random image"""
-    banned_files = None
+    banned_files = []
     if exclude:
         try:
             banned_files = format_to_image(exclude)
