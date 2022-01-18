@@ -64,7 +64,7 @@ async def fav_(
             delete = format_to_image(delete)
             toggle = format_to_image(toggle)
         except:
-            raise HTTPException(404, detail="Sorry the string you passed was probably to large (max 1700).")
+            raise HTTPException(404, detail="Sorry the string you passed for either insert, delete or toggle query string was probably to large (max 1700).")
         await wich_action(toggle, insert, delete, token_user_id, conn)
         if insert:
             querys.append(create_query(token_user_id, insert=insert))
