@@ -3,7 +3,7 @@ from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from fastapi_limiter.depends import RateLimiter
 from .utils import (
-    format_image_limit,
+    FORMAT_IMAGE_LIMIT,
     format_to_image,
     ImageType,
     db_to_json,
@@ -47,7 +47,7 @@ async def overall(
         try:
             banned_files = format_to_image(exclude)
         except:
-            raise HTTPException(400, detail=f"Sorry the string you passed for exclude query string was probably too large (max: {format_image_limit}).")
+            raise HTTPException(400, detail=f"Sorry the string you passed for exclude query string was probably too large (max: {FORMAT_IMAGE_LIMIT}).")
     if not (gif or top):
         banned_files += format_to_image(",".join(await request.app.state.last_images.get()))
 
@@ -122,7 +122,7 @@ async def principal(
         try:
             banned_files = format_to_image(exclude)
         except:
-            raise HTTPException(400, detail=f"Sorry the string you passed for exclude query string was probably to large (max: {format_image_limit}).")
+            raise HTTPException(400, detail=f"Sorry the string you passed for exclude query string was probably to large (max: {FORMAT_IMAGE_LIMIT}).")
     if not (gif or top):
         banned_files += format_to_image(",".join(await request.app.state.last_images.get()))
     category_str = False
@@ -202,7 +202,7 @@ async def image_info(request: Request, images: str):
     try:
         images = format_to_image(images)
     except:
-        raise HTTPException(400, detail=f"Sorry the string you passed for images query string was probably to large (max: {format_image_limit}).")
+        raise HTTPException(400, detail=f"Sorry the string you passed for images query string was probably to large (max: {FORMAT_IMAGE_LIMIT}).")
     image_infos = await request.app.state.pool.fetch(
         f"""
 SELECT DISTINCT Q.file,Q.extension,Q.image_id,Q.like,Q.dominant_color,Q.source,Q.uploaded_at,Tags.name,Tags.id,Tags.is_nsfw,Tags.description
