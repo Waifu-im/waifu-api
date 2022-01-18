@@ -2,6 +2,7 @@ import os
 from werkzeug.datastructures import MultiDict
 from fastapi.encoders import jsonable_encoder
 from .types import Image, PartialImage, Tags
+from .constants import FORMAT_IMAGE_LIMIT
 
 
 def db_to_json(images, tag_mod=False):
@@ -59,7 +60,7 @@ def is_sql_injection(string):
 def format_to_image(string):
     if not string:
         return []
-    if len(string) > 1700:
+    if len(string) > FORMAT_IMAGE_LIMIT:
         raise ValueError
     cleaned_images = []
     for potential_im in string.lower().split(","):
