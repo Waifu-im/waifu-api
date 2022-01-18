@@ -1,2 +1,2 @@
 MANY_LIMIT = 30
-format_image_limit = 1700
+FORMAT_IMAGE_LIMIT = 1700
