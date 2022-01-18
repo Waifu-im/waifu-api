@@ -198,7 +198,10 @@ JOIN Tags ON Tags.id=LinkedTags.tag_id
 )
 async def image_info(request: Request, images: str):
     """Image infos"""
-    images = format_to_image(images)
+    try:
+        images = format_to_image(images)
+    except:
+        raise HTTPException(404, detail="Sorry the string you passed was probably to large (max 1700).")
     image_infos = await request.app.state.pool.fetch(
         f"""
 SELECT DISTINCT Q.file,Q.extension,Q.image_id,Q.like,Q.dominant_color,Q.source,Q.uploaded_at,Tags.name,Tags.id,Tags.is_nsfw,Tags.description
