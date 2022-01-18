@@ -59,6 +59,8 @@ def is_sql_injection(string):
 def format_to_image(string):
     if not string:
         return []
+    if len(string) > 1700:
+        raise ValueError
     cleaned_images = []
     for potential_im in string.lower().split(","):
         if is_sql_injection(potential_im) or not potential_im:
