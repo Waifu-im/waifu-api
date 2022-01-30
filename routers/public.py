@@ -209,7 +209,7 @@ SELECT DISTINCT Q.file,Q.extension,Q.image_id,Q.like,Q.dominant_color,Q.source,Q
 FROM (SELECT file,extension,id as image_id, COUNT(FavImages.image) as like,dominant_color,source,uploaded_at
     FROM Images
     LEFT JOIN FavImages ON FavImages.image=Images.file
-    WHERE not Images.under_review and Images.file in ({",".join(["'"+im.filename+"'" for im in images])})
+    WHERE not Images.under_review and Images.file in ({",".join(["'"+im.file+"'" for im in images])})
     GROUP BY Images.file
     ) AS Q
 JOIN LinkedTags ON LinkedTags.image=Q.file
