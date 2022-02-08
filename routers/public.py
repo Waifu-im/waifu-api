@@ -191,7 +191,7 @@ async def image_info(request: Request, images: str):
         "FROM (SELECT file,extension,id as image_id, COUNT(FavImages.image) as like,dominant_color,source,uploaded_at "
         "FROM Images "
         "LEFT JOIN FavImages ON FavImages.image=Images.file "
-        f"WHERE not Images.under_review and Images.file in ({format_image_list(images)})""
+        f"WHERE not Images.under_review and Images.file in ({format_image_list(images)})"
         "GROUP BY Images.file) AS Q "
         "JOIN LinkedTags ON LinkedTags.image=Q.file JOIN Tags ON Tags.id=LinkedTags.tag_id"
     )
