@@ -15,7 +15,7 @@ def format_gif(is_gif):
 
 
 def format_tag(tag):
-    return 'Tags.name=$1' if tag.isdecimal() else 'Tags.id=$1'
+    return 'Tags.id=$1' if tag.isdecimal() else 'Tags.name=$1'
 
 
 def format_image_type(image_type):
@@ -24,7 +24,7 @@ def format_image_type(image_type):
 
 
 def format_image_list(image_list):
-    return ',' + ''.join(["'" + im.file + "'" for im in image_list])
+    return ','.join(["'" + im.file + "'" for im in image_list])
 
 
 def db_to_json(images, tag_mod=False):

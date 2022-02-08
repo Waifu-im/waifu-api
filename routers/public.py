@@ -60,11 +60,12 @@ async def overall(
     fetch = await request.app.state.pool.fetch(
         "SELECT DISTINCT Q.file,Q.extension,Q.image_id,Q.like,Q.dominant_color,Q.source,Q.uploaded_at,Tags.name,"
         "Tags.id,Tags.is_nsfw,Tags.description "
-        "FROM (SELECT file,extension,id as image_id, COUNT(FavImages.image) as like,dominant_color,source,uploaded_at "
+        "FROM ("
+        "SELECT file,extension,id as image_id, COUNT(FavImages.image) as like,dominant_color,source,uploaded_at "
         "FROM Images LEFT JOIN FavImages ON FavImages.image=Images.file "
         f"WHERE not Images.under_review and not Images.hidden {format_gif(gif)} "
         f"{f'and Images.file not in ({format_image_list(banned_files)})' if banned_files else ''} "
-        "GROUP BY Images.file"
+        "GROUP BY Images.file "
         f"ORDER BY {'COUNT(FavImages.image) DESC' if top else 'RANDOM()'} "
         f"LIMIT {MANY_LIMIT if many else 1}"
         ") AS Q "
@@ -76,10 +77,7 @@ async def overall(
     print(f"Database : {jsonformating-database}")
     if not images:
         print("No image found")
-        raise HTTPException(
-            status_code=404,
-            detail=f"No image found matching the criteria given",
-        )
+        raise HTTPException(status_code=404,detail=f"No image found matching the criteria given")
     images_to_return = [im["file"] + im["extension"] for im in images]
     print(f"Files :" + "\n".join(images_to_return))
     if not (gif or top):
@@ -129,7 +127,8 @@ async def principal(
     fetch = await request.app.state.pool.fetch(
         "SELECT DISTINCT Q.file,Q.extension,Q.image_id,Q.like,Q.dominant_color,Q.source,Q.uploaded_at,Tags.name,"
         "Tags.id,Tags.is_nsfw,Tags.description "
-        "FROM (SELECT Images.file,Images.extension,Images.id as image_id,Images.dominant_color,Images.source,"
+        "FROM ("
+        "SELECT Images.file,Images.extension,Images.id as image_id,Images.dominant_color,Images.source,"
         "Images.uploaded_at, COUNT(FavImages.image) as like "
         "FROM LinkedTags JOIN Images ON Images.file=LinkedTags.image JOIN Tags ON Tags.id=LinkedTags.tag_id "
         "LEFT JOIN FavImages ON FavImages.image=Images.file "
@@ -149,10 +148,11 @@ async def principal(
     print(f"Database : {jsonformating-database}")
     if not images:
         print(f"No image found.")
-        raise HTTPException(
-            status_code=404,
-            detail=f"No {image_type} image were found for the tag '{tag}' and the criteria given.",
-        )
+        if gif or top or many or exclude:
+            details = f"No {image_type} image were found for the tag '{tag}' with the criteria given."
+        else:
+            details = f"No {image_type} image were found with the tag '{tag}'."
+        raise HTTPException(status_code=404,detail=details)
     images_to_return = [im["file"] + im["extension"] for im in images]
     print(f"Files :" + "\n".join(images_to_return))
     if not (gif or top):
