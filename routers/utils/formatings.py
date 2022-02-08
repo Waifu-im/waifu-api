@@ -1,8 +1,30 @@
 import os
 from werkzeug.datastructures import MultiDict
 from fastapi.encoders import jsonable_encoder
-from .types import Image, PartialImage, Tags
+from .types import Image, PartialImage, Tags, ImageType
 from .constants import FORMAT_IMAGE_LIMIT
+
+
+def format_gif(is_gif):
+    if is_gif is None:
+        return ""
+    elif is_gif:
+        return "and Images.extension='.gif'"
+    else:
+        return "and not Images.extension='.gif'"
+
+
+def format_tag(tag):
+    return 'Tags.name=$1' if tag.isdecimal() else 'Tags.id=$1'
+
+
+def format_image_type(image_type):
+    string = 'Tags.is_nsfw'
+    return string if image_type == ImageType.nsfw else 'not ' + string
+
+
+def format_image_list(image_list):
+    return ',' + ''.join(["'" + im.file + "'" for im in image_list])
 
 
 def db_to_json(images, tag_mod=False):
@@ -70,30 +92,17 @@ def format_to_image(string):
     return cleaned_images
 
 
-async def myendpoints(app, over18=None):
+async def myendpoints(app, over18=None, full=False):
     rt = await app.state.pool.fetch("SELECT * FROM Tags")
     if over18 is None:
         return {
-            "sfw": [tag["name"] for tag in rt if not tag["is_nsfw"]],
-            "nsfw": [tag["name"] for tag in rt if tag["is_nsfw"]],
+            "sfw": [tag if full else tag["name"] for tag in rt if not tag["is_nsfw"]],
+            "nsfw": [tag if full else tag["name"] for tag in rt if tag["is_nsfw"]],
         }
     elif over18:
-        return [tag["name"] for tag in rt if tag["is_nsfw"]]
+        return [tag if full else tag["name"] for tag in rt if tag["is_nsfw"]]
     else:
-        return [tag["name"] for tag in rt if not tag["is_nsfw"]]
-
-
-async def myendpoints_info(app, over18=None):
-    rt = await app.state.pool.fetch("SELECT * FROM Tags")
-    if over18 is None:
-        return {
-            "sfw": [tag for tag in rt if not tag["is_nsfw"]],
-            "nsfw": [tag for tag in rt if tag["is_nsfw"]],
-        }
-    elif over18:
-        return [tag for tag in rt if tag["is_nsfw"]]
-    else:
-        return [tag for tag in rt if not tag["is_nsfw"]]
+        return [tag if full else tag["name"] for tag in rt if not tag["is_nsfw"]]
 
 
 async def wich_action(image, insert, delete, user_id, conn):
