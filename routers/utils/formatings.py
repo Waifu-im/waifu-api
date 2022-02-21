@@ -19,11 +19,11 @@ def format_limit(many):
 def format_tags_where(selected_tags, excluded_tags):
     results = []
     if selected_tags:
-        results.append(f"Tags.name in ({format_in(selected_tags)})")
+        results.append(f"Tags.is_public AND Tags.name in ({format_in(selected_tags)})")
     if excluded_tags:
         results.append("NOT EXISTS"
                        "(SELECT 1 FROM LinkedTags AS lk JOIN Tags T ON lk.tag_id=T.id WHERE lk.image = Images.file "
-                       f"AND T.name in ({format_in(excluded_tags)}))")
+                       f"AND T.is_public AND T.name in ({format_in(excluded_tags)}))")
     return " and ".join(results)
 
 
