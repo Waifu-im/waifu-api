@@ -91,22 +91,6 @@ async def random_(
 
 
 @router.get(
-    "/{image_type}/{tag}",
-    dependencies=[
-        Depends(
-            RateLimiter(times=timesrate, seconds=perrate, callback=blacklist_callback)
-        )
-    ],
-)
-@router.get(
-    "/{image_type}/{tag}/",
-    dependencies=[
-        Depends(
-            RateLimiter(times=timesrate, seconds=perrate, callback=blacklist_callback)
-        )
-    ],
-)
-@router.get(
     "/info",
     dependencies=[
         Depends(
