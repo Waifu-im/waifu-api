@@ -10,7 +10,7 @@ from .utils import (
     format_to_image,
     OrderByType,
     db_to_json,
-    get_endpoints,
+    get_tags,
     timesrate,
     perrate,
     blacklist_callback,
@@ -126,11 +126,13 @@ async def image_info(request: Request, images: List[DEFAULT_REGEX] = Query([])):
     return dict(images=infos)
 
 
+@router.get("/tags")
+@router.get("/tags/")
 @router.get("/endpoints")
 @router.get("/endpoints/")
 async def endpoints_(request: Request, full: bool = False):
     """endpoints with and without info"""
-    data = await get_endpoints(request.app, full=full)
+    data = await get_tags(request.app, full=full)
     return jsonable_encoder(data)
 
 
