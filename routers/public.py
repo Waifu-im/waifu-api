@@ -1,23 +1,25 @@
-from fastapi import APIRouter, Request, HTTPException, Depends
+from fastapi import APIRouter, Request, HTTPException, Depends, Query
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from fastapi_limiter.depends import RateLimiter
 from .utils import (
-    FORMAT_IMAGE_LIMIT,
-    format_tag,
+    format_tags_where,
     format_gif,
     format_image_type,
-    format_image_list,
+    format_in,
     format_to_image,
-    ImageType,
+    OrderByType,
     db_to_json,
     myendpoints,
     timesrate,
     perrate,
     blacklist_callback,
-    MANY_LIMIT,
+    DEFAULT_REGEX,
+    format_limit,
+    CheckFullPermissions,
 )
 import time
+from typing import List, Optional
 
 router = APIRouter()
 
@@ -38,50 +40,53 @@ router = APIRouter()
         )
     ],
 )
-async def overall(
-    request: Request,
-    gif: bool = None,
-    top: bool = None,
-    many: bool = None,
-    exclude: str = "",
+async def random_(
+        request: Request,
+        selected_tags: List[DEFAULT_REGEX] = Query([]),
+        excluded_tags: List[DEFAULT_REGEX] = Query([]),
+        excluded_files: List[DEFAULT_REGEX] = Query([]),
+        gif: bool = None,
+        order_by: OrderByType = None,
+        is_nsfw: bool = None,
+        many: bool = None,
+        full: bool = Depends(CheckFullPermissions(["admin"])),
+
 ):
-    banned_files = []
-    if exclude:
-        try:
-            banned_files = format_to_image(exclude)
-        except:
-            raise HTTPException(
-                400,
-                detail=f"The maximum length for the 'exclude' query string is {FORMAT_IMAGE_LIMIT}.",
-            )
-    if not (gif or top):
-        banned_files += format_to_image(",".join(await request.app.state.last_images.get()))
-    database = time.perf_counter()
+    if excluded_files:
+        excluded_files = format_to_image(excluded_files)
+    selected_tags = list(dict.fromkeys(selected_tags))
+    excluded_tags = list(dict.fromkeys(excluded_tags))
+    print(selected_tags)
+    database_start = time.perf_counter()
     fetch = await request.app.state.pool.fetch(
-        "SELECT DISTINCT Q.file,Q.extension,Q.image_id,Q.like,Q.dominant_color,Q.source,Q.uploaded_at,Tags.name,"
-        "Tags.id,Tags.is_nsfw,Tags.description "
+        "SELECT DISTINCT Q.file,Q.extension,Q.image_id,Q.favourites,Q.dominant_color,Q.source,Q.uploaded_at,"
+        "Q.is_nsfw,Tags.name,Tags.id,Tags.description "
         "FROM ("
-        "SELECT file,extension,id as image_id, COUNT(FavImages.image) as like,dominant_color,source,uploaded_at "
-        "FROM Images LEFT JOIN FavImages ON FavImages.image=Images.file "
-        f"WHERE not Images.under_review and not Images.hidden {format_gif(gif)} "
-        f"{f'and Images.file not in ({format_image_list(banned_files)})' if banned_files else ''} "
+        "SELECT Images.file,Images.extension,Images.id as image_id,Images.dominant_color,Images.source,"
+        "Images.uploaded_at,Images.is_nsfw,"
+        "(SELECT COUNT(image) from FavImages WHERE image=Images.file) as favourites "
+        "FROM Images JOIN LinkedTags ON Images.file=LinkedTags.image JOIN Tags ON Tags.id=LinkedTags.tag_id "
+        "WHERE not Images.under_review and not Images.hidden "
+        f"{f'and {format_image_type(is_nsfw)}' if is_nsfw is not None else ''} "
+        f"{f'and {format_gif(gif)}' if gif is not None else ''} "
+        f"{f'and Images.file not in ({format_in([im.file for im in excluded_files])})' if excluded_files else ''} "
+        f"{f'and {format_tags_where(selected_tags, excluded_tags)}' if selected_tags or excluded_tags else ''} "
         "GROUP BY Images.file "
-        f"ORDER BY {'COUNT(FavImages.image) DESC' if top else 'RANDOM()'} "
-        f"LIMIT {MANY_LIMIT if many else 1}"
+        f"{f'HAVING COUNT(*)={len(selected_tags)}' if selected_tags else ''} "
+        f"{'ORDER BY favourites DESC' if order_by == OrderByType.favourite else ''} "
+        f"{format_limit(many) if not full else ''} "
         ") AS Q "
         "JOIN LinkedTags ON LinkedTags.image=Q.file JOIN Tags ON Tags.id=LinkedTags.tag_id "
-        f"{'ORDER BY Q.like DESC' if top else ''}"
+        f"{'ORDER BY Q.favourites DESC' if order_by == OrderByType.favourite else ''}"
     )
-    jsonformating = time.perf_counter()
+    database_end = time.perf_counter()
     images = db_to_json(fetch)
-    print(f"Database : {jsonformating-database}")
+    print(f"Database : {database_end - database_start}")
     if not images:
         print("No image found")
-        raise HTTPException(status_code=404,detail=f"No image found matching the criteria given")
+        raise HTTPException(status_code=404, detail=f"No image found matching the criteria given")
     images_to_return = [im["file"] + im["extension"] for im in images]
     print(f"Files :" + "\n".join(images_to_return))
-    if not (gif or top):
-        await request.app.state.last_images.put(images_to_return)
     return JSONResponse(dict(code=200, images=images))
 
 
@@ -101,65 +106,6 @@ async def overall(
         )
     ],
 )
-async def principal(
-    request: Request,
-    image_type: ImageType,
-    tag: str,
-    gif: bool = None,
-    top: bool = None,
-    many: bool = None,
-    exclude: str = "",
-):
-    """Get a random image"""
-    banned_files = []
-    if exclude:
-        try:
-            banned_files = format_to_image(exclude)
-        except:
-            raise HTTPException(
-                400,
-                detail=f"The maximum length for the 'exclude' query string is {FORMAT_IMAGE_LIMIT}.",
-            )
-    if not (gif or top):
-        banned_files += format_to_image(",".join(await request.app.state.last_images.get()))
-    tag = tag.lower()
-    database = time.perf_counter()
-    fetch = await request.app.state.pool.fetch(
-        "SELECT DISTINCT Q.file,Q.extension,Q.image_id,Q.like,Q.dominant_color,Q.source,Q.uploaded_at,Tags.name,"
-        "Tags.id,Tags.is_nsfw,Tags.description "
-        "FROM ("
-        "SELECT Images.file,Images.extension,Images.id as image_id,Images.dominant_color,Images.source,"
-        "Images.uploaded_at, COUNT(FavImages.image) as like "
-        "FROM LinkedTags JOIN Images ON Images.file=LinkedTags.image JOIN Tags ON Tags.id=LinkedTags.tag_id "
-        "LEFT JOIN FavImages ON FavImages.image=Images.file "
-        f"WHERE not Images.under_review and not Images.hidden and {format_tag(tag)} "
-        f"and {format_image_type(image_type)} {format_gif(gif)} "
-        f"{f'and Images.file not in ({format_image_list(banned_files)})' if banned_files else ''} "
-        "GROUP BY Images.file,LinkedTags.tag_id "
-        f"ORDER BY {'COUNT(FavImages.image) DESC' if top else 'RANDOM()'} "
-        f"LIMIT {MANY_LIMIT if many else 1}"
-        ") AS Q "
-        "JOIN LinkedTags ON LinkedTags.image=Q.file JOIN Tags ON Tags.id=LinkedTags.tag_id "
-        f"{'ORDER BY Q.like DESC' if top else ''}",
-        tag,
-    )
-    jsonformating = time.perf_counter()
-    images = db_to_json(fetch)
-    print(f"Database : {jsonformating-database}")
-    if not images:
-        print(f"No image found.")
-        if gif or top or many or exclude:
-            details = f"No {image_type} image were found for the tag '{tag}' with the criteria given."
-        else:
-            details = f"No {image_type} image were found with the tag '{tag}'."
-        raise HTTPException(status_code=404,detail=details)
-    images_to_return = [im["file"] + im["extension"] for im in images]
-    print(f"Files :" + "\n".join(images_to_return))
-    if not (gif or top):
-        await request.app.state.last_images.put(images_to_return)
-    return JSONResponse(dict(code=200, images=images))
-
-
 @router.get(
     "/info",
     dependencies=[
@@ -176,22 +122,17 @@ async def principal(
         )
     ],
 )
-async def image_info(request: Request, images: str):
+async def image_info(request: Request, images: List[DEFAULT_REGEX] = Query([])):
     """Image infos"""
-    try:
-        images = format_to_image(images)
-    except:
-        raise HTTPException(
-            400,
-            detail=f"The maximum length for the 'images' query string is {FORMAT_IMAGE_LIMIT}.",
-        )
+    images = format_to_image(images)
     image_infos = await request.app.state.pool.fetch(
-        f"SELECT DISTINCT Q.file,Q.extension,Q.image_id,Q.like,Q.dominant_color,Q.source,Q.uploaded_at,Tags.name,"
-        "Tags.id,Tags.is_nsfw,Tags.description "
-        "FROM (SELECT file,extension,id as image_id, COUNT(FavImages.image) as like,dominant_color,source,uploaded_at "
+        f"SELECT DISTINCT Q.file,Q.extension,Q.image_id,Q.favourites,Q.dominant_color,Q.source,Q.uploaded_at,"
+        "Tags.name,Tags.id,Tags.is_nsfw,Tags.description "
+        "FROM (SELECT file,extension,id as image_id, COUNT(FavImages.image) as favourites,"
+        "dominant_color,source,uploaded_at "
         "FROM Images "
         "LEFT JOIN FavImages ON FavImages.image=Images.file "
-        f"WHERE not Images.under_review and Images.file in ({format_image_list(images)})"
+        f"WHERE not Images.under_review and Images.file in ({format_in([im.file for im in images])})"
         "GROUP BY Images.file) AS Q "
         "JOIN LinkedTags ON LinkedTags.image=Q.file JOIN Tags ON Tags.id=LinkedTags.tag_id"
     )

@@ -2,13 +2,13 @@ import os
 import urllib
 import asyncpg
 
-from fastapi import APIRouter, Request, HTTPException, Header, Depends
+from fastapi import APIRouter, Request, HTTPException, Header, Depends, Query
 from fastapi_limiter.depends import RateLimiter
 from .utils import (
-    FORMAT_IMAGE_LIMIT,
+    DEFAULT_REGEX,
     format_to_image,
     db_to_json,
-    CheckPermissions,
+    CheckFavPermissions,
     wich_action,
     create_query,
     timesrate,
@@ -16,7 +16,7 @@ from .utils import (
     blacklist_callback,
     get_user_info,
 )
-
+from typing import List
 router = APIRouter()
 
 
@@ -39,12 +39,12 @@ router = APIRouter()
 async def fav_(
     request: Request,
     user_id: int = None,
-    info: dict = Depends(CheckPermissions(["manage_galleries"], grant_no_user=True)),
-    insert: str = None,
-    delete: str = None,
-    toggle: str = None,
+    info: dict = Depends(CheckFavPermissions(["manage_galleries"], grant_no_user=True)),
+    insert: List[DEFAULT_REGEX] = Query([]),
+    delete: List[DEFAULT_REGEX] = Query([]),
+    toggle: List[DEFAULT_REGEX] = Query([]),
 ):
-    """gallerys endpoint"""
+    """galleries endpoint"""
     token_user_id = int(info["id"])
     username = None
     if user_id:
@@ -60,12 +60,9 @@ async def fav_(
                 username,
             )
         querys = []
-        try:
-            insert = format_to_image(insert)
-            delete = format_to_image(delete)
-            toggle = format_to_image(toggle)
-        except:
-            raise HTTPException(404, detail=f"Sorry the string you passed for either insert, delete or toggle query string was probably too large (max: {FORMAT_IMAGE_LIMIT}).")
+        insert = format_to_image(insert)
+        delete = format_to_image(delete)
+        toggle = format_to_image(toggle)
         await wich_action(toggle, insert, delete, token_user_id, conn)
         if insert:
             querys.append(create_query(token_user_id, insert=insert))
@@ -84,14 +81,19 @@ async def fav_(
             except asyncpg.exceptions.UniqueViolationError:
                 raise HTTPException(
                     status_code=400,
-                    detail="Sorry one of the images you provided is already in the user gallery, please consider using 'toggle' query string.",
+                    detail="Sorry one of the images you provided is already in the user gallery, please consider "
+                           "using 'toggle' query string.",
                 )
         images = await conn.fetch(
-            """SELECT Images.extension,Tags.name,Tags.id,Tags.is_nsfw,Tags.description,Images.file,Images.id as image_id,Images.dominant_color,Images.source, (SELECT COUNT(FavImages.image) FROM FavImages WHERE image=Images.file) as like, Images.uploaded_at,FavImages.added_at FROM FavImages
-                            JOIN Images ON Images.file=FavImages.image
-                            JOIN LinkedTags ON LinkedTags.image=FavImages.image
-                            JOIN Tags on LinkedTags.tag_id=Tags.id
-                            WHERE user_id=$1 ORDER BY added_at DESC""",
+            "SELECT Images.extension,Images.file,Images.id as image_id,Images.dominant_color,Images.source,"
+            "Images.uploaded_at,Tags.name,Tags.id,Tags.is_nsfw,Tags.description,"
+            "(SELECT COUNT(FavImages.image) FROM FavImages WHERE image=Images.file) as favourites,"
+            "FavImages.added_at "
+            "FROM FavImages "
+            "JOIN Images ON Images.file=FavImages.image "
+            "JOIN LinkedTags ON LinkedTags.image=FavImages.image "
+            "JOIN Tags on LinkedTags.tag_id=Tags.id "
+            "WHERE user_id=$1 ORDER BY added_at DESC",
             token_user_id,
         )
     if not images and not insert and not delete:
@@ -133,7 +135,7 @@ async def report(
     image: str,
     user_id: int = None,
     description: str = None,
-    info: dict = Depends(CheckPermissions(["report"])),
+    info: dict = Depends(CheckFavPermissions(["report"])),
 ):
     existed = False
     image_name = os.path.splitext(image)[0]

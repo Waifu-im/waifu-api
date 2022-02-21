@@ -1,30 +1,39 @@
 import os
 from werkzeug.datastructures import MultiDict
 from fastapi.encoders import jsonable_encoder
-from .types import Image, PartialImage, Tags, ImageType
-from .constants import FORMAT_IMAGE_LIMIT
+from .types import Image, PartialImage, Tags
+from .constants import MANY_LIMIT
 
 
 def format_gif(is_gif):
-    if is_gif is None:
-        return ""
-    elif is_gif:
+    if is_gif:
         return "and Images.extension='.gif'"
     else:
         return "and not Images.extension='.gif'"
 
 
-def format_tag(tag):
-    return 'Tags.id=$1' if tag.isdecimal() else 'Tags.name=$1'
+def format_limit(many):
+    return f"LIMIT {MANY_LIMIT if many else '1'}"
 
 
-def format_image_type(image_type):
-    string = 'Tags.is_nsfw'
-    return string if image_type == ImageType.nsfw else 'not ' + string
+def format_tags_where(selected_tags, excluded_tags):
+    results = []
+    if selected_tags:
+        results.append(f"Tags.name in ({format_in(selected_tags)})")
+    if excluded_tags:
+        results.append("NOT EXISTS"
+                       "(SELECT 1 FROM LinkedTags AS lk JOIN Tags T ON lk.tag_id=T.id WHERE lk.image = Images.file "
+                       f"AND T.name in ({format_in(excluded_tags)}))")
+    return " and ".join(results)
 
 
-def format_image_list(image_list):
-    return ','.join(["'" + im.file + "'" for im in image_list])
+def format_image_type(is_nsfw):
+    string = 'Images.is_nsfw'
+    return string if is_nsfw else 'not ' + string
+
+
+def format_in(_list):
+    return ','.join(["'" + i + "'" for i in _list])
 
 
 def db_to_json(images, tag_mod=False):
@@ -37,7 +46,6 @@ def db_to_json(images, tag_mod=False):
                     Tags(
                         im.pop("id"),
                         im.pop("name"),
-                        im.pop("is_nsfw"),
                         im.pop("description"),
                     ),
                     im,
@@ -60,7 +68,6 @@ def db_to_json(images, tag_mod=False):
             tag = Tags(
                 image.pop("id"),
                 image.pop("name"),
-                image.pop("is_nsfw"),
                 image.pop("description"),
             )
             imagemapping.append((Image(**image), tag))
@@ -72,22 +79,9 @@ def db_to_json(images, tag_mod=False):
         return jsonable_encoder(images_list)
 
 
-def is_sql_injection(string):
-    for char in string:
-        if not char.isalnum() and not char == ".":
-            return True
-    return False
-
-
-def format_to_image(string):
-    if not string:
-        return []
-    if len(string) > FORMAT_IMAGE_LIMIT:
-        raise ValueError
+def format_to_image(images_list):
     cleaned_images = []
-    for potential_im in string.lower().split(","):
-        if is_sql_injection(potential_im) or not potential_im:
-            continue
+    for potential_im in images_list:
         cleaned_images.append(PartialImage(*os.path.splitext(potential_im)))
     return cleaned_images
 
@@ -122,7 +116,7 @@ async def wich_action(image, insert, delete, user_id, conn):
 
 
 def create_query(user_id, insert=None, delete=None):
-    """Utils to format into apropriate sql query"""
+    """Utils to format into appropriate sql query"""
     if insert:
         args = [(user_id, im.file) for im in insert]
         return (

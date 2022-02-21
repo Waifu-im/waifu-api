@@ -1,9 +1,11 @@
 from enum import Enum
+from pydantic import constr
+
+DEFAULT_REGEX = constr(regex="^[A-Za-z0-9_.-]*$")
 
 
-class ImageType(str, Enum):
-    sfw = "sfw"
-    nsfw = "nsfw"
+class OrderByType(str, Enum):
+    favourite = "FAVOURITE"
 
 
 class ImageQueue:
@@ -48,10 +50,9 @@ class PartialImage:
 
 
 class Tags:
-    def __init__(self, tag_id, name, is_nsfw, description):
+    def __init__(self, tag_id, name, description):
         self.tag_id = int(tag_id)
         self.name = name
-        self.is_nsfw = bool(is_nsfw)
         self.description = description
 
     def __hash__(self):
