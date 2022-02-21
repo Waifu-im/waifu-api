@@ -86,7 +86,7 @@ def format_to_image(images_list):
     return cleaned_images
 
 
-async def get_endpoints(app,  full=False):
+async def get_tags(app,  full=False):
     rt = await app.state.pool.fetch("SELECT * FROM Tags")
     return {
         "private": [tag if full else tag["name"] for tag in rt if not tag["is_public"]],
