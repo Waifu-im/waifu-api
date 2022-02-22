@@ -47,6 +47,7 @@ def db_to_json(images, tag_mod=False):
                         im.pop("id"),
                         im.pop("name"),
                         im.pop("description"),
+                        im.pop("is_public"),
                     ),
                     im,
                 )
@@ -69,6 +70,7 @@ def db_to_json(images, tag_mod=False):
                 image.pop("id"),
                 image.pop("name"),
                 image.pop("description"),
+                image.pop("is_public"),
             )
             imagemapping.append((Image(**image), tag))
         imagemapping = MultiDict(imagemapping)
