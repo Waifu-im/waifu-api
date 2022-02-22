@@ -7,9 +7,9 @@ from .constants import MANY_LIMIT
 
 def format_gif(is_gif):
     if is_gif:
-        return "and Images.extension='.gif'"
+        return "Images.extension='.gif'"
     else:
-        return "and not Images.extension='.gif'"
+        return "not Images.extension='.gif'"
 
 
 def format_limit(many):
