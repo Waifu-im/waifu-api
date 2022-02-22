@@ -106,9 +106,11 @@ async def random_(
         )
     ],
 )
-async def image_info(request: Request, images: List[DEFAULT_REGEX] = Query([])):
+async def image_info(request: Request, images: List[DEFAULT_REGEX] = Query()):
     """Image infos"""
     images = format_to_image(images)
+    if not images:
+
     image_infos = await request.app.state.pool.fetch(
         f"SELECT DISTINCT Q.file,Q.extension,Q.image_id,Q.favourites,Q.dominant_color,Q.source,Q.uploaded_at,"
         "Q.is_nsfw,Tags.name,Tags.id,Tags.is_nsfw,Tags.description,Tags.is_public "
