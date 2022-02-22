@@ -111,9 +111,9 @@ async def image_info(request: Request, images: List[DEFAULT_REGEX] = Query([])):
     images = format_to_image(images)
     image_infos = await request.app.state.pool.fetch(
         f"SELECT DISTINCT Q.file,Q.extension,Q.image_id,Q.favourites,Q.dominant_color,Q.source,Q.uploaded_at,"
-        "Tags.name,Tags.id,Tags.is_nsfw,Tags.description "
+        "Q.is_nsfw,Tags.name,Tags.id,Tags.is_nsfw,Tags.description,Tags.is_public "
         "FROM (SELECT file,extension,id as image_id, COUNT(FavImages.image) as favourites,"
-        "dominant_color,source,uploaded_at "
+        "dominant_color,source,uploaded_at,Images.is_nsfw "
         "FROM Images "
         "LEFT JOIN FavImages ON FavImages.image=Images.file "
         f"WHERE not Images.under_review and Images.file in ({format_in([im.file for im in images])})"
