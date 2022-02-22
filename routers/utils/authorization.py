@@ -101,7 +101,6 @@ async def is_valid_token(token_user_id, secret, connection):
 
 
 async def has_permissions(
-        self,
         token_user_id,
         secret,
         permissions,
@@ -128,14 +127,12 @@ WHERE registered_user.id=$1 and registered_user.secret=$2 and (permissions.name=
 class CheckFavPermissions:
     """Token and permissions verification for /fav/ and /report/ route"""
 
-    def __init__(self, permissions, grant_no_user=False, check_full=False, check_fav=False):
+    def __init__(self, permissions, grant_no_user=False):
         self.permissions = (
             permissions if isinstance(permissions, (list, tuple)) else (permissions,)
         )
         self.connection = None
         self.grant_no_user = grant_no_user
-        self.check_fav = check_fav
-        self.check_full = check_full
 
     async def __call__(
             self, request: Request, authorization: str = Header(None), user_id: int = None,
@@ -150,7 +147,7 @@ class CheckFavPermissions:
         info = await decode_token(request.app.state.secret_key, authorization)
         if not self.grant_no_user or user_id:
             allowed_user = await has_permissions(
-                request, info["id"], info["secret"], user_id, self.permissions, self.connection
+                info["id"], info["secret"], self.permissions, self.connection
             )
         else:
             allowed_user = await is_valid_token(
@@ -191,8 +188,7 @@ class CheckFullPermissions:
                        "Authorization header.",
             )
         info = await decode_token(request.app.state.secret_key, authorization)
-        allowed_user = await has_permissions(
-            request, info["id"], info["secret"], user_id, self.permissions, self.connection
+        allowed_user = await has_permissions(info["id"], info["secret"], self.permissions, self.connection
         )
         await request.app.state.pool.release(self.connection)
         if allowed_user:
