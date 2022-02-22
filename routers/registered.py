@@ -44,6 +44,7 @@ async def fav_(
     delete: List[DEFAULT_REGEX] = Query([]),
     toggle: List[DEFAULT_REGEX] = Query([]),
 ):
+    print(test)
     """galleries endpoint"""
     token_user_id = int(info["id"])
     username = None
