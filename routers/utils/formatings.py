@@ -88,9 +88,12 @@ def format_to_image(images_list):
     return cleaned_images
 
 
-async def get_tags(app,  full=False):
+async def get_tags(app, full=False):
     rt = await app.state.pool.fetch("SELECT * FROM Tags")
-    return {"tags": [tag if full else tag["name"] for tag in rt]}
+    return {
+        "tags": [tag if full else tag["name"] for tag in rt],
+        "nsfw": [tag if full else tag["name"] for tag in rt if tag["is_nsfw"]]
+    }
 
 
 async def wich_action(image, insert, delete, user_id, conn):
