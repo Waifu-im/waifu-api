@@ -90,10 +90,7 @@ def format_to_image(images_list):
 
 async def get_tags(app,  full=False):
     rt = await app.state.pool.fetch("SELECT * FROM Tags")
-    return {
-        "private": [tag if full else tag["name"] for tag in rt if not tag["is_public"]],
-        "public": [tag if full else tag["name"] for tag in rt if tag["is_public"]],
-    }
+    return {"tags": [tag if full else tag["name"] for tag in rt]}
 
 
 async def wich_action(image, insert, delete, user_id, conn):
