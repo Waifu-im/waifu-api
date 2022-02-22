@@ -50,10 +50,11 @@ class PartialImage:
 
 
 class Tags:
-    def __init__(self, tag_id, name, description):
+    def __init__(self, tag_id, name, description, is_public):
         self.tag_id = int(tag_id)
         self.name = name
         self.description = description
+        self.is_public = is_public
 
     def __hash__(self):
         return self.tag_id
