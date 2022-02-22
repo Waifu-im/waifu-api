@@ -105,7 +105,7 @@ async def random_(
         )
     ],
 )
-async def image_info(request: Request, images: List[DEFAULT_REGEX] = Query()):
+async def image_info(request: Request, images: List[DEFAULT_REGEX] = Query(...)):
     """Image infos"""
     images = format_to_image(images)
     image_infos = await request.app.state.pool.fetch(
