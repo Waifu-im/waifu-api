@@ -16,13 +16,13 @@ def format_limit(many):
     return f"LIMIT {MANY_LIMIT if many else '1'}"
 
 
-def format_order_by(order_by, table_prefix=None, disbale_random=None):
+def format_order_by(order_by, table_prefix=None, disable_random=None):
     if order_by == OrderByType.favourite:
         return f"ORDER BY {table_prefix if table_prefix else ''}favourites DESC"
     if order_by == OrderByType.uploaded_at:
         return f"ORDER BY {table_prefix if table_prefix else ''}uploaded_at DESC"
     else:
-        return "" if disbale_random else "RANDOM()"
+        return "" if disable_random else " ORDER BY RANDOM()"
 
 
 def format_tags_where(selected_tags, excluded_tags):

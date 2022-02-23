@@ -77,7 +77,7 @@ async def random_(
         f"{format_limit(many) if not full else ''} "
         ") AS Q "
         "JOIN LinkedTags ON LinkedTags.image=Q.file JOIN Tags ON Tags.id=LinkedTags.tag_id "
-        f"{format_order_by(order_by,table_prefix='Q.',disbale_random=True)}"
+        f"{format_order_by(order_by,table_prefix='Q.',disable_random=True)}"
     )
     database_end = time.perf_counter()
     images = db_to_json(fetch)
