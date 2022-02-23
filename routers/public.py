@@ -73,7 +73,7 @@ async def random_(
         f"{f'and {format_tags_where(selected_tags, excluded_tags)}' if selected_tags or excluded_tags else ''} "
         "GROUP BY Images.file "
         f"{f'HAVING COUNT(*)={len(selected_tags)}' if selected_tags else ''} "
-        f"ORDER BY {format_order_by(order_by)} "
+        f"{format_order_by(order_by)} "
         f"{format_limit(many) if not full else ''} "
         ") AS Q "
         "JOIN LinkedTags ON LinkedTags.image=Q.file JOIN Tags ON Tags.id=LinkedTags.tag_id "
