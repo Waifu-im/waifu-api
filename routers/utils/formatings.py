@@ -1,7 +1,7 @@
 import os
 from werkzeug.datastructures import MultiDict
 from fastapi.encoders import jsonable_encoder
-from .types import Image, PartialImage, Tags
+from .types import Image, PartialImage, Tags, OrderByType
 from .constants import MANY_LIMIT
 
 
@@ -14,6 +14,15 @@ def format_gif(is_gif):
 
 def format_limit(many):
     return f"LIMIT {MANY_LIMIT if many else '1'}"
+
+
+def format_order_by(order_by, table_prefix=None, disbale_random=None):
+    if order_by == OrderByType.favourite:
+        return f"ORDER BY {table_prefix if table_prefix else ''}favourites DESC"
+    if order_by == OrderByType.uploaded_at:
+        return f"ORDER BY {table_prefix if table_prefix else ''}uploaded_at DESC"
+    else:
+        return "" if disbale_random else "RANDOM()"
 
 
 def format_tags_where(selected_tags, excluded_tags):

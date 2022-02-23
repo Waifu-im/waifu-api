@@ -6,6 +6,7 @@ DEFAULT_REGEX = constr(regex="^[A-Za-z0-9_.-]*$")
 
 class OrderByType(str, Enum):
     favourite = "FAVOURITES"
+    uploaded_at = "UPLOADED_AT"
 
 
 class ImageQueue:

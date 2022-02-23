@@ -4,6 +4,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi_limiter.depends import RateLimiter
 from .utils import (
     format_tags_where,
+    format_order_by,
     format_gif,
     format_image_type,
     format_in,
@@ -72,11 +73,11 @@ async def random_(
         f"{f'and {format_tags_where(selected_tags, excluded_tags)}' if selected_tags or excluded_tags else ''} "
         "GROUP BY Images.file "
         f"{f'HAVING COUNT(*)={len(selected_tags)}' if selected_tags else ''} "
-        f"ORDER BY {'favourites DESC' if order_by == OrderByType.favourite else 'RANDOM()'} "
+        f"ORDER BY {format_order_by(order_by)} "
         f"{format_limit(many) if not full else ''} "
         ") AS Q "
         "JOIN LinkedTags ON LinkedTags.image=Q.file JOIN Tags ON Tags.id=LinkedTags.tag_id "
-        f"{'ORDER BY Q.favourites DESC' if order_by == OrderByType.favourite else ''}"
+        f"{format_order_by(order_by,table_prefix='Q.',disbale_random=True)}"
     )
     database_end = time.perf_counter()
     images = db_to_json(fetch)
