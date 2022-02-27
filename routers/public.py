@@ -18,6 +18,7 @@ from .utils import (
     DEFAULT_REGEX,
     format_limit,
     CheckFullPermissions,
+    BooleanNone,
 )
 import time
 from typing import List, Optional
@@ -48,7 +49,7 @@ async def random_(
         excluded_files: List[DEFAULT_REGEX] = Query([]),
         gif: bool = None,
         order_by: OrderByType = None,
-        is_nsfw: bool = None,
+        is_nsfw: BooleanNone = None,
         many: bool = None,
         full: bool = Depends(CheckFullPermissions(["admin"])),
 
