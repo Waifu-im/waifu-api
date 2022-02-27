@@ -91,10 +91,7 @@ def db_to_json(images, tag_mod=False):
 
 
 def format_to_image(images_list):
-    cleaned_images = []
-    for potential_im in images_list:
-        cleaned_images.append(PartialImage(*os.path.splitext(potential_im)))
-    return cleaned_images
+    return [PartialImage(*os.path.splitext(im)) for im in images_list]
 
 
 async def get_tags(app, full=False):
