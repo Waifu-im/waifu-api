@@ -36,9 +36,7 @@ def format_tags_where(selected_tags, excluded_tags):
     return " and ".join(results)
 
 
-def format_image_type(is_nsfw,tag):
-    if is_nsfw is not None:
-
+def format_image_type(is_nsfw):
     string = 'Images.is_nsfw'
     return string if is_nsfw else 'not ' + string
 
