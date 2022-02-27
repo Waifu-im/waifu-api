@@ -35,12 +35,6 @@ def format_tags_where(selected_tags, excluded_tags):
                        f"AND T.is_public AND T.name in ({format_in(excluded_tags)}))")
     return " and ".join(results)
 
-
-def format_image_type(is_nsfw):
-    string = 'Images.is_nsfw'
-    return string if is_nsfw else 'not ' + string
-
-
 def format_in(_list):
     return ','.join(["'" + i + "'" for i in _list])
 
