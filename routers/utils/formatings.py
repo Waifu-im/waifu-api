@@ -28,12 +28,18 @@ def format_order_by(order_by, table_prefix=None, disable_random=None):
 def format_tags_where(selected_tags, excluded_tags):
     results = []
     if selected_tags:
-        results.append(f"Tags.is_public AND Tags.name in ({format_in(selected_tags)})")
+        results.append(f"Tags.name in ({format_in(selected_tags)})")
     if excluded_tags:
         results.append("NOT EXISTS"
                        "(SELECT 1 FROM LinkedTags AS lk JOIN Tags T ON lk.tag_id=T.id WHERE lk.image = Images.file "
-                       f"AND T.is_public AND T.name in ({format_in(excluded_tags)}))")
+                       f"AND T.name in ({format_in(excluded_tags)}))")
     return " and ".join(results)
+
+
+def format_image_type(is_nsfw):
+    string = 'Images.is_nsfw'
+    return string if is_nsfw else 'not ' + string
+
 
 def format_in(_list):
     return ','.join(["'" + i + "'" for i in _list])
@@ -50,7 +56,7 @@ def db_to_json(images, tag_mod=False):
                         im.pop("id"),
                         im.pop("name"),
                         im.pop("description"),
-                        im.pop("is_public"),
+                        im.pop("tag_is_nsfw"),
                     ),
                     im,
                 )
@@ -73,7 +79,7 @@ def db_to_json(images, tag_mod=False):
                 image.pop("id"),
                 image.pop("name"),
                 image.pop("description"),
-                image.pop("is_public"),
+                image.pop("tag_is_nsfw"),
             )
             imagemapping.append((Image(**image), tag))
         imagemapping = MultiDict(imagemapping)
