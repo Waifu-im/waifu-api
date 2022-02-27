@@ -4,9 +4,9 @@ from fastapi.encoders import jsonable_encoder
 from fastapi_limiter.depends import RateLimiter
 from .utils import (
     format_tags_where,
+    format_image_type,
     format_order_by,
     format_gif,
-    format_image_type,
     format_in,
     format_to_image,
     OrderByType,
@@ -48,7 +48,7 @@ async def random_(
         excluded_files: List[DEFAULT_REGEX] = Query([]),
         gif: bool = None,
         order_by: OrderByType = None,
-        is_nsfw: bool = None,
+        is_nsfw: bool = False,
         many: bool = None,
         full: bool = Depends(CheckFullPermissions(["admin"])),
 
@@ -67,7 +67,7 @@ async def random_(
         "(SELECT COUNT(image) from FavImages WHERE image=Images.file) as favourites "
         "FROM Images JOIN LinkedTags ON Images.file=LinkedTags.image JOIN Tags ON Tags.id=LinkedTags.tag_id "
         "WHERE not Images.under_review and not Images.hidden "
-        f"{f'and {format_image_type(is_nsfw)}' if is_nsfw is not None else ''} "
+        f"{f'and ({format_image_type(is_nsfw)} or EXISTS (SELECT name from Tags T2 WHERE T2.is_nsfw AND T2.name in ({format_in(selected_tags)})))' if selected_tags else f'and {format_image_type(is_nsfw)}'} "
         f"{f'and {format_gif(gif)}' if gif is not None else ''} "
         f"{f'and Images.file not in ({format_in([im.file for im in excluded_files])})' if excluded_files else ''} "
         f"{f'and {format_tags_where(selected_tags, excluded_tags)}' if selected_tags or excluded_tags else ''} "
