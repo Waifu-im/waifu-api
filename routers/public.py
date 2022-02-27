@@ -48,7 +48,7 @@ async def random_(
         excluded_files: List[DEFAULT_REGEX] = Query([]),
         gif: bool = None,
         order_by: OrderByType = None,
-        is_nsfw: bool = None,
+        is_nsfw: bool = False,
         many: bool = None,
         full: bool = Depends(CheckFullPermissions(["admin"])),
 
@@ -110,15 +110,16 @@ async def image_info(request: Request, images: List[DEFAULT_REGEX] = Query(...))
     """Image infos"""
     images = format_to_image(images)
     image_infos = await request.app.state.pool.fetch(
-        f"SELECT DISTINCT Q.file,Q.extension,Q.image_id,Q.favourites,Q.dominant_color,Q.source,Q.uploaded_at,"
+        "SELECT DISTINCT Q.file,Q.extension,Q.image_id,Q.favourites,Q.dominant_color,Q.source,Q.uploaded_at,"
         "Q.is_nsfw,Tags.name,Tags.id,Tags.description,Tags.is_public "
-        "FROM (SELECT file,extension,id as image_id, COUNT(FavImages.image) as favourites,"
-        "dominant_color,source,uploaded_at,Images.is_nsfw "
-        "FROM Images "
-        "LEFT JOIN FavImages ON FavImages.image=Images.file "
-        f"WHERE not Images.under_review and Images.file in ({format_in([im.file for im in images])})"
-        "GROUP BY Images.file ) AS Q "
-        "JOIN LinkedTags ON LinkedTags.image=Q.file JOIN Tags ON Tags.id=LinkedTags.tag_id"
+        "FROM ("
+        "SELECT Images.file,Images.extension,Images.id as image_id,Images.dominant_color,Images.source,"
+        "Images.uploaded_at,Images.is_nsfw,"
+        "(SELECT COUNT(image) from FavImages WHERE image=Images.file) as favourites "
+        f"WHERE Images.file in ({format_in([im.file for im in images])} "
+        "GROUP BY Images.file "
+        ") AS Q "
+        "JOIN LinkedTags ON LinkedTags.image=Q.file JOIN Tags ON Tags.id=LinkedTags.tag_id" 
     )
     if not image_infos:
         raise HTTPException(404, detail="You did not provide any valid filename.")
