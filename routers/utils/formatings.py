@@ -36,9 +36,18 @@ def format_tags_where(selected_tags, excluded_tags):
     return " and ".join(results)
 
 
-def format_image_type(is_nsfw):
-    string = 'Images.is_nsfw'
+def format_nsfw(is_nsfw):
+    string = "Images.is_nsfw"
     return string if is_nsfw else 'not ' + string
+
+
+def format_image_type(is_nsfw, tags):
+    if is_nsfw is None:
+        return ''
+    if tags:
+        return f"and ({f'{format_nsfw(is_nsfw)} or ' if is_nsfw is not None else ''}" \
+               f"EXISTS(SELECT name from Tags T2 WHERE T2.is_nsfw AND T2.name in ({format_in(tags)})))"
+    return f'and {format_nsfw(is_nsfw)}' if is_nsfw is not None else ''
 
 
 def format_in(_list):
@@ -97,7 +106,7 @@ def format_to_image(images_list):
 async def get_tags(app, full=False):
     rt = await app.state.pool.fetch("SELECT * FROM Tags")
     return {
-        "tags": [tag if full else tag["name"] for tag in rt],
+        "versatile": [tag if full else tag["name"] for tag in rt if not rt["is_nsfw"]],
         "nsfw": [tag if full else tag["name"] for tag in rt if tag["is_nsfw"]]
     }
 
