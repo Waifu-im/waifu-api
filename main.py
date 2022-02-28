@@ -1,12 +1,11 @@
 import traceback
 import sys
 
+import json
 import asyncpg
 import aioredis
-import pydantic
 
-from fastapi import FastAPI, Depends, Request, status
-from fastapi.encoders import jsonable_encoder
+from fastapi import FastAPI, Depends, Request
 from starlette.background import BackgroundTask
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.responses import JSONResponse
@@ -67,12 +66,7 @@ async def http_exception_handler(request, e):
     return JSONResponse(
         status_code=e.status_code, content=dict(code=e.status_code, message=e.detail)
     )
-@app.exception_handler(pydantic.error_wrappers.ValidationError)
-async def custom_validation_exception_handler(request: Request, exc: pydantic.error_wrappers.ValidationError):
-    return JSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content=jsonable_encoder({"detail": exc.errors()}),
-    )
+
 
 @app.exception_handler(Exception)
 async def exception_handler(request, e):
@@ -90,7 +84,19 @@ async def exception_handler(request, e):
 
 @app.middleware("http")
 async def add_logs(request: Request, call_next):
-    response = await call_next(request)
+    try:
+        response = await call_next(request)
+    except Exception as error:
+        traceback.print_exception(
+            type(error), error, error.__traceback__, file=sys.stderr
+        )
+        return await http_exception_handler(
+            request,
+            StarletteHTTPException(
+                status_code=500,
+                detail="Sorry i couldn't process your request correctly, seems like there is a problem in the application.",
+            ),
+        )
     if response.status_code == 200:
         response.background = BackgroundTask(log_request, request)
     return response
