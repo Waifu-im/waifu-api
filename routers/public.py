@@ -69,7 +69,6 @@ async def random_(
         "(SELECT COUNT(image) from FavImages WHERE image=Images.file) as favourites "
         "FROM Images JOIN LinkedTags ON Images.file=LinkedTags.image JOIN Tags ON Tags.id=LinkedTags.tag_id "
         "WHERE not Images.under_review and not Images.hidden "
-        f"{f'and ({format_image_type(is_nsfw)} or EXISTS (SELECT name from Tags T2 WHERE T2.is_nsfw AND T2.name in ({format_in(selected_tags)})))' if selected_tags else f'and {format_image_type(is_nsfw)}'} "
         f"{format_image_type(is_nsfw,selected_tags)} "
         f"{f'and {format_gif(gif)}' if gif is not None else ''} "
         f"{f'and Images.file not in ({format_in([im.file for im in excluded_files])})' if excluded_files else ''} "
@@ -146,4 +145,3 @@ async def endpoints_(request: Request, full: bool = False):
 async def test_():
     """A test route to see the difference in response time with and without a sql query"""
     return dict(message="test")
-
