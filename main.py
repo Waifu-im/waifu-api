@@ -27,7 +27,7 @@ from routers.utils import (
     ImageQueue,
 )
 
-app = FastAPI(docs_url=None, redoc_url=None)
+app = FastAPI(redoc_url=None)
 app.include_router(public.router)
 app.include_router(registered.router)
 
