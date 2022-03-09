@@ -40,7 +40,7 @@ class CustomBool(str, Enum):
     false = 0 or '0' or 'off' or 'f' or 'false' or 'n' or 'no'
     none = 'random' or 'none' 'null'
     @classmethod
-    def _missing_name_(cls, name):
+    def _missing_(cls, name):
         for member in cls:
             if member.name.lower() == name.lower():
                 return member
