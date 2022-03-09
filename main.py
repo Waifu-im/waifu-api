@@ -27,7 +27,7 @@ from routers.utils import (
     ImageQueue,
 )
 
-app = FastAPI(redoc_url="/docs", docs_url=None)
+app = FastAPI()
 app.include_router(public.router)
 app.include_router(registered.router)
 
@@ -67,15 +67,12 @@ async def http_exception_handler(request, e):
     return JSONResponse(
         status_code=e.status_code, content=dict(code=e.status_code, message=e.detail)
     )
-
-
 @app.exception_handler(pydantic.error_wrappers.ValidationError)
 async def custom_validation_exception_handler(request: Request, exc: pydantic.error_wrappers.ValidationError):
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         content=jsonable_encoder({"detail": exc.errors()}),
     )
-
 
 @app.exception_handler(Exception)
 async def exception_handler(request, e):
