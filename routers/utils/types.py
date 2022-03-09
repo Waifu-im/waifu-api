@@ -39,11 +39,6 @@ class CustomBool(str, Enum):
     true = 1 or '1' or 'on' or 't' or 'true' or 'y' or 'yes'
     false = 0 or '0' or 'off' or 'f' or 'false' or 'n' or 'no'
     none = 'random' or 'none' 'null'
-    @classmethod
-    def _missing_(cls, name):
-        for member in cls:
-            if member.name.lower() == name.lower():
-                return member
 
 class OrderByType(str, Enum):
     favourite = "FAVOURITES"
