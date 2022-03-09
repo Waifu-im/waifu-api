@@ -3,7 +3,7 @@ from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from fastapi_limiter.depends import RateLimiter
 from .utils import (
-    BooleanNoneModel,
+    CustomBool,
     format_tags_where,
     format_image_type,
     format_order_by,
@@ -44,7 +44,7 @@ router = APIRouter()
 )
 async def random_(
         request: Request,
-        is_nsfw: BooleanNoneModel = Depends(),
+        is_nsfw: CustomBool = Depends(),
         selected_tags: List[DEFAULT_REGEX] = Query([]),
         excluded_tags: List[DEFAULT_REGEX] = Query([]),
         excluded_files: List[DEFAULT_REGEX] = Query([]),
@@ -54,7 +54,6 @@ async def random_(
         full: bool = Depends(CheckFullPermissions(["admin"])),
 
 ):
-    is_nsfw = is_nsfw.is_nsfw
     if excluded_files:
         excluded_files = format_to_image(excluded_files)
     selected_tags = list(dict.fromkeys(selected_tags))

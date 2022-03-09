@@ -9,7 +9,7 @@ BOOL_TRUE = {1, '1', 'on', 't', 'true', 'y', 'yes'}
 # Yes it doesn't make sense but who cares?
 BOOL_NONE = {'random', 'none', 'null'}
 
-
+"""
 class BooleanNoneModel(BaseModel):
     is_nsfw: str = False
 
@@ -31,10 +31,19 @@ class BooleanNoneModel(BaseModel):
         except TypeError:
             raise BoolError()
         raise BoolError()
-
+"""
 
 DEFAULT_REGEX = constr(regex="^[A-Za-z0-9_.-]*$")
 
+class CustomBool(str, Enum):
+    true = 1 or '1' or 'on' or 't' or 'true' or 'y' or 'yes'
+    false = 0 or '0' or 'off' or 'f' or 'false' or 'n' or 'no'
+    none = 'random' or 'none' 'null'
+    @classmethod
+    def _missing_name_(cls, name):
+        for member in cls:
+            if member.name.lower() == name.lower():
+                return member
 
 class OrderByType(str, Enum):
     favourite = "FAVOURITES"
