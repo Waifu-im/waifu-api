@@ -36,9 +36,9 @@ class BooleanNoneModel(BaseModel):
 DEFAULT_REGEX = constr(regex="^[A-Za-z0-9_.-]*$")
 
 class CustomBool(str, Enum):
-    true = 'true'
-    false = 'false'
-    none = 'none'
+    true = 1 or '1' or 'on' or 't' or 'true' or 'y' or 'yes'
+    false = 0 or '0' or 'off' or 'f' or 'false' or 'n' or 'no'
+    none = 'random' or 'none' 'null'
     @classmethod
     def _missing_(cls, name):
         for member in cls:

@@ -44,7 +44,7 @@ router = APIRouter()
 )
 async def random_(
         request: Request,
-        is_nsfw: CustomBool = Depends(),
+        is_nsfw: CustomBool = None,
         selected_tags: List[DEFAULT_REGEX] = Query([]),
         excluded_tags: List[DEFAULT_REGEX] = Query([]),
         excluded_files: List[DEFAULT_REGEX] = Query([]),
