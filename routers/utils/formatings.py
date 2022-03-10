@@ -38,11 +38,11 @@ def format_tags_where(selected_tags, excluded_tags):
 
 def format_nsfw(is_nsfw):
     string = "Images.is_nsfw"
-    return string if (is_nsfw == CustomBool.true or is_nsfw == CustomBool.none) else 'not ' + string
+    return string if (is_nsfw == CustomBool.true or is_nsfw == CustomBool.null) else 'not ' + string
 
 
 def format_image_type(is_nsfw, tags):
-    if is_nsfw == CustomBool.none:
+    if is_nsfw == CustomBool.null:
         return ''
     if tags:
         return f"and ({f'{format_nsfw(is_nsfw)} or ' if is_nsfw is not None else ''}" \
