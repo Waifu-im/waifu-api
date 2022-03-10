@@ -50,7 +50,7 @@ def custom_openapi_schema():
     full_paths = schema["paths"]
     for route in schema["paths"]:
         if f'{route}/' in schema["paths"]:
-            pass
+            del full_paths["paths"][route]
     schema["paths"] = full_paths
 
     app.openapi_schema = schema
