@@ -28,14 +28,6 @@ from routers.utils import (
     ImageQueue,
 )
 
-app = FastAPI(
-    description="An easy to use api that allows you to get waifu pictures from an archive "
-                "of over 4000 images and multiple tags!",
-    title="waifu.im",
-    version="2.0",
-
-)
-
 
 def custom_openapi_schema():
     if app.openapi_schema:
@@ -54,9 +46,16 @@ def custom_openapi_schema():
     return app.openapi_schema
 
 
+app = FastAPI(
+    description="An easy to use api that allows you to get waifu pictures from an archive "
+                "of over 4000 images and multiple tags!",
+    title="waifu.im",
+    version="2.0",
+
+)
+app.openapi = custom_openapi_schema
 app.include_router(public.router)
 app.include_router(registered.router)
-app.openapi = custom_openapi_schema
 
 
 @app.on_event("startup")
