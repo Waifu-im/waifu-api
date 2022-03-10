@@ -47,11 +47,8 @@ def custom_openapi_schema():
                     "of over 4000 images and multiple tags!",
         routes=app.routes,
     )
-    schema["info"]["x-logo"] = {
-        "url": "https://waifu.im/favicon.ico"
-    }
     for route in schema["paths"]:
-        if route + "/" in schema["paths"]:
+        if f'{route}/' in schema["paths"]:
             del schema["paths"][route]
 
     app.openapi_schema = schema
