@@ -27,7 +27,13 @@ from routers.utils import (
     ImageQueue,
 )
 
-app = FastAPI()
+app = FastAPI(
+    description="An easy to use api that allows you to get waifu pictures from an archive "
+                "of over 4000 images and multiple tags!",
+    title="waifu.im",
+    contact=dict(url="https://waifu.im/contact/"),
+
+)
 app.include_router(public.router)
 app.include_router(registered.router)
 
