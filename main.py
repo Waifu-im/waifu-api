@@ -6,6 +6,7 @@ import aioredis
 import pydantic
 
 from fastapi import FastAPI, Depends, Request, status
+from fastapi.openapi.utils import get_openapi
 from fastapi.encoders import jsonable_encoder
 from starlette.background import BackgroundTask
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -34,8 +35,32 @@ app = FastAPI(
     version="2.0",
 
 )
+
+
+def custom_openapi_schema():
+    if app.openapi_schema:
+        return app.openapi_schema
+    schema = get_openapi(
+        title="waifu.im",
+        version="2.0.0",
+        description="An easy to use api that allows you to get waifu pictures from an archive "
+                    "of over 4000 images and multiple tags!",
+        routes=app.routes,
+    )
+    schema["info"]["x-logo"] = {
+        "url": "https://waifu.im/favicon.ico"
+    }
+    for route in schema["paths"]:
+        if route + "/" in schema["paths"]:
+            del schema["paths"][route]
+
+    app.openapi_schema = schema
+    return app.openapi_schema
+
+
 app.include_router(public.router)
 app.include_router(registered.router)
+app.openapi = custom_openapi_schema
 
 
 @app.on_event("startup")
@@ -73,12 +98,15 @@ async def http_exception_handler(request, e):
     return JSONResponse(
         status_code=e.status_code, content=dict(code=e.status_code, message=e.detail)
     )
+
+
 @app.exception_handler(pydantic.error_wrappers.ValidationError)
 async def custom_validation_exception_handler(request: Request, exc: pydantic.error_wrappers.ValidationError):
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         content=jsonable_encoder({"detail": exc.errors()}),
     )
+
 
 @app.exception_handler(Exception)
 async def exception_handler(request, e):
