@@ -22,6 +22,7 @@ router = APIRouter()
 
 @router.get(
     "/fav",
+    tags=["Galleries"],
     dependencies=[
         Depends(
             RateLimiter(times=timesrate, seconds=perrate, callback=blacklist_callback)
@@ -30,6 +31,7 @@ router = APIRouter()
 )
 @router.get(
     "/fav/",
+    tags=["Galleries"],
     dependencies=[
         Depends(
             RateLimiter(times=timesrate, seconds=perrate, callback=blacklist_callback)

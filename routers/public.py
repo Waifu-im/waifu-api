@@ -28,6 +28,7 @@ router = APIRouter()
 
 @router.get(
     "/random",
+    tags=["Get Random Images"],
     dependencies=[
         Depends(
             RateLimiter(times=timesrate, seconds=perrate, callback=blacklist_callback)
@@ -36,6 +37,7 @@ router = APIRouter()
 )
 @router.get(
     "/random/",
+    tags=["Get Random Images"],
     dependencies=[
         Depends(
             RateLimiter(times=timesrate, seconds=perrate, callback=blacklist_callback)
