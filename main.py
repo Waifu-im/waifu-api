@@ -47,12 +47,9 @@ def custom_openapi_schema():
                     "of over 4000 images and multiple tags!",
         routes=app.routes,
     )
-    full_paths = schema["paths"]
-    for route in schema["paths"]:
+    for route in list(schema["paths"]):
         if f'{route}/' in schema["paths"]:
-            del full_paths[route]
-    schema["paths"] = full_paths
-
+            del schema["paths"][route]
     app.openapi_schema = schema
     return app.openapi_schema
 
