@@ -41,10 +41,7 @@ def APIblacklist(IP, reason):
 
 async def default_identifier(request: Request):
     """IP identifier for ratelimit"""
-    path = request.scope["path"]
-    if not path.endswith("/"):
-        path += "/"
-    return request.client.host + ":" + path
+    return request.client.host + ":" + request.url
 
 
 async def default_callback(request: Request, response: Response, pexpire: int):
