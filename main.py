@@ -3,15 +3,17 @@ import sys
 
 import asyncpg
 import aioredis
+import aiohttp
 import pydantic
 
 from fastapi import FastAPI, Depends, Request, status
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.encoders import jsonable_encoder
 from starlette.background import BackgroundTask
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.responses import JSONResponse
-import aiohttp
+
 from fastapi_limiter import FastAPILimiter
 
 from routers import public
@@ -34,6 +36,13 @@ app = FastAPI(
     title="waifu.im",
     version="2.0",
 
+)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=['*'],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
