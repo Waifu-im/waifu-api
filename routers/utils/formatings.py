@@ -105,6 +105,9 @@ def format_to_image(images_list):
 
 async def get_tags(app, full=False):
     rt = await app.state.pool.fetch("SELECT * FROM Tags")
+    for item in rt:
+        item = dict(item)
+        item['tag_id'] = item.pop('id')
     return {
         "versatile": [tag if full else tag["name"] for tag in rt if not tag["is_nsfw"]],
         "nsfw": [tag if full else tag["name"] for tag in rt if tag["is_nsfw"]]
