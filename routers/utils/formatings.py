@@ -104,13 +104,15 @@ def format_to_image(images_list):
 
 
 async def get_tags(app, full=False):
-    rt = await app.state.pool.fetch("SELECT * FROM Tags")
-    for item in rt:
-        item = dict(item)
-        item['tag_id'] = item.pop('id')
+    raw_result = await app.state.pool.fetch("SELECT * FROM Tags")
+    tag_list = []
+    for item in raw_result:
+        dict_item = dict(item)
+        dict_item['tag_id'] = dict_item.pop('id')
+        tag_list.append(dict_item)
     return {
-        "versatile": [tag if full else tag["name"] for tag in rt if not tag["is_nsfw"]],
-        "nsfw": [tag if full else tag["name"] for tag in rt if tag["is_nsfw"]]
+        "versatile": [tag if full else tag["name"] for tag in tag_list if not tag["is_nsfw"]],
+        "nsfw": [tag if full else tag["name"] for tag in tag_list if tag["is_nsfw"]]
     }
 
 
