@@ -21,6 +21,7 @@ from .utils import (
 router = APIRouter()
 auth_scheme = HTTPBearer()
 
+
 @router.get(
     "/fav",
     tags=["Galleries"],
@@ -94,7 +95,7 @@ async def fav_insert(
         request: Request,
         image: DEFAULT_REGEX = Query(...),
         user_id=Query(None),
-        authorization=Header(...),
+        credentials: HTTPAuthorizationCredentials = Depends(auth_scheme),
 ):
     """Add an image to a user gallery"""
     image = format_to_image(image)
@@ -102,8 +103,8 @@ async def fav_insert(
     user_info = await check_permissions(request=request,
                                         permissions=["manage_galleries"],
                                         check_identity_only=True,
+                                        token=credentials.credentials,
                                         user_id=user_id,
-                                        authorization=authorization,
                                         )
     target_id = user_info['id']
     if user_id:
@@ -143,14 +144,14 @@ async def fav_delete(
         request: Request,
         image: DEFAULT_REGEX = Query(...),
         user_id=Query(None),
-        authorization=Header(...),
+        credentials: HTTPAuthorizationCredentials = Depends(auth_scheme),
 ):
     """Remove an image from a user gallery"""
     image = format_to_image(image)
     user_info = await check_permissions(request=request,
                                         permissions=["manage_galleries"],
                                         check_identity_only=True,
-                                        authorization=authorization,
+                                        token=credentials.credentials,
                                         user_id=user_id
                                         )
     target_id = user_id or user_info['id']
@@ -181,7 +182,7 @@ async def fav_toggle(
         request: Request,
         image: DEFAULT_REGEX = Query(...),
         user_id=Query(None),
-        authorization=Header(...),
+        credentials: HTTPAuthorizationCredentials = Depends(auth_scheme),
 ):
     """Remove or add an image to the user gallery, depending on if it is already in."""
     image = format_to_image(image)
@@ -189,7 +190,7 @@ async def fav_toggle(
     user_info = await check_permissions(request=request,
                                         permissions=["manage_galleries"],
                                         check_identity_only=True,
-                                        authorization=authorization,
+                                        token=credentials.credentials,
                                         user_id=user_id,
                                         )
     target_id = user_info['id']
@@ -237,9 +238,9 @@ async def report(
         image: str,
         user_id: int = None,
         description: str = None,
-        authorization=Header(...),
+        credentials: HTTPAuthorizationCredentials = Depends(auth_scheme),
 ):
-    info = await check_permissions(permissions=["report"])
+    info = await check_permissions(permissions=["report"], token=credentials.credentials, )
     existed = False
     image_name = os.path.splitext(image)[0]
     async with request.app.state.pool.acquire() as conn:
