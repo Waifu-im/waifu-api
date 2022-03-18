@@ -3,6 +3,7 @@ import urllib
 import asyncpg
 
 from fastapi import APIRouter, Request, HTTPException, Header, Depends, Query
+from fastapi.responses import Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi_limiter.depends import RateLimiter
 from starlette.status import HTTP_204_NO_CONTENT
@@ -122,7 +123,7 @@ async def fav_insert(
                 user_name,
             )
         await insert_fav_image(target_id, image.file, connection)
-    return
+    return Response(status_code=HTTP_204_NO_CONTENT)
 
 
 @router.delete(
@@ -162,7 +163,7 @@ async def fav_delete(
     target_id = user_id or user_info['id']
     async with request.app.state.pool.acquire() as connection:
         await delete_fav_image(target_id, image.file, connection)
-    return
+    return Response(status_code=HTTP_204_NO_CONTENT)
 
 
 @router.post(
