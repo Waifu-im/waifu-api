@@ -2,8 +2,8 @@ import os
 import urllib
 import asyncpg
 
-from fastapi import APIRouter, Request, HTTPException, Header, Depends, Query
-from fastapi.security import HTTPBearer
+from fastapi import APIRouter, Request, HTTPException, Header, Depends, Query, Security
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi_limiter.depends import RateLimiter
 from .utils import (
     DEFAULT_REGEX,
@@ -19,7 +19,7 @@ from .utils import (
 )
 
 router = APIRouter()
-
+auth_scheme = HTTPBearer()
 
 @router.get(
     "/fav",
@@ -42,12 +42,13 @@ router = APIRouter()
 async def fav_(
         request: Request,
         user_id: int = None,
+        credentials: HTTPAuthorizationCredentials = Security(auth_scheme),
 ):
     """fetch a user favourite gallery"""
     info = await check_permissions(request=request,
                                    permissions=["manage_galleries"],
                                    check_identity_only=True,
-                                   authorization=Depends(HTTPBearer()),
+                                   token=credentials.credentials,
                                    user_id=user_id,
                                    )
     token_user_id = int(info["id"])
