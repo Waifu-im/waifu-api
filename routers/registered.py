@@ -46,7 +46,7 @@ async def fav_(
     info = await check_permissions(request=request, permissions=["manage_galleries"], check_identity_only=True,
                                    user_id=user_id)
     token_user_id = int(info["id"])
-    images = await request.app.state.fetch(
+    images = await request.app.state.pool.fetch(
         "SELECT Images.extension,Images.file,Images.id as image_id,Images.dominant_color,Images.source,"
         "Images.uploaded_at,Images.is_nsfw,Tags.name,Tags.id,Tags.description,Tags.is_nsfw as tag_is_nsfw, "
         "(SELECT COUNT(FavImages.image) FROM FavImages WHERE image=Images.file) as favourites,"
