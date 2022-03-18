@@ -58,7 +58,7 @@ async def random_(
 
 ):
     if full:
-        await check_permissions(request=request, permissions=["admin"],authorization=authorization)
+        await check_permissions(request=request, permissions=["admin"], token=authorization)
     if excluded_files:
         excluded_files = [format_to_image(f) for f in excluded_files]
     selected_tags = list(dict.fromkeys(selected_tags))

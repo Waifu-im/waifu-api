@@ -120,7 +120,7 @@ WHERE registered_user.id=$1 and registered_user.secret=$2 and (permissions.name=
     return authorized
 
 
-async def check_permissions(*, request, permissions, token, check_identity_only=False, user_id=None,):
+async def check_permissions(*, request, permissions, token, check_identity_only=False, user_id=None, ):
     permissions = (permissions if isinstance(permissions, (list, tuple)) else (permissions,))
     connection = await request.app.state.pool.acquire()
     if not token:
@@ -128,6 +128,8 @@ async def check_permissions(*, request, permissions, token, check_identity_only=
             status_code=401,
             detail="Not authenticated",
         )
+    if "bearer" in token.lower():
+        token = token.replace("Bearer", "").replace(" ", "")
     info = await decode_token(request.app.state.secret_key, token)
     if not check_identity_only or user_id:
         allowed_user = await has_permissions(
