@@ -121,14 +121,13 @@ WHERE registered_user.id=$1 and registered_user.secret=$2 and (permissions.name=
     return authorized
 
 
-async def check_permissions(*, request, permissions, authorization, check_identity_only=False, user_id=None,):
+async def check_permissions(*, request, permissions, token, check_identity_only=False, user_id=None,):
     permissions = (permissions if isinstance(permissions, (list, tuple)) else (permissions,))
     connection = await request.app.state.pool.acquire()
-    if not authorization:
+    if not token:
         raise HTTPException(
             status_code=401,
-            detail="No Token, please check that you provided a Token and that your correctly formatted it in the "
-                   "Authorization header.",
+            detail="Not authenticated",
         )
     info = await decode_token(request.app.state.secret_key, authorization)
     if not check_identity_only or user_id:
