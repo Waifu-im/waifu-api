@@ -18,7 +18,7 @@ from .utils import (
     blacklist_callback,
     DEFAULT_REGEX,
     format_limit,
-    CheckFullPermissions,
+    check_permissions,
 )
 import time
 from typing import List, Optional
@@ -53,11 +53,13 @@ async def random_(
         gif: bool = None,
         order_by: OrderByType = None,
         many: bool = None,
-        full: bool = Depends(CheckFullPermissions(["admin"])),
+        full: bool = False,
 
 ):
+    if full:
+        await check_permissions(request=request, permissions=["admin"])
     if excluded_files:
-        excluded_files = format_to_image(excluded_files)
+        excluded_files = [format_to_image(f) for f in excluded_files]
     selected_tags = list(dict.fromkeys(selected_tags))
     excluded_tags = list(dict.fromkeys(excluded_tags))
     database_start = time.perf_counter()
@@ -70,7 +72,7 @@ async def random_(
         "(SELECT COUNT(image) from FavImages WHERE image=Images.file) as favourites "
         "FROM Images JOIN LinkedTags ON Images.file=LinkedTags.image JOIN Tags ON Tags.id=LinkedTags.tag_id "
         "WHERE not Images.under_review and not Images.hidden "
-        f"{format_image_type(is_nsfw,selected_tags)} "
+        f"{format_image_type(is_nsfw, selected_tags)} "
         f"{f'and {format_gif(gif)}' if gif is not None else ''} "
         f"{f'and Images.file not in ({format_in([im.file for im in excluded_files])})' if excluded_files else ''} "
         f"{f'and {format_tags_where(selected_tags, excluded_tags)}' if selected_tags or excluded_tags else ''} "
@@ -80,7 +82,7 @@ async def random_(
         f"{format_limit(many) if not full else ''} "
         ") AS Q "
         "JOIN LinkedTags ON LinkedTags.image=Q.file JOIN Tags ON Tags.id=LinkedTags.tag_id "
-        f"{format_order_by(order_by,table_prefix='Q.',disable_random=True)}"
+        f"{format_order_by(order_by, table_prefix='Q.', disable_random=True)}"
     )
     database_end = time.perf_counter()
     images = db_to_json(fetch)
@@ -111,7 +113,7 @@ async def random_(
 )
 async def image_info(request: Request, images: List[DEFAULT_REGEX] = Query(...)):
     """Image infos"""
-    images = format_to_image(images)
+    images = [format_to_image(image) for image in images]
     image_infos = await request.app.state.pool.fetch(
         "SELECT DISTINCT Q.file,Q.extension,Q.image_id,Q.favourites,Q.dominant_color,Q.source,Q.uploaded_at,"
         "Q.is_nsfw,Tags.name,Tags.id,Tags.description,Tags.is_nsfw as tag_is_nsfw "

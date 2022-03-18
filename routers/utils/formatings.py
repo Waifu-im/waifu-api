@@ -99,8 +99,8 @@ def db_to_json(images, tag_mod=False):
         return jsonable_encoder(images_list)
 
 
-def format_to_image(images_list):
-    return [PartialImage(*os.path.splitext(im)) for im in images_list]
+def format_to_image(image):
+    return PartialImage(*os.path.splitext(image))
 
 
 async def get_tags(app, full=False):
@@ -114,33 +114,4 @@ async def get_tags(app, full=False):
         "versatile": [tag if full else tag["name"] for tag in tag_list if not tag["is_nsfw"]],
         "nsfw": [tag if full else tag["name"] for tag in tag_list if tag["is_nsfw"]]
     }
-
-
-async def wich_action(image, insert, delete, user_id, conn):
-    """Determine if an image is already or not in the User gallery for the toggle url param"""
-    if not image:
-        return
-    for im in image:
-        rt = await conn.fetchrow(
-            "SELECT image FROM FavImages WHERE user_id=$1 and image=$2",
-            user_id,
-            im.file,
-        )
-        if rt:
-            delete.append(im)
-        else:
-            insert.append(im)
-
-
-def create_query(user_id, insert=None, delete=None):
-    """Utils to format into appropriate sql query"""
-    if insert:
-        args = [(user_id, im.file) for im in insert]
-        return (
-            "INSERT INTO FavImages(user_id,image) VALUES($1,$2)",
-            args,
-        )
-    elif delete:
-        args = [(user_id, im.file) for im in delete]
-        return "DELETE FROM FavImages WHERE user_id=$1 and image=$2", args
 

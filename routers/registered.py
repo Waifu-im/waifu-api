@@ -8,15 +8,15 @@ from .utils import (
     DEFAULT_REGEX,
     format_to_image,
     db_to_json,
-    CheckFavPermissions,
-    wich_action,
-    create_query,
+    check_permissions,
+    insert_fav_image,
+    delete_fav_image,
     timesrate,
     perrate,
     blacklist_callback,
     get_user_info,
 )
-from typing import List
+
 router = APIRouter()
 
 
@@ -39,79 +39,154 @@ router = APIRouter()
     ],
 )
 async def fav_(
-    request: Request,
-    user_id: int = None,
-    info: dict = Depends(CheckFavPermissions(["manage_galleries"], grant_no_user=True)),
-    insert: List[DEFAULT_REGEX] = Query([]),
-    delete: List[DEFAULT_REGEX] = Query([]),
-    toggle: List[DEFAULT_REGEX] = Query([]),
+        request: Request,
+        user_id: int = None,
 ):
-    """galleries endpoint"""
+    """fetch a user favourite gallery"""
+    info = await check_permissions(permissions=["manage_galleries"], grant_no_user=True, user_id=user_id)
     token_user_id = int(info["id"])
-    username = None
-    if user_id:
-        t = await get_user_info(request.app.state.httpsession, user_id)
-        token_user_id = t.get("id")
-        username = t.get("full_name")
-
-    async with request.app.state.pool.acquire() as conn:
-        if username:
-            await conn.execute(
-                "INSERT INTO Registered_user(id,name) VALUES($1,$2) ON CONFLICT(id) DO UPDATE SET name=$2",
-                token_user_id,
-                username,
-            )
-        querys = []
-        insert = format_to_image(insert)
-        delete = format_to_image(delete)
-        toggle = format_to_image(toggle)
-        await wich_action(toggle, insert, delete, token_user_id, conn)
-        if insert:
-            querys.append(create_query(token_user_id, insert=insert))
-        if delete:
-            querys.append(create_query(token_user_id, delete=delete))
-
-        async with conn.transaction():
-            try:
-                for query in querys:
-                    await conn.executemany(query[0], query[1])
-            except asyncpg.exceptions.ForeignKeyViolationError:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Sorry you cannot insert a non-existing image.",
-                )
-            except asyncpg.exceptions.UniqueViolationError:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Sorry one of the images you provided is already in the user gallery, please consider "
-                           "using 'toggle' query string.",
-                )
-        images = await conn.fetch(
-            "SELECT Images.extension,Images.file,Images.id as image_id,Images.dominant_color,Images.source,"
-            "Images.uploaded_at,Images.is_nsfw,Tags.name,Tags.id,Tags.description,Tags.is_nsfw as tag_is_nsfw, "
-            "(SELECT COUNT(FavImages.image) FROM FavImages WHERE image=Images.file) as favourites,"
-            "FavImages.added_at "
-            "FROM FavImages "
-            "JOIN Images ON Images.file=FavImages.image "
-            "JOIN LinkedTags ON LinkedTags.image=FavImages.image "
-            "JOIN Tags on LinkedTags.tag_id=Tags.id "
-            "WHERE user_id=$1 ORDER BY added_at DESC",
-            token_user_id,
-        )
-    if not images and not insert and not delete:
+    images = await request.app.state.fetch(
+        "SELECT Images.extension,Images.file,Images.id as image_id,Images.dominant_color,Images.source,"
+        "Images.uploaded_at,Images.is_nsfw,Tags.name,Tags.id,Tags.description,Tags.is_nsfw as tag_is_nsfw, "
+        "(SELECT COUNT(FavImages.image) FROM FavImages WHERE image=Images.file) as favourites,"
+        "FavImages.added_at "
+        "FROM FavImages "
+        "JOIN Images ON Images.file=FavImages.image "
+        "JOIN LinkedTags ON LinkedTags.image=FavImages.image "
+        "JOIN Tags on LinkedTags.tag_id=Tags.id "
+        "WHERE user_id=$1 ORDER BY added_at DESC",
+        token_user_id,
+    )
+    if not images:
         raise HTTPException(
             status_code=404, detail="You have no Gallery or it is empty."
         )
     images_ = db_to_json(images)
-    if insert or delete:
-        return dict(
-            {
-                "images": images_,
-                "inserted": [i.filename for i in insert],
-                "deleted": [d.filename for d in delete],
-            }
-        )
     return dict(images=images_)
+
+
+@router.post(
+    "/fav/insert",
+    tags=["Galleries"],
+    dependencies=[
+        Depends(
+            RateLimiter(times=timesrate, seconds=perrate, callback=blacklist_callback)
+        )
+    ],
+)
+@router.post(
+    "/fav/insert/",
+    tags=["Galleries"],
+    dependencies=[
+        Depends(
+            RateLimiter(times=timesrate, seconds=perrate, callback=blacklist_callback)
+        )
+    ],
+)
+async def fav_insert(
+        request: Request,
+        image: DEFAULT_REGEX = Query(...),
+        user_id=Query(None),
+):
+    """Add an image to a user gallery"""
+    image = format_to_image(image)
+    user_name = None
+    user_info = await check_permissions(permissions=["manage_galleries"], grant_no_user=True, user_id=user_id)
+    target_id = user_info['id']
+    if user_id:
+        t = await get_user_info(request.app.state.httpsession, user_id)
+        target_id = t.get("id")
+        user_name = t.get("full_name")
+    async with request.app.state.pool.acquire() as connection:
+        if user_name:
+            await connection.execute(
+                "INSERT INTO Registered_user(id,name) VALUES($1,$2) ON CONFLICT(id) DO UPDATE SET name=$2",
+                target_id,
+                user_name,
+            )
+        await insert_fav_image(target_id, image.file, connection)
+    return
+
+
+@router.delete(
+    "/fav/delete",
+    tags=["Galleries"],
+    dependencies=[
+        Depends(
+            RateLimiter(times=timesrate, seconds=perrate, callback=blacklist_callback)
+        )
+    ],
+)
+@router.delete(
+    "/fav/delete/",
+    tags=["Galleries"],
+    dependencies=[
+        Depends(
+            RateLimiter(times=timesrate, seconds=perrate, callback=blacklist_callback)
+        )
+    ],
+)
+async def fav_delete(
+        request: Request,
+        image: DEFAULT_REGEX = Query(...),
+        user_id=Query(None),
+):
+    """Remove an image from a user gallery"""
+    image = format_to_image(image)
+    user_info = await check_permissions(permissions=["manage_galleries"], grant_no_user=True, user_id=user_id)
+    target_id = user_id or user_info['id']
+    async with request.app.state.pool.acquire() as connection:
+        await delete_fav_image(target_id, image.file, connection)
+    return
+
+
+@router.post(
+    "/fav/toggle",
+    tags=["Galleries"],
+    dependencies=[
+        Depends(
+            RateLimiter(times=timesrate, seconds=perrate, callback=blacklist_callback)
+        )
+    ],
+)
+@router.post(
+    "/fav/toggle/",
+    tags=["Galleries"],
+    dependencies=[
+        Depends(
+            RateLimiter(times=timesrate, seconds=perrate, callback=blacklist_callback)
+        )
+    ],
+)
+async def fav_toggle(
+        request: Request,
+        image: DEFAULT_REGEX = Query(...),
+        user_id=Query(None),
+):
+    """Remove or add an image to the user gallery, depending on if it is already in."""
+    image = format_to_image(image)
+    user_name = None
+    user_info = await check_permissions(permissions=["manage_galleries"], grant_no_user=True, user_id=user_id)
+    target_id = user_info['id']
+    if user_id:
+        t = await get_user_info(request.app.state.httpsession, user_id)
+        target_id = t.get("id")
+        user_name = t.get("full_name")
+    async with request.app.state.pool.acquire() as connection:
+        if user_name:
+            await connection.execute(
+                "INSERT INTO Registered_user(id,name) VALUES($1,$2) ON CONFLICT(id) DO UPDATE SET name=$2",
+                target_id,
+                user_name,
+            )
+        res = await connection.fetchval("SELECT image FROM FavImages WHERE user_id = $1 and image = $2")
+        if res:
+            state = "DELETED"
+            await delete_fav_image(target_id, image.file, connection)
+        else:
+            state = "INSERTED"
+            await insert_fav_image(target_id, image.file, connection)
+        return dict(code=200, state=state)
 
 
 @router.get(
@@ -133,12 +208,12 @@ async def fav_(
     ],
 )
 async def report(
-    request: Request,
-    image: str,
-    user_id: int = None,
-    description: str = None,
-    info: dict = Depends(CheckFavPermissions(["report"])),
+        request: Request,
+        image: str,
+        user_id: int = None,
+        description: str = None,
 ):
+    info = await check_permissions(permissions=["report"])
     existed = False
     image_name = os.path.splitext(image)[0]
     async with request.app.state.pool.acquire() as conn:

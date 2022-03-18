@@ -121,80 +121,33 @@ WHERE registered_user.id=$1 and registered_user.secret=$2 and (permissions.name=
     return authorized
 
 
-class CheckFavPermissions:
-    """Token and permissions verification for /fav/ and /report/ route"""
-
-    def __init__(self, permissions, grant_no_user=False):
-        self.permissions = (
-            permissions if isinstance(permissions, (list, tuple)) else (permissions,)
-        )
-        self.connection = None
-        self.grant_no_user = grant_no_user
-
-    async def __call__(
-            self, request: Request, authorization: str = Header(None), user_id: int = None,
-    ):
-        self.connection = await request.app.state.pool.acquire()
-        if not authorization:
-            raise HTTPException(
-                status_code=401,
-                detail="No Token, please check that you provided a Token and that your correctly formated it in the "
-                       "Authorization header.",
-            )
-        info = await decode_token(request.app.state.secret_key, authorization)
-        if not self.grant_no_user or user_id:
-            allowed_user = await has_permissions(
-                info["id"], info["secret"], self.permissions, self.connection
-            )
-        else:
-            allowed_user = await is_valid_token(
-                info['id'], info['secret'], self.connection
-            )
-        await request.app.state.pool.release(self.connection)
-        if allowed_user:
-            request.state.user_id = info['id']
-            return info
+def check_permissions(self, *, request, permissions, check_identity_only=False, user_id=None):
+    permissions = (permissions if isinstance(permissions, (list, tuple)) else (permissions,))
+    connection = await request.app.state.pool.acquire()
+    authorization = request.headers.get('authorization')
+    if not authorization:
         raise HTTPException(
-            status_code=403,
-            detail="Invalid Token, You do not have the permissions to request this route please check that the token "
-                   "is up "
-                   "to date"
-                   f"{' and, as you requested the user_id query string that you have the permissions to do so' if user_id else ''}.",
+            status_code=401,
+            detail="No Token, please check that you provided a Token and that your correctly formatted it in the "
+                   "Authorization header.",
         )
-
-
-class CheckFullPermissions:
-    """Token and permissions verification for full query string"""
-
-    def __init__(self, permissions):
-        self.permissions = (
-            permissions if isinstance(permissions, (list, tuple)) else (permissions,)
+    info = await decode_token(request.app.state.secret_key, authorization)
+    if not check_identity_only or user_id:
+        allowed_user = await has_permissions(
+            info["id"], info["secret"], self.permissions, self.connection
         )
-        self.connection = None
-
-    async def __call__(
-            self, request: Request, authorization: str = Header(None), full: bool = None,
-    ):
-        if not full:
-            return full
-        self.connection = await request.app.state.pool.acquire()
-        if not authorization:
-            raise HTTPException(
-                status_code=401,
-                detail="No Token, please check that you provided a Token and that your correctly formatted it in the "
-                       "Authorization header.",
-            )
-        info = await decode_token(request.app.state.secret_key, authorization)
-        allowed_user = await has_permissions(info["id"], info["secret"], self.permissions, self.connection
+    else:
+        allowed_user = await is_valid_token(
+            info['id'], info['secret'], connection
         )
-        await request.app.state.pool.release(self.connection)
-        if allowed_user:
-            request.state.user_id = info['id']
-            return full
-        raise HTTPException(
-            status_code=403,
-            detail="Invalid Token, You do not have the permissions to request this route please check that the token "
-                   "is up "
-                   "to date"
-                   "and that you have the permissions to request the 'user_id' query string",
-        )
+    await request.app.state.pool.release(connection)
+    if allowed_user:
+        request.state.user_id = info['id']
+        return info
+    raise HTTPException(
+        status_code=403,
+        detail="Invalid Token, You do not have the permissions to request this route please check that the token "
+               "is up "
+               "to date"
+               f"{' and, as you requested the user_id query string that you have the permissions to do so' if user_id else ''}.",
+    )
