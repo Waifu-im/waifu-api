@@ -100,7 +100,7 @@ async def fav_insert(
         user_id=Query(None),
         credentials: HTTPAuthorizationCredentials = Depends(auth_scheme),
 ):
-    """Add an image to a user gallery"""
+    """Add an image to a user gallery."""
     image = format_to_image(image)
     user_name = None
     user_info = await check_permissions(request=request,
@@ -151,7 +151,7 @@ async def fav_delete(
         user_id=Query(None),
         credentials: HTTPAuthorizationCredentials = Depends(auth_scheme),
 ):
-    """Remove an image from a user gallery"""
+    """Remove an image from a user gallery."""
     image = format_to_image(image)
     user_info = await check_permissions(request=request,
                                         permissions=["manage_galleries"],
@@ -248,6 +248,7 @@ async def report(
         description: str = None,
         credentials: HTTPAuthorizationCredentials = Depends(auth_scheme),
 ):
+    """Report an image."""
     info = await check_permissions(permissions=["report"], token=credentials.credentials, )
     existed = False
     image_name = os.path.splitext(image)[0]
