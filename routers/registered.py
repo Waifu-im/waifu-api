@@ -205,7 +205,10 @@ async def fav_toggle(
                 target_id,
                 user_name,
             )
-        res = await connection.fetchval("SELECT image FROM FavImages WHERE user_id = $1 and image = $2")
+        res = await connection.fetchval("SELECT image FROM FavImages WHERE user_id = $1 and image = $2",
+                                        target_id,
+                                        image.file,
+                                        )
         if res:
             state = "DELETED"
             await delete_fav_image(target_id, image.file, connection)
