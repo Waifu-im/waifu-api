@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Request, HTTPException, Depends, Query, Header
-from fastapi.security import HTTPBearer
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from fastapi_limiter.depends import RateLimiter
@@ -47,7 +46,7 @@ router = APIRouter()
 )
 async def random_(
         request: Request,
-        authorization=Depends(HTTPBearer()),
+        authorization=Header(None),
         is_nsfw: CustomBool = False,
         selected_tags: List[DEFAULT_REGEX] = Query([]),
         excluded_tags: List[DEFAULT_REGEX] = Query([]),
@@ -59,7 +58,7 @@ async def random_(
 
 ):
     if full:
-        await check_permissions(request=request, permissions=["admin"], authorization=authorization)
+        await check_permissions(request=request, permissions=["admin"],authorization=authorization)
     if excluded_files:
         excluded_files = [format_to_image(f) for f in excluded_files]
     selected_tags = list(dict.fromkeys(selected_tags))
