@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Request, HTTPException, Depends, Query, Header
+from fastapi.security import HttpBearer
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from fastapi_limiter.depends import RateLimiter
@@ -46,7 +47,7 @@ router = APIRouter()
 )
 async def random_(
         request: Request,
-        authorization=Header(None),
+        authorization=HttpBearer(None),
         is_nsfw: CustomBool = False,
         selected_tags: List[DEFAULT_REGEX] = Query([]),
         excluded_tags: List[DEFAULT_REGEX] = Query([]),
