@@ -72,10 +72,9 @@ async def blacklist_callback(request: Request, response: Response, pexpire: int)
 
 async def decode_token(
         s_key,
-        authorization: str = Header(None),
+        token,
 ):
     try:
-        token = authorization.split(" ")[1]
         rule = URLSafeSerializer(s_key)
         info = rule.loads(token)
         return info
