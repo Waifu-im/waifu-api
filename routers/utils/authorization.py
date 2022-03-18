@@ -134,7 +134,7 @@ async def check_permissions(*, request, permissions, check_identity_only=False, 
     info = await decode_token(request.app.state.secret_key, authorization)
     if not check_identity_only or user_id:
         allowed_user = await has_permissions(
-            info["id"], info["secret"], self.permissions, self.connection
+            info["id"], info["secret"], permissions, connection
         )
     else:
         allowed_user = await is_valid_token(
