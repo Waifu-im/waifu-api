@@ -7,12 +7,12 @@ async def insert_fav_image(user_id, image, conn):
     except asyncpg.exceptions.ForeignKeyViolationError:
         raise HTTPException(
             status_code=400,
-            detail="One of the images you provided do not exist.",
+            detail="the image you provided do not exist.",
         )
     except asyncpg.exceptions.UniqueViolationError:
         raise HTTPException(
             status_code=400,
-            detail="One of the images you provided is already in the user gallery, consider "
+            detail="the image you provided is already in the user gallery, consider "
                    "using /fav/toggle/ instead.",
         )
 
