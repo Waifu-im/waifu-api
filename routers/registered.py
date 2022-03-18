@@ -41,10 +41,15 @@ router = APIRouter()
 async def fav_(
         request: Request,
         user_id: int = None,
+        authorization=Header(...)
 ):
     """fetch a user favourite gallery"""
-    info = await check_permissions(request=request, permissions=["manage_galleries"], check_identity_only=True,
-                                   user_id=user_id)
+    info = await check_permissions(request=request,
+                                   permissions=["manage_galleries"],
+                                   check_identity_only=True,
+                                   authorization=authorization,
+                                   user_id=user_id,
+                                   )
     token_user_id = int(info["id"])
     images = await request.app.state.pool.fetch(
         "SELECT Images.extension,Images.file,Images.id as image_id,Images.dominant_color,Images.source,"
@@ -88,12 +93,17 @@ async def fav_insert(
         request: Request,
         image: DEFAULT_REGEX = Query(...),
         user_id=Query(None),
+        authorization=Header(...),
 ):
     """Add an image to a user gallery"""
     image = format_to_image(image)
     user_name = None
-    user_info = await check_permissions(request=request, permissions=["manage_galleries"], check_identity_only=True,
-                                        user_id=user_id)
+    user_info = await check_permissions(request=request,
+                                        permissions=["manage_galleries"],
+                                        check_identity_only=True,
+                                        user_id=user_id,
+                                        authorization=authorization,
+                                        )
     target_id = user_info['id']
     if user_id:
         t = await get_user_info(request.app.state.httpsession, user_id)
@@ -132,10 +142,16 @@ async def fav_delete(
         request: Request,
         image: DEFAULT_REGEX = Query(...),
         user_id=Query(None),
+        authorization=Header(...),
 ):
     """Remove an image from a user gallery"""
     image = format_to_image(image)
-    user_info = await check_permissions(request=request,permissions=["manage_galleries"], check_identity_only=True, user_id=user_id)
+    user_info = await check_permissions(request=request,
+                                        permissions=["manage_galleries"],
+                                        check_identity_only=True,
+                                        authorization=authorization,
+                                        user_id=user_id
+                                        )
     target_id = user_id or user_info['id']
     async with request.app.state.pool.acquire() as connection:
         await delete_fav_image(target_id, image.file, connection)
@@ -164,11 +180,17 @@ async def fav_toggle(
         request: Request,
         image: DEFAULT_REGEX = Query(...),
         user_id=Query(None),
+        authorization=Header(...),
 ):
     """Remove or add an image to the user gallery, depending on if it is already in."""
     image = format_to_image(image)
     user_name = None
-    user_info = await check_permissions(request=request,permissions=["manage_galleries"], check_identity_only=True, user_id=user_id)
+    user_info = await check_permissions(request=request,
+                                        permissions=["manage_galleries"],
+                                        check_identity_only=True,
+                                        authorization=authorization,
+                                        user_id=user_id,
+                                        )
     target_id = user_info['id']
     if user_id:
         t = await get_user_info(request.app.state.httpsession, user_id)
@@ -214,6 +236,7 @@ async def report(
         image: str,
         user_id: int = None,
         description: str = None,
+        authorization=Header(...),
 ):
     info = await check_permissions(permissions=["report"])
     existed = False
