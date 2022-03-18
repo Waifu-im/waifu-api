@@ -5,6 +5,7 @@ import asyncpg
 from fastapi import APIRouter, Request, HTTPException, Header, Depends, Query
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi_limiter.depends import RateLimiter
+from starlette.status import HTTP_204_NO_CONTENT
 from .utils import (
     DEFAULT_REGEX,
     format_to_image,
@@ -81,6 +82,7 @@ async def fav_(
             RateLimiter(times=timesrate, seconds=perrate, callback=blacklist_callback)
         )
     ],
+    status_code=HTTP_204_NO_CONTENT,
 )
 @router.post(
     "/fav/insert/",
@@ -90,6 +92,7 @@ async def fav_(
             RateLimiter(times=timesrate, seconds=perrate, callback=blacklist_callback)
         )
     ],
+    status_code=HTTP_204_NO_CONTENT,
 )
 async def fav_insert(
         request: Request,
@@ -130,6 +133,7 @@ async def fav_insert(
             RateLimiter(times=timesrate, seconds=perrate, callback=blacklist_callback)
         )
     ],
+    status_code=HTTP_204_NO_CONTENT,
 )
 @router.delete(
     "/fav/delete/",
@@ -139,6 +143,7 @@ async def fav_insert(
             RateLimiter(times=timesrate, seconds=perrate, callback=blacklist_callback)
         )
     ],
+    status_code=HTTP_204_NO_CONTENT,
 )
 async def fav_delete(
         request: Request,
