@@ -2,7 +2,7 @@ import os
 import urllib
 import asyncpg
 
-from fastapi import APIRouter, Request, HTTPException, Header, Depends, Query, Security
+from fastapi import APIRouter, Request, HTTPException, Header, Depends, Query
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi_limiter.depends import RateLimiter
 from .utils import (
@@ -42,7 +42,7 @@ auth_scheme = HTTPBearer()
 async def fav_(
         request: Request,
         user_id: int = None,
-        credentials: HTTPAuthorizationCredentials = Security(auth_scheme),
+        credentials: HTTPAuthorizationCredentials = Depends(auth_scheme),
 ):
     """fetch a user favourite gallery"""
     info = await check_permissions(request=request,
