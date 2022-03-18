@@ -129,7 +129,7 @@ async def check_permissions(*, request, permissions, token, check_identity_only=
             status_code=401,
             detail="Not authenticated",
         )
-    info = await decode_token(request.app.state.secret_key, authorization)
+    info = await decode_token(request.app.state.secret_key, token)
     if not check_identity_only or user_id:
         allowed_user = await has_permissions(
             info["id"], info["secret"], permissions, connection
