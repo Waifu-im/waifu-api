@@ -47,7 +47,7 @@ router = APIRouter()
 )
 async def random_(
         request: Request,
-        authorization=HTTPBearer(None),
+        authorization=HTTPBearer(),
         is_nsfw: CustomBool = False,
         selected_tags: List[DEFAULT_REGEX] = Query([]),
         excluded_tags: List[DEFAULT_REGEX] = Query([]),
