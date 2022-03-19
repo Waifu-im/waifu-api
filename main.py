@@ -141,6 +141,6 @@ async def log_request(request):
         "INSERT INTO api_logs(remote_address,url,user_agent,user_id) VALUES($1,$2,$3,$4)",
         request.client.host,
         str(request.url),
-        request.headers["User-Agent"],
+        request.headers.get("user-agent"),
         getattr(request.state, "user_id", None),
     )
