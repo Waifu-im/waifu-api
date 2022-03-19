@@ -130,7 +130,7 @@ async def exception_handler(request, e):
 
 @app.middleware("http")
 async def add_logs(request: Request, call_next):
-    print("receiving a request")
+    print("RECEIVING A REQUEST")
     response = await call_next(request)
     if response.status_code == 200:
         response.background = BackgroundTask(log_request, request)
