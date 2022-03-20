@@ -15,21 +15,13 @@ from .utils import (
     blacklist_callback,
     DEFAULT_REGEX,
     check_permissions,
+    ImageResponse,
+    Tag,
 )
 import time
 from typing import List, Optional
-from pydantic import BaseModel
 
 router = APIRouter()
-
-
-class Image(BaseModel):
-    test: str
-
-
-class Tag(BaseModel):
-    pass
-
 
 @router.get(
     "/random",
@@ -43,7 +35,7 @@ class Tag(BaseModel):
 @router.get(
     "/random/",
     tags=["Get Random Images"],
-    response_model=dict(images=Image),
+    response_model=ImageResponse,
     dependencies=[
         Depends(
             RateLimiter(times=timesrate, seconds=perrate, callback=blacklist_callback)

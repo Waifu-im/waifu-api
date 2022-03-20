@@ -1,20 +1,23 @@
 import typing
 from enum import Enum
 
-from pydantic import constr
+from pydantic import constr, BaseModel
 from pydantic import constr, BaseModel, ValidationError, BoolError, validator
 
 DEFAULT_REGEX = constr(regex="^[A-Za-z0-9_.-]*$")
+
 
 class CustomBool(str, Enum):
     true = 'true'
     false = 'false'
     null = 'null'
+
     @classmethod
     def _missing_(cls, name):
         for member in cls:
             if member.name.lower() == name.lower():
                 return member
+
 
 class OrderByType(str, Enum):
     favourite = "FAVOURITES"
@@ -62,12 +65,11 @@ class PartialImage:
         self.filename = self.file + self.extension
 
 
-class Tags:
+class Tag:
     def __init__(self, tag_id, name, description, is_nsfw):
         self.tag_id = int(tag_id)
         self.name = name
         self.description = description
-        self.is_nsfw= is_nsfw
         self.is_nsfw = is_nsfw
 
     def __hash__(self):
@@ -76,3 +78,27 @@ class Tags:
     def __eq__(self, o):
         return o == self.__hash__()
 
+
+class TagModel(BaseModel):
+    tag_id: int
+    name: str
+    description: str
+    is_nsfw: bool
+
+
+class ImageModel(BaseModel):
+    file: str
+    extension: str
+    image_id: int
+    favourites: int
+    dominant_color: str
+    source: str
+    uploaded_at: str
+    is_nsfw: bool
+    url: str
+    preview_url: str
+    tags: typing.List[TagModel]
+
+
+class ImageResponseModel(BaseModel):
+    images: typing.List[Image]

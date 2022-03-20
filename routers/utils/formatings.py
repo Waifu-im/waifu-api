@@ -1,7 +1,7 @@
 import os
 from werkzeug.datastructures import MultiDict
 from fastapi.encoders import jsonable_encoder
-from .types import Image, PartialImage, Tags, OrderByType,CustomBool
+from .types import Image, PartialImage, Tag, OrderByType, CustomBool
 from .constants import MANY_LIMIT
 
 
@@ -61,7 +61,7 @@ def json_image_encoder(images, tag_mod=False):
             im = jsonable_encoder(im)
             tagmapping.append(
                 (
-                    Tags(
+                    Tag(
                         im.pop("id"),
                         im.pop("name"),
                         im.pop("description"),
@@ -84,7 +84,7 @@ def json_image_encoder(images, tag_mod=False):
         imagemapping = []
         for image in images:
             image = jsonable_encoder(image)
-            tag = Tags(
+            tag = Tag(
                 image.pop("id"),
                 image.pop("name"),
                 image.pop("description"),
@@ -114,4 +114,3 @@ async def get_tags(app, full=False):
         "versatile": [tag if full else tag["name"] for tag in tag_list if not tag["is_nsfw"]],
         "nsfw": [tag if full else tag["name"] for tag in tag_list if tag["is_nsfw"]]
     }
-
