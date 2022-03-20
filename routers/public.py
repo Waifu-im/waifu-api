@@ -15,8 +15,8 @@ from .utils import (
     blacklist_callback,
     DEFAULT_REGEX,
     check_permissions,
-    ImageResponse,
-    Tag,
+    ImageResponseModel,
+    TagModel,
 )
 import time
 from typing import List, Optional
@@ -35,7 +35,7 @@ router = APIRouter()
 @router.get(
     "/random/",
     tags=["Get Random Images"],
-    response_model=ImageResponse,
+    response_model=ImageResponseModel,
     dependencies=[
         Depends(
             RateLimiter(times=timesrate, seconds=perrate, callback=blacklist_callback)
@@ -122,10 +122,10 @@ async def image_info(request: Request, images: List[DEFAULT_REGEX] = Query(...))
     return dict(images=infos)
 
 
-@router.get("/tags", response_model=Tag)
-@router.get("/tags/", response_model=Tag)
-@router.get("/endpoints", response_model=Tag)
-@router.get("/endpoints/", response_model=Tag)
+@router.get("/tags", response_model=TagModel)
+@router.get("/tags/", response_model=TagModel)
+@router.get("/endpoints", response_model=TagModel)
+@router.get("/endpoints/", response_model=TagModel)
 async def endpoints_(request: Request, full: bool = False):
     """endpoints with and without info"""
     data = await get_tags(request.app, full=full)
