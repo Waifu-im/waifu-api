@@ -83,7 +83,7 @@ class TagModel(BaseModel):
     tag_id: int
     name: str
     description: str
-    is_nsfw: bool
+    is_nsfw: bool = False
 
 
 class ImageModel(BaseModel):
@@ -94,7 +94,7 @@ class ImageModel(BaseModel):
     dominant_color: str
     source: str
     uploaded_at: str
-    is_nsfw: bool
+    is_nsfw: bool = False
     url: str
     preview_url: str
     tags: typing.List[TagModel]
