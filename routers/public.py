@@ -47,7 +47,7 @@ class Tag(BaseModel):
 @router.get(
     "/random/",
     tags=["Get Random Images"],
-    response_model=Image,
+    response_model=ImageModel,
     dependencies=[
         Depends(
             RateLimiter(times=timesrate, seconds=perrate, callback=blacklist_callback)
