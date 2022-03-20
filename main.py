@@ -64,6 +64,11 @@ def custom_openapi_schema():
     return app.openapi_schema
 
 
+app.include_router(public.router)
+app.include_router(registered.router)
+app.openapi = custom_openapi_schema
+
+
 async def create_session():
     app.state.secret_key = secret_key
     app.state.httpsession = aiohttp.ClientSession()
@@ -84,37 +89,9 @@ async def create_session():
     app.state.last_images = ImageQueue(redis, "api_last_images", MANY_LIMIT)
 
 
-def set_dynamic_response_model(route, response_model, image_model=None):
-    if route.response_model and route.response_model.__name__ == response_model.__name__:
-        if image_model:
-            route.response_model.images = image_model
-        else:
-            route.response_model.images = response_model
-
-
 @app.on_event("startup")
 async def startup():
     await create_session()
-    async with app.state.pool.acquire() as conn:
-        tag_infos = jsonable_encoder(await conn.fetchrow("SELECT * FROM Tags LIMIT 1"))
-        image_infos = jsonable_encoder(json_image_encoder(await fetch_image(conn))[0])
-        del image_infos["tags"]
-    tag_model = create_model('Tag', **jsonable_encoder(tag_infos))
-    raw_image_model = create_model('Image',
-                                   **jsonable_encoder(image_infos),
-                                   tags=tag_model,
-                                   )
-    print(raw_image_model)
-    image_model = create_model('ImageResponse',
-                               images=(list, raw_image_model),
-                               tags=tag_model,
-                               )
-    for route in public.router.routes + registered.router.routes:
-        set_dynamic_response_model(route, tag_model)
-        set_dynamic_response_model(route, image_model, image_model=raw_image_model)
-    app.include_router(public.router)
-    app.include_router(registered.router)
-    app.openapi = custom_openapi_schema
 
 
 @app.on_event("shutdown")
