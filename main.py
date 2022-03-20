@@ -83,18 +83,30 @@ async def create_session():
     app.state.last_images = ImageQueue(redis, "api_last_images", MANY_LIMIT)
 
 
+def set_dynamic_response_model(route, response_model):
+    if route.response_model == response_model.__name__:
+        route.response_model = response_model
+
+
 @app.on_event("startup")
 async def startup():
     await create_session()
     async with app.state.pool.acquire() as conn:
         tag_infos = await conn.fetchrow("SELECT * FROM Tags LIMIT 1")
-        image_infos = await fetch_image(conn)
+        image_infos = (await fetch_image(conn))[0]
         del image_infos["tags"]
-    public.router.tag_model = registered.router.tag_model = create_model('Tag', **jsonable_encoder(tag_infos))
-    public.router.image_model = registered.router.image_model = create_model('Image',
-                                                                             **jsonable_encoder(image_infos),
-                                                                             tags=public.router.tag_model,
-                                                                             )
+    tag_model = create_model('Tag', **jsonable_encoder(tag_infos))
+    raw_image_model = create_model('RawImage',
+                                   **jsonable_encoder(image_infos),
+                                   tags=tag_model,
+                                   )
+    image_model = create_model('Image',
+                               images=raw_image_model,
+                               tags=tag_model,
+                               )
+    for route in public.router.routes + registered.router.routes:
+        set_dynamic_response_model(route, tag_model)
+        set_dynamic_response_model(route, image_model)
     app.include_router(public.router)
     app.include_router(registered.router)
     app.openapi = custom_openapi_schema
