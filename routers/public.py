@@ -24,7 +24,13 @@ router = APIRouter()
 
 
 class Image(BaseModel):
-    pass
+    test: str
+
+
+class ImageModel(BaseModel):
+    images: List[Image]
+
+
 class Tag(BaseModel):
     pass
 
