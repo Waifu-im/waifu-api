@@ -23,7 +23,7 @@ from pydantic import BaseModel
 router = APIRouter()
 
 
-class Image(BaseModel):
+class ImageResponse(BaseModel):
     pass
 class Tag(BaseModel):
     pass
@@ -41,7 +41,7 @@ class Tag(BaseModel):
 @router.get(
     "/random/",
     tags=["Get Random Images"],
-    response_model=Image,
+    response_model=ImageResponse,
     dependencies=[
         Depends(
             RateLimiter(times=timesrate, seconds=perrate, callback=blacklist_callback)
