@@ -102,7 +102,7 @@ async def startup():
                                    tags=tag_model,
                                    )
     image_model = create_model('Image',
-                               images=[raw_image_model],
+                               images=raw_image_model,
                                tags=tag_model,
                                )
     for route in public.router.routes + registered.router.routes:
