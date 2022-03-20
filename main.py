@@ -106,7 +106,6 @@ async def startup():
                                tags=tag_model,
                                )
     for route in public.router.routes + registered.router.routes:
-        set_dynamic_response_model(route, tag_model)
         set_dynamic_response_model(route, image_model)
     app.include_router(public.router)
     app.include_router(registered.router)
