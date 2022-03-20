@@ -24,7 +24,9 @@ router = APIRouter()
 
 
 class ImageResponse(BaseModel):
-    pass
+    images: List
+
+
 class Tag(BaseModel):
     pass
 
