@@ -24,13 +24,7 @@ router = APIRouter()
 
 
 class Image(BaseModel):
-    test: str
-
-
-class ImageModel(BaseModel):
-    images: List[Image]
-
-
+    pass
 class Tag(BaseModel):
     pass
 
@@ -47,7 +41,7 @@ class Tag(BaseModel):
 @router.get(
     "/random/",
     tags=["Get Random Images"],
-    response_model=ImageModel,
+    response_model=Image,
     dependencies=[
         Depends(
             RateLimiter(times=timesrate, seconds=perrate, callback=blacklist_callback)
