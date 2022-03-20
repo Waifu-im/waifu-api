@@ -26,6 +26,7 @@ from routers.utils import (
     default_callback,
     MANY_LIMIT,
     ImageQueue,
+    fetch_image,
 )
 
 app = FastAPI(
@@ -62,8 +63,6 @@ def custom_openapi_schema():
     return app.openapi_schema
 
 
-
-
 async def create_session():
     app.state.secret_key = secret_key
     app.state.httpsession = aiohttp.ClientSession()
@@ -87,10 +86,18 @@ async def create_session():
 @app.on_event("startup")
 async def startup():
     await create_session()
+    async with app.state.pool.acquire() as conn:
+        tag_infos = await conn.fetchrow("SELECT * FROM Tags LIMIT 1")
+        image_infos = await fetch_image(conn)
+        del image_infos["tags"]
+    public.router.tag_model = registered.router.tag_model = create_model('Tag', **jsonable_encoder(tag_infos))
+    public.router.image_model = registered.router.image_model = create_model('Image',
+                                                                             **jsonable_encoder(image_infos),
+                                                                             tags=public.router.tag_model,
+                                                                             )
     app.include_router(public.router)
     app.include_router(registered.router)
     app.openapi = custom_openapi_schema
-
 
 
 @app.on_event("shutdown")

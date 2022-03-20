@@ -34,6 +34,7 @@ router = APIRouter()
 @router.get(
     "/random/",
     tags=["Get Random Images"],
+    response_model=router.image_model,
     dependencies=[
         Depends(
             RateLimiter(times=timesrate, seconds=perrate, callback=blacklist_callback)
@@ -120,10 +121,10 @@ async def image_info(request: Request, images: List[DEFAULT_REGEX] = Query(...))
     return dict(images=infos)
 
 
-@router.get("/tags")
-@router.get("/tags/")
-@router.get("/endpoints")
-@router.get("/endpoints/")
+@router.get("/tags", response_model=router.tag_model)
+@router.get("/tags/", response_model=router.tag_model)
+@router.get("/endpoints", response_model=router.tag_model)
+@router.get("/endpoints/", response_model=router.tag_model)
 async def endpoints_(request: Request, full: bool = False):
     """endpoints with and without info"""
     data = await get_tags(request.app, full=full)
