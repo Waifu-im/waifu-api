@@ -101,4 +101,4 @@ class ImageModel(BaseModel):
 
 
 class ImageResponseModel(BaseModel):
-    images: typing.List[Image]
+    images: typing.List[ImageModel]
