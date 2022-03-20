@@ -92,8 +92,8 @@ def set_dynamic_response_model(route, response_model):
 async def startup():
     await create_session()
     async with app.state.pool.acquire() as conn:
-        tag_infos = await conn.fetchrow("SELECT * FROM Tags LIMIT 1")
-        image_infos = (await fetch_image(conn))[0]
+        tag_infos = jsonable_encoder(await conn.fetchrow("SELECT * FROM Tags LIMIT 1"))
+        image_infos = jsonable_encoder((await fetch_image(conn))[0])
         del image_infos["tags"]
     tag_model = create_model('Tag', **jsonable_encoder(tag_infos))
     raw_image_model = create_model('RawImage',
