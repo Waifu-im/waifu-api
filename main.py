@@ -1,10 +1,8 @@
-import traceback
-import sys
-
 import asyncpg
 import aioredis
 import aiohttp
 import pydantic
+from pydantic import create_model
 
 from fastapi import FastAPI, Depends, Request, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -64,12 +62,8 @@ def custom_openapi_schema():
     return app.openapi_schema
 
 
-app.include_router(public.router)
-app.include_router(registered.router)
-app.openapi = custom_openapi_schema
 
 
-@app.on_event("startup")
 async def create_session():
     app.state.secret_key = secret_key
     app.state.httpsession = aiohttp.ClientSession()
@@ -88,6 +82,15 @@ async def create_session():
         redis, identifier=default_identifier, callback=default_callback
     )
     app.state.last_images = ImageQueue(redis, "api_last_images", MANY_LIMIT)
+
+
+@app.on_event("startup")
+async def startup():
+    await create_session()
+    app.include_router(public.router)
+    app.include_router(registered.router)
+    app.openapi = custom_openapi_schema
+
 
 
 @app.on_event("shutdown")

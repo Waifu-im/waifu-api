@@ -10,7 +10,7 @@ from starlette.status import HTTP_204_NO_CONTENT
 from .utils import (
     DEFAULT_REGEX,
     format_to_image,
-    db_to_json,
+    json_image_encoder,
     check_permissions,
     insert_fav_image,
     delete_fav_image,
@@ -71,7 +71,7 @@ async def fav_(
         raise HTTPException(
             status_code=404, detail="You have no Gallery or it is empty."
         )
-    images_ = db_to_json(images)
+    images_ = json_image_encoder(images)
     return dict(images=images_)
 
 

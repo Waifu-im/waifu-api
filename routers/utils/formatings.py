@@ -54,7 +54,7 @@ def format_in(_list):
     return ','.join(["'" + i + "'" for i in _list])
 
 
-def db_to_json(images, tag_mod=False):
+def json_image_encoder(images, tag_mod=False):
     if tag_mod:
         tagmapping = []
         for im in images:

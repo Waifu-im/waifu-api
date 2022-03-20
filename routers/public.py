@@ -3,21 +3,17 @@ from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from fastapi_limiter.depends import RateLimiter
 from .utils import (
+    fetch_image,
     CustomBool,
-    format_tags_where,
-    format_image_type,
-    format_order_by,
-    format_gif,
     format_in,
     format_to_image,
     OrderByType,
-    db_to_json,
+    json_image_encoder,
     get_tags,
     timesrate,
     perrate,
     blacklist_callback,
     DEFAULT_REGEX,
-    format_limit,
     check_permissions,
 )
 import time
@@ -64,29 +60,18 @@ async def random_(
     selected_tags = list(dict.fromkeys(selected_tags))
     excluded_tags = list(dict.fromkeys(excluded_tags))
     database_start = time.perf_counter()
-    fetch = await request.app.state.pool.fetch(
-        "SELECT DISTINCT Q.file,Q.extension,Q.image_id,Q.favourites,Q.dominant_color,Q.source,Q.uploaded_at,"
-        "Q.is_nsfw,Tags.name,Tags.id,Tags.description,Tags.is_nsfw as tag_is_nsfw "
-        "FROM ("
-        "SELECT Images.file,Images.extension,Images.id as image_id,Images.dominant_color,Images.source,"
-        "Images.uploaded_at,Images.is_nsfw,"
-        "(SELECT COUNT(image) from FavImages WHERE image=Images.file) as favourites "
-        "FROM Images JOIN LinkedTags ON Images.file=LinkedTags.image JOIN Tags ON Tags.id=LinkedTags.tag_id "
-        "WHERE not Images.under_review and not Images.hidden "
-        f"{format_image_type(is_nsfw, selected_tags)} "
-        f"{f'and {format_gif(gif)}' if gif is not None else ''} "
-        f"{f'and Images.file not in ({format_in([im.file for im in excluded_files])})' if excluded_files else ''} "
-        f"{f'and {format_tags_where(selected_tags, excluded_tags)}' if selected_tags or excluded_tags else ''} "
-        "GROUP BY Images.file "
-        f"{f'HAVING COUNT(*)={len(selected_tags)}' if selected_tags else ''} "
-        f"{format_order_by(order_by)} "
-        f"{format_limit(many) if not full else ''} "
-        ") AS Q "
-        "JOIN LinkedTags ON LinkedTags.image=Q.file JOIN Tags ON Tags.id=LinkedTags.tag_id "
-        f"{format_order_by(order_by, table_prefix='Q.', disable_random=True)}"
-    )
+    # This is inside a function since a Model is created on startup using this function (we are reusing code).
+    results = await fetch_image(is_nsfw=is_nsfw,
+                                selected_tags=selected_tags,
+                                excluded_tags=excluded_tags,
+                                excluded_files=excluded_files,
+                                gif=gif,
+                                order_by=order_by,
+                                many=many,
+                                full=full
+                                )
     database_end = time.perf_counter()
-    images = db_to_json(fetch)
+    images = json_image_encoder(results)
     print(f"Database : {database_end - database_start}")
     if not images:
         print("No image found")
@@ -130,7 +115,7 @@ async def image_info(request: Request, images: List[DEFAULT_REGEX] = Query(...))
     )
     if not image_infos:
         raise HTTPException(404, detail="You did not provide any valid filename.")
-    infos = db_to_json(image_infos)
+    infos = json_image_encoder(image_infos)
     return dict(images=infos)
 
 
