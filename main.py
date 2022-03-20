@@ -104,6 +104,7 @@ async def startup():
                                    **jsonable_encoder(image_infos),
                                    tags=tag_model,
                                    )
+    print(raw_image_model)
     image_model = create_model('ImageResponse',
                                images=(list, raw_image_model),
                                tags=tag_model,
