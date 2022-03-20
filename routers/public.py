@@ -24,7 +24,9 @@ router = APIRouter()
 
 
 class Image(BaseModel):
-    foo: str
+    pass
+class Tag(BaseModel):
+    pass
 
 
 @router.get(
@@ -126,10 +128,10 @@ async def image_info(request: Request, images: List[DEFAULT_REGEX] = Query(...))
     return dict(images=infos)
 
 
-@router.get("/tags", response_model=router.tag_model)
-@router.get("/tags/", response_model=router.tag_model)
-@router.get("/endpoints", response_model=router.tag_model)
-@router.get("/endpoints/", response_model=router.tag_model)
+@router.get("/tags", response_model=Tag)
+@router.get("/tags/", response_model=Tag)
+@router.get("/endpoints", response_model=Tag)
+@router.get("/endpoints/", response_model=Tag)
 async def endpoints_(request: Request, full: bool = False):
     """endpoints with and without info"""
     data = await get_tags(request.app, full=full)
