@@ -122,10 +122,10 @@ async def image_info(request: Request, images: List[DEFAULT_REGEX] = Query(...))
     return dict(images=infos)
 
 
-@router.get("/tags", response_model=TagModel)
-@router.get("/tags/", response_model=TagModel)
-@router.get("/endpoints", response_model=TagModel)
-@router.get("/endpoints/", response_model=TagModel)
+@router.get("/tags")
+@router.get("/tags/")
+@router.get("/endpoints")
+@router.get("/endpoints/")
 async def endpoints_(request: Request, full: bool = False):
     """endpoints with and without info"""
     data = await get_tags(request.app, full=full)
