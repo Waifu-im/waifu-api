@@ -84,7 +84,7 @@ async def create_session():
 
 
 def set_dynamic_response_model(route, response_model):
-    if route.response_model == response_model.__name__:
+    if route.response_model and route.response_model.__name__ == response_model.__name__:
         route.response_model = response_model
 
 

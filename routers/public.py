@@ -18,8 +18,13 @@ from .utils import (
 )
 import time
 from typing import List, Optional
+from pydantic import BaseModel
 
 router = APIRouter()
+
+
+class Image(BaseModel):
+    foo: str
 
 
 @router.get(
@@ -34,7 +39,7 @@ router = APIRouter()
 @router.get(
     "/random/",
     tags=["Get Random Images"],
-    response_model="Image",
+    response_model=Image,
     dependencies=[
         Depends(
             RateLimiter(times=timesrate, seconds=perrate, callback=blacklist_callback)
