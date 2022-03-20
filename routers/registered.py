@@ -18,6 +18,7 @@ from .utils import (
     perrate,
     blacklist_callback,
     get_user_info,
+    ImageResponseModel,
 )
 
 router = APIRouter()
@@ -32,6 +33,7 @@ auth_scheme = HTTPBearer()
             RateLimiter(times=timesrate, seconds=perrate, callback=blacklist_callback)
         )
     ],
+    response_model=ImageResponseModel,
 )
 @router.get(
     "/fav/",
@@ -41,6 +43,7 @@ auth_scheme = HTTPBearer()
             RateLimiter(times=timesrate, seconds=perrate, callback=blacklist_callback)
         )
     ],
+    response_model=ImageResponseModel,
 )
 async def fav_(
         request: Request,
