@@ -35,6 +35,7 @@ app = FastAPI(
                 "of over 4000 images and multiple tags!",
     title="waifu.im",
     version="2.0",
+    swagger_ui_parameters=dict(swagger_favicon_url="https://api.waifu.im/favicon.ico"),
 
 )
 app.add_middleware(
