@@ -6,12 +6,12 @@ from pydantic import create_model
 
 from fastapi import FastAPI, Depends, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.openapi.utils import get_openapi
 from fastapi.encoders import jsonable_encoder
 from starlette.background import BackgroundTask
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.responses import JSONResponse
-
 from fastapi_limiter import FastAPILimiter
 
 from routers import public
@@ -26,8 +26,6 @@ from routers.utils import (
     default_callback,
     MANY_LIMIT,
     ImageQueue,
-    fetch_image,
-    json_image_encoder,
 )
 
 app = FastAPI(
@@ -35,7 +33,8 @@ app = FastAPI(
                 "of over 4000 images and multiple tags!",
     title="waifu.im",
     version="2.0",
-    swagger_ui_parameters=dict(swagger_favicon_url="https://api.waifu.im/favicon.ico"),
+    docs_url=None,
+    redoc_url=None,
 
 )
 app.add_middleware(
@@ -99,6 +98,15 @@ async def startup():
 async def close_session():
     await app.state.pool.close()
     await app.state.httpsession.close()
+
+
+@app.get("/docs", include_in_schema=False)
+async def custom_swagger_ui_html():
+    return get_swagger_ui_html(
+        openapi_url=app.openapi_url,
+        title=app.title + "- Interactive Documentation",
+        swagger_favicon_url="/favicon.ico"
+    )
 
 
 """Global error handlers"""
