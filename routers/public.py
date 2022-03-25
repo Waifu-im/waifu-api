@@ -62,7 +62,6 @@ async def random_(
     selected_tags = list(dict.fromkeys(selected_tags))
     excluded_tags = list(dict.fromkeys(excluded_tags))
     database_start = time.perf_counter()
-    # This is inside a function since a Model is created on startup using this function (we are reusing code).
     results = await fetch_image(request.app.state.pool,
                                 is_nsfw=is_nsfw,
                                 selected_tags=selected_tags,

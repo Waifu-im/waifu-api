@@ -2,7 +2,6 @@ import asyncpg
 import aioredis
 import aiohttp
 import pydantic
-from pydantic import create_model
 
 from fastapi import FastAPI, Depends, Request, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -62,11 +61,6 @@ def custom_openapi_schema():
             del schema["paths"][route]
     app.openapi_schema = schema
     return app.openapi_schema
-
-
-app.include_router(public.router)
-app.include_router(registered.router)
-app.openapi = custom_openapi_schema
 
 
 async def create_session():
@@ -158,3 +152,7 @@ async def log_request(request):
         request.headers.get("user-agent"),
         getattr(request.state, "user_id", None),
     )
+app.include_router(public.router)
+app.include_router(registered.router)
+app.openapi = custom_openapi_schema
+
