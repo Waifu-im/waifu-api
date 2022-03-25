@@ -28,10 +28,10 @@ async def fetch_image(
         selected_tags = []
     return await connection.fetch(
         "SELECT DISTINCT Q.file,Q.extension,Q.image_id,Q.favourites,Q.dominant_color,Q.source,Q.uploaded_at,"
-        "Q.is_nsfw,Q.height,Q.width,Tags.name,Tags.id,Tags.description,Tags.is_nsfw as tag_is_nsfw "
+        "Q.is_nsfw,Q.width,Q.height,Tags.name,Tags.id,Tags.description,Tags.is_nsfw as tag_is_nsfw "
         "FROM ("
         "SELECT Images.file,Images.extension,Images.id as image_id,Images.dominant_color,Images.source,"
-        "Images.uploaded_at,Images.is_nsfw,Images.height,Images.width"
+        "Images.uploaded_at,Images.is_nsfw,Images.width,Images.height"
         "(SELECT COUNT(image) from FavImages WHERE image=Images.file) as favourites "
         "FROM Images JOIN LinkedTags ON Images.file=LinkedTags.image JOIN Tags ON Tags.id=LinkedTags.tag_id "
         "WHERE not Images.under_review and not Images.hidden "
