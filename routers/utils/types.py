@@ -87,12 +87,12 @@ class TagModel(BaseModel):
 
 
 class ImageModel(BaseModel):
-    file: str
+    file: typing.Union[str]
     extension: str
     image_id: int
     favourites: int
     dominant_color: str
-    source: str
+    source: typing.Union[str, None]
     uploaded_at: str
     is_nsfw: bool = False
     width: str

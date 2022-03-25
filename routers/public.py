@@ -80,7 +80,7 @@ async def random_(
         raise HTTPException(status_code=404, detail=f"No image found matching the criteria given")
     images_to_return = [im["file"] + im["extension"] for im in images]
     print(f"Files :" + "\n".join(images_to_return))
-    return JSONResponse(dict(code=200, images=images))
+    return dict(code=200, images=images)
 
 
 @router.get(
