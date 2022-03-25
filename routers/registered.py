@@ -61,7 +61,7 @@ async def fav_(
     images = await request.app.state.pool.fetch(
         "SELECT Images.extension,Images.file,Images.id as image_id,Images.dominant_color,Images.source,"
         "Images.uploaded_at,Images.is_nsfw,Images.width,Images.height,Tags.name,Tags.id,Tags.description,"
-        "Tags.is_nsfw as tag_is_nsfw, "
+        "Tags.is_nsfw as tag_is_nsfw,"
         "(SELECT COUNT(FavImages.image) FROM FavImages WHERE image=Images.file) as favourites,"
         "FavImages.added_at "
         "FROM FavImages "
