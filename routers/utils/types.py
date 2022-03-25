@@ -95,6 +95,8 @@ class ImageModel(BaseModel):
     source: str
     uploaded_at: str
     is_nsfw: bool = False
+    width: str
+    height: str
     url: str
     preview_url: str
     tags: typing.List[TagModel]
