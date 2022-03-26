@@ -98,7 +98,7 @@ async def close_session():
 async def custom_swagger_ui_html():
     return get_swagger_ui_html(
         openapi_url=app.openapi_url,
-        title=app.title + "- Interactive Documentation",
+        title=app.title + " - Interactive Documentation",
         swagger_favicon_url="/favicon.ico"
     )
 
