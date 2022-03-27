@@ -19,7 +19,7 @@ from .utils import (
     TagModel,
 )
 import time
-from typing import List, Optional
+from typing import Set, Optional
 
 router = APIRouter()
 
@@ -46,9 +46,9 @@ async def random_(
         request: Request,
         authorization=Header(None),
         is_nsfw: CustomBool = False,
-        selected_tags: List[DEFAULT_REGEX] = Query([]),
-        excluded_tags: List[DEFAULT_REGEX] = Query([]),
-        excluded_files: List[DEFAULT_REGEX] = Query([]),
+        selected_tags: Set[DEFAULT_REGEX] = Query(set()),
+        excluded_tags: Set[DEFAULT_REGEX] = Query(set()),
+        excluded_files: Set[DEFAULT_REGEX] = Query(set()),
         gif: bool = None,
         order_by: OrderByType = None,
         many: bool = None,
@@ -59,8 +59,6 @@ async def random_(
         await check_permissions(request=request, permissions=["admin"], token=authorization)
     if excluded_files:
         excluded_files = [format_to_image(f) for f in excluded_files]
-    selected_tags = list(dict.fromkeys(selected_tags))
-    excluded_tags = list(dict.fromkeys(excluded_tags))
     database_start = time.perf_counter()
     results = await fetch_image(request.app.state.pool,
                                 is_nsfw=is_nsfw,
@@ -99,7 +97,7 @@ async def random_(
         )
     ],
 )
-async def image_info(request: Request, images: List[DEFAULT_REGEX] = Query(...)):
+async def image_info(request: Request, images: Set[DEFAULT_REGEX] = Query(...)):
     """Image infos"""
     images = [format_to_image(image) for image in images]
     image_infos = await request.app.state.pool.fetch(
