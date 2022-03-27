@@ -58,7 +58,7 @@ async def random_(
 
 ):
     if full:
-        info = await get_token_info(request, authorization)
+        info = await get_token_info(request=request, token=authorization)
         await check_user_permissions(request=request, permissions=["admin"], user_id=info['id'])
     if excluded_files:
         excluded_files = [format_to_image(f) for f in excluded_files]
