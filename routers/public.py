@@ -1,7 +1,10 @@
+import time
+from typing import Set
+
 from fastapi import APIRouter, Request, HTTPException, Depends, Query, Header
-from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from fastapi_limiter.depends import RateLimiter
+
 from .utils import (
     fetch_image,
     CustomBool,
@@ -17,10 +20,7 @@ from .utils import (
     get_token_info,
     check_user_permissions,
     ImageResponseModel,
-    TagModel,
 )
-import time
-from typing import Set, Optional
 
 router = APIRouter()
 
