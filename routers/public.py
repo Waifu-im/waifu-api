@@ -14,7 +14,8 @@ from .utils import (
     perrate,
     blacklist_callback,
     DEFAULT_REGEX,
-    check_permissions,
+    get_token_info,
+    check_user_permissions,
     ImageResponseModel,
     TagModel,
 )
@@ -22,6 +23,7 @@ import time
 from typing import Set, Optional
 
 router = APIRouter()
+
 
 @router.get(
     "/random",
@@ -56,7 +58,8 @@ async def random_(
 
 ):
     if full:
-        await check_permissions(request=request, permissions=["admin"], token=authorization)
+        info = await get_token_info(request, authorization)
+        await check_user_permissions(request=request, permissions=["admin"], user_id=info['id'])
     if excluded_files:
         excluded_files = [format_to_image(f) for f in excluded_files]
     database_start = time.perf_counter()
