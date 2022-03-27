@@ -1,17 +1,19 @@
 import os
 import urllib
-import asyncpg
 
-from fastapi import APIRouter, Request, HTTPException, Header, Depends, Query
+import asyncpg
+from fastapi import APIRouter, Request, HTTPException, Depends, Query
 from fastapi.responses import Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi_limiter.depends import RateLimiter
 from starlette.status import HTTP_204_NO_CONTENT
+
 from .utils import (
     DEFAULT_REGEX,
     format_to_image,
     json_image_encoder,
-    check_permissions,
+    check_user_permissions,
+    get_token_info,
     insert_fav_image,
     delete_fav_image,
     timesrate,
@@ -51,13 +53,15 @@ async def fav_(
         credentials: HTTPAuthorizationCredentials = Depends(auth_scheme),
 ):
     """fetch a user favourite gallery"""
-    info = await check_permissions(request=request,
-                                   permissions=["manage_galleries"],
-                                   check_identity_only=True,
-                                   token=credentials.credentials,
-                                   user_id=user_id,
-                                   )
-    token_user_id = int(info["id"])
+    info = await get_token_info(request=request, token=credentials.credentials)
+    target_id = info['id']
+    if user_id:
+        await check_user_permissions(
+            request=request,
+            permissions=["manage_galleries"],
+            user_id=info['id'],
+        )
+        target_id = user_id
     images = await request.app.state.pool.fetch(
         "SELECT Images.extension,Images.file,Images.id as image_id,Images.dominant_color,Images.source,"
         "Images.uploaded_at,Images.is_nsfw,Images.width,Images.height,Tags.name,Tags.id,Tags.description,"
@@ -69,7 +73,7 @@ async def fav_(
         "JOIN LinkedTags ON LinkedTags.image=FavImages.image "
         "JOIN Tags on LinkedTags.tag_id=Tags.id "
         "WHERE user_id=$1 ORDER BY added_at DESC",
-        token_user_id,
+        target_id,
     )
     if not images:
         raise HTTPException(
@@ -108,14 +112,14 @@ async def fav_insert(
     """Add an image to a user gallery."""
     image = format_to_image(image)
     user_name = None
-    user_info = await check_permissions(request=request,
-                                        permissions=["manage_galleries"],
-                                        check_identity_only=True,
-                                        token=credentials.credentials,
-                                        user_id=user_id,
-                                        )
-    target_id = user_info['id']
+    info = await get_token_info(request=request, token=credentials.credentials)
+    target_id = info['id']
     if user_id:
+        await check_user_permissions(
+            request=request,
+            permissions=["manage_galleries"],
+            user_id=info['id'],
+        )
         t = await get_user_info(request.app.state.httpsession, user_id)
         target_id = t.get("id")
         user_name = t.get("full_name")
@@ -158,13 +162,14 @@ async def fav_delete(
 ):
     """Remove an image from a user gallery."""
     image = format_to_image(image)
-    user_info = await check_permissions(request=request,
-                                        permissions=["manage_galleries"],
-                                        check_identity_only=True,
-                                        token=credentials.credentials,
-                                        user_id=user_id
-                                        )
-    target_id = user_id or user_info['id']
+    info = await get_token_info(request=request, token=credentials.credentials)
+    target_id = info['id']
+    if user_id:
+        await check_user_permissions(
+            request=request,
+            permissions=["manage_galleries"],
+            user_id=info['id'],
+        )
     async with request.app.state.pool.acquire() as connection:
         await delete_fav_image(target_id, image.file, connection)
     return Response(status_code=HTTP_204_NO_CONTENT)
@@ -197,14 +202,14 @@ async def fav_toggle(
     """Remove or add an image to the user gallery, depending on if it is already in."""
     image = format_to_image(image)
     user_name = None
-    user_info = await check_permissions(request=request,
-                                        permissions=["manage_galleries"],
-                                        check_identity_only=True,
-                                        token=credentials.credentials,
-                                        user_id=user_id,
-                                        )
-    target_id = user_info['id']
+    info = await get_token_info(request=request, token=credentials.credentials)
+    target_id = info['id']
     if user_id:
+        await check_user_permissions(
+            request=request,
+            permissions=["manage_galleries"],
+            user_id=info['id'],
+        )
         t = await get_user_info(request.app.state.httpsession, user_id)
         target_id = t.get("id")
         user_name = t.get("full_name")
@@ -254,7 +259,12 @@ async def report(
         credentials: HTTPAuthorizationCredentials = Depends(auth_scheme),
 ):
     """Report an image."""
-    info = await check_permissions(permissions=["report"], token=credentials.credentials, )
+    info = await get_token_info(request=request, token=credentials.credentials)
+    await check_user_permissions(
+        request=request,
+        permissions=["report"],
+        user_id=info['id'],
+    )
     existed = False
     image_name = os.path.splitext(image)[0]
     async with request.app.state.pool.acquire() as conn:

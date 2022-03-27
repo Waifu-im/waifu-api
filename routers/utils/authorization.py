@@ -1,10 +1,16 @@
-from fastapi import FastAPI, HTTPException, Depends, Header, Request
-from starlette.responses import Response
-from itsdangerous import URLSafeSerializer, BadSignature
-import subprocess
+import asyncio
 import json
 import math
-import asyncio
+import subprocess
+
+from fastapi import HTTPException, Request
+from itsdangerous import URLSafeSerializer, BadSignature
+from starlette.responses import Response
+
+INVALID_TOKEN_MESSAGE = f"Invalid Token, please check that you did correctly format it in the Authorization header " \
+                        f"and that the token is up to date. "
+NO_PERMISSIONS_MESSAGE = "You do not have the permissions to access this content."
+NOT_AUTHENTICATED_MESSAGE = "Not authenticated"
 
 with open("private/json/credentials.json", "r") as f:
     """Get database credentials and ratelimit"""
@@ -18,7 +24,7 @@ with open("private/json/credentials.json", "r") as f:
     perrate = dt["perrate"]
 
 
-def APIblacklist(IP, reason):
+def api_blacklist(IP, reason):
     """Write new ip to nginx configuration"""
     with open("/etc/nginx/blacklist/api.conf", "r") as f:
         lines = f.readlines()
@@ -37,6 +43,17 @@ def APIblacklist(IP, reason):
     )
     process.wait()
     return inlines
+
+
+def reformat_token(token):
+    if not token:
+        raise HTTPException(
+            status_code=401,
+            detail=NOT_AUTHENTICATED_MESSAGE,
+        )
+    if "bearer" in token.lower():
+        token = token.replace("Bearer", "").replace(" ", "")
+    return token
 
 
 async def default_identifier(request: Request):
@@ -63,7 +80,7 @@ async def default_callback(request: Request, response: Response, pexpire: int):
 async def blacklist_callback(request: Request, response: Response, pexpire: int):
     """Auto-blacklist callback for ratelimit"""
     loop = asyncio.get_event_loop()
-    loop.run_in_executor(None, APIblacklist, request.client.host, "Automatic blacklist")
+    loop.run_in_executor(None, api_blacklist, request.client.host, "Automatic blacklist")
     raise HTTPException(
         status_code=429,
         detail="Too Many Requests, You have been added to the blacklist.",
@@ -81,12 +98,11 @@ async def decode_token(
     except (TypeError, KeyError, AttributeError, IndexError, BadSignature):
         raise HTTPException(
             status_code=403,
-            detail=f"Invalid Token, please check that you did correctly format it in the Authorization header and "
-                   f"that the token is up to date.",
+            detail=INVALID_TOKEN_MESSAGE,
         )
 
 
-async def is_valid_token(token_user_id, secret, connection):
+async def is_valid_credentials(token_user_id, secret, connection):
     return bool(
         await connection.fetchrow(
             "SELECT id from Registered_user WHERE id=$1 and secret=$2 ",
@@ -97,8 +113,7 @@ async def is_valid_token(token_user_id, secret, connection):
 
 
 async def has_permissions(
-        token_user_id,
-        secret,
+        user_id,
         permissions,
         connection,
 ):
@@ -109,9 +124,8 @@ async def has_permissions(
 SELECT * from user_permissions
 JOIN permissions ON permissions.name=user_permissions.permission
 JOIN registered_user on registered_user.id=user_permissions.user_id
-WHERE registered_user.id=$1 and registered_user.secret=$2 and (permissions.name=$3 or permissions.position > (SELECT position from permissions where name=$3) or permissions.name='admin')""",
-            token_user_id,
-            secret,
+WHERE registered_user.id=$1 and (permissions.name=$2 or permissions.position > (SELECT position from permissions where name=$2) or permissions.name='admin')""",
+            user_id,
             perm_name,
         )
         if not has_perm:
@@ -120,33 +134,21 @@ WHERE registered_user.id=$1 and registered_user.secret=$2 and (permissions.name=
     return authorized
 
 
-async def check_permissions(*, request, permissions, token, check_identity_only=False, user_id=None, ):
-    permissions = (permissions if isinstance(permissions, (list, tuple)) else (permissions,))
-    connection = await request.app.state.pool.acquire()
-    if not token:
+async def check_user_permissions(*, request, permissions, user_id):
+    if not await has_permissions(user_id, permissions, request.app.state.pool):
+        raise HTTPException(
+            status_code=403,
+            detail=NO_PERMISSIONS_MESSAGE,
+        )
+    return True
+
+
+async def get_token_info(*, request, token):
+    token = reformat_token(token)
+    info = await decode_token(request.app.state.secret_key, token)
+    if not await is_valid_credentials(info['id'], info['secret'], request.app.state.pool):
         raise HTTPException(
             status_code=401,
-            detail="Not authenticated",
+            detail=INVALID_TOKEN_MESSAGE,
         )
-    if "bearer" in token.lower():
-        token = token.replace("Bearer", "").replace(" ", "")
-    info = await decode_token(request.app.state.secret_key, token)
-    if not check_identity_only or user_id:
-        allowed_user = await has_permissions(
-            info["id"], info["secret"], permissions, connection
-        )
-    else:
-        allowed_user = await is_valid_token(
-            info['id'], info['secret'], connection
-        )
-    await request.app.state.pool.release(connection)
-    if allowed_user:
-        request.state.user_id = info['id']
-        return info
-    raise HTTPException(
-        status_code=403,
-        detail="Invalid Token, You do not have the permissions to request this route please check that the token "
-               "is up "
-               "to date"
-               f"{' and, as you requested the user_id query string that you have the permissions to do so' if user_id else ''}.",
-    )
+    return info
