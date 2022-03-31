@@ -3,7 +3,7 @@ import aioredis
 import aiohttp
 import pydantic
 
-from fastapi import FastAPI, Depends, Request, status
+from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.openapi.utils import get_openapi
