@@ -50,8 +50,8 @@ def format_image_type(is_nsfw, tags):
     return f'and {format_nsfw(is_nsfw)}'
 
 
-def format_in(_list):
-    return ','.join(["'" + i + "'" for i in _list])
+def format_in(_set):
+    return ','.join({"'" + i + "'" for i in _set})
 
 
 def json_image_encoder(images, tag_mod=False):

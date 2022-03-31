@@ -23,9 +23,9 @@ async def fetch_image(
         full=False,
 ):
     if excluded_tags is None:
-        excluded_tags = []
+        excluded_tags = set()
     if selected_tags is None:
-        selected_tags = []
+        selected_tags = set()
     return await connection.fetch(
         "SELECT DISTINCT Q.file,Q.extension,Q.image_id,Q.favourites,Q.dominant_color,Q.source,Q.uploaded_at,"
         "Q.is_nsfw,Q.width,Q.height,Tags.name,Tags.id,Tags.description,Tags.is_nsfw as tag_is_nsfw "
