@@ -27,9 +27,10 @@ from routers.utils import (
     ImageQueue,
 )
 
+app_description = "An easy to use api that allows you to get waifu pictures from an archive "\
+                  "of over 4000 images and multiple tags!"
 app = FastAPI(
-    description="An easy to use api that allows you to get waifu pictures from an archive "
-                "of over 4000 images and multiple tags!",
+    description=app_description,
     title="waifu.im",
     version="2.0",
     docs_url=None,
@@ -51,8 +52,7 @@ def custom_openapi_schema():
     schema = get_openapi(
         title="waifu.im",
         version="2.0.0",
-        description="An easy to use api that allows you to get waifu pictures from an archive "
-                    "of over 4000 images and multiple tags!",
+        description=app_description,
         routes=app.routes,
     )
     paths = list(schema["paths"])
@@ -127,7 +127,7 @@ async def exception_handler(request, e):
         request,
         StarletteHTTPException(
             status_code=500,
-            detail="Sorry i couldn't process your request correctly, seems like there is a problem in the application.",
+            detail="Sorry I couldn't process your request correctly, seems like there is a problem in the application.",
         ),
     )
 
