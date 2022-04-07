@@ -8,8 +8,10 @@ from fastapi_limiter.depends import RateLimiter
 from .utils import (
     fetch_image,
     CustomBool,
+    ImageOrientation,
     format_in,
     format_to_image,
+    format_orientation,
     OrderByType,
     json_image_encoder,
     get_tags,
@@ -53,6 +55,7 @@ async def random_(
         excluded_files: Set[DEFAULT_REGEX] = Query(set()),
         gif: bool = None,
         order_by: OrderByType = None,
+        orientation: ImageOrientation = None,
         many: bool = None,
         full: bool = False,
 
@@ -73,6 +76,7 @@ async def random_(
                                 excluded_files=excluded_files,
                                 gif=gif,
                                 order_by=order_by,
+                                orientation=orientation,
                                 many=many,
                                 full=full
                                 )

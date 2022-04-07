@@ -24,6 +24,11 @@ class OrderByType(str, Enum):
     uploaded_at = "UPLOADED_AT"
 
 
+class ImageOrientation(str, Enum):
+    landscape = "LANDSCAPE"
+    portrait = "PORTRAIT"
+
+
 class ImageQueue:
     """Add images to a queue and get maxsize most recent files returned to avoid displaying"""
 

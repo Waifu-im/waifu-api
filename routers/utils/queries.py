@@ -5,6 +5,7 @@ from .formatings import (
     format_tags_where,
     format_image_type,
     format_order_by,
+    format_orientation,
     format_gif,
     format_in,
     format_limit,
@@ -19,6 +20,7 @@ async def fetch_image(
         excluded_files=None,
         gif=None,
         order_by=None,
+        orientation=None,
         many=None,
         full=False,
 ):
@@ -37,6 +39,7 @@ async def fetch_image(
         "WHERE not Images.under_review and not Images.hidden "
         f"{format_image_type(is_nsfw, selected_tags)} "
         f"{f'and {format_gif(gif)}' if gif is not None else ''} "
+        f"{f'and {format_orientation(orientation)}' if orientation is not None else ''} "
         f"{f'and Images.file not in ({format_in([im.file for im in excluded_files])})' if excluded_files else ''} "
         f"{f'and {format_tags_where(selected_tags, excluded_tags)}' if selected_tags or excluded_tags else ''} "
         "GROUP BY Images.file "

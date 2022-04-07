@@ -1,7 +1,7 @@
 import os
 from werkzeug.datastructures import MultiDict
 from fastapi.encoders import jsonable_encoder
-from .types import Image, PartialImage, Tag, OrderByType, CustomBool
+from .types import Image, PartialImage, Tag, OrderByType, ImageOrientation, CustomBool
 from .constants import MANY_LIMIT
 
 
@@ -10,7 +10,6 @@ def format_gif(is_gif):
         return "Images.extension='.gif'"
     else:
         return "not Images.extension='.gif'"
-
 
 def format_limit(many):
     return f"LIMIT {MANY_LIMIT if many else '1'}"
@@ -23,6 +22,13 @@ def format_order_by(order_by, table_prefix=None, disable_random=None):
         return f"ORDER BY {table_prefix if table_prefix else ''}uploaded_at DESC"
     else:
         return "" if disable_random else " ORDER BY RANDOM()"
+
+
+def format_orientation(orientation):
+    if orientation == ImageOrientation.landscape:
+        return f"Images.width > Images.height"
+    elif orientation == ImageOrientation.portrait:
+        return f"Images.width < Images.height"
 
 
 def format_tags_where(selected_tags, excluded_tags):
