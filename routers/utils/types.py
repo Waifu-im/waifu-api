@@ -22,6 +22,11 @@ class CustomBool(str, Enum):
 class OrderByType(str, Enum):
     favourite = "FAVOURITES"
     uploaded_at = "UPLOADED_AT"
+    liked_at = "LIKED_AT"
+
+
+class FavOrderByType(str, OrderByType):
+    liked_at = "LIKED_AT"
 
 
 class ImageOrientation(str, Enum):

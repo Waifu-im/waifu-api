@@ -24,7 +24,7 @@ from .utils import (
     get_user_info,
     ImageResponseModel,
     CustomBool,
-    OrderByType,
+    FavOrderByType,
     ImageOrientation,
 
 )
@@ -60,7 +60,7 @@ async def fav_(
         excluded_tags: Set[DEFAULT_REGEX] = Query(set()),
         excluded_files: Set[DEFAULT_REGEX] = Query(set()),
         gif: bool = None,
-        order_by: OrderByType = None,
+        order_by: FavOrderByType = FavOrderByType.liked_at,
         orientation: ImageOrientation = None,
         many: bool = None,
         user_id: int = None,
