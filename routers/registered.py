@@ -88,7 +88,9 @@ async def fav_(
                                 order_by=order_by,
                                 orientation=orientation,
                                 many=many,
-                                full=True
+                                full=True,
+                                gallery_mode=True,
+                                user_id=target_id,
                                 )
     if not images:
         raise HTTPException(
