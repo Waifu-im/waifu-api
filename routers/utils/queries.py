@@ -39,7 +39,7 @@ async def fetch_image(
         "Images.uploaded_at,Images.is_nsfw,Images.width,Images.height,"
         "(SELECT COUNT(image) from FavImages WHERE image=Images.file) as favourites "
         "FROM Images JOIN LinkedTags ON Images.file=LinkedTags.image JOIN Tags ON Tags.id=LinkedTags.tag_id "
-        f"{'JOIN Images ON FavImages.image=Image.file AND FavImages.user_id=$1' if gallery_mode else ''} "
+        f"{'JOIN FavImages ON FavImages.image=Image.file AND FavImages.user_id=$1' if gallery_mode else ''} "
         "WHERE not Images.under_review and not Images.hidden "
         f"{format_image_type(is_nsfw, selected_tags)} "
         f"{f'and {format_gif(gif)}' if gif is not None else ''} "
