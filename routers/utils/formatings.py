@@ -16,12 +16,9 @@ def format_limit(many):
 
 
 def format_order_by(order_by, table_prefix=None, disable_random=None):
-    if order_by == OrderByType.favourite:
-        return f"ORDER BY {table_prefix if table_prefix else ''}favourites DESC"
-    if order_by == OrderByType.uploaded_at:
-        return f"ORDER BY {table_prefix if table_prefix else ''}uploaded_at DESC"
-    else:
-        return "" if disable_random else " ORDER BY RANDOM()"
+    if order_by:
+        return f"ORDER BY {table_prefix if table_prefix else ''}{order_by.lower()} DESC"
+    return "" if disable_random else " ORDER BY RANDOM()"
 
 
 def format_orientation(orientation):
