@@ -1,6 +1,6 @@
 import asyncpg
 from fastapi import HTTPException
-
+from .types import FavOrderByType
 from .formatings import (
     format_tags_where,
     format_image_type,
@@ -33,10 +33,10 @@ async def fetch_image(
         selected_tags = set()
     return await connection.fetch(
         "SELECT DISTINCT Q.file,Q.extension,Q.image_id,Q.favourites,Q.dominant_color,Q.source,Q.uploaded_at,"
-        f"Q.is_nsfw,Q.width,Q.height,{'Q.liked_at,' if gallery_mode else ''}Tags.name,Tags.id,Tags.description,Tags.is_nsfw as tag_is_nsfw "
+        "Q.is_nsfw,Q.width,Q.height,Tags.name,Tags.id,Tags.description,Tags.is_nsfw as tag_is_nsfw "
         "FROM ("
         "SELECT Images.file,Images.extension,Images.id as image_id,Images.dominant_color,Images.source,"
-        f"Images.uploaded_at,Images.is_nsfw,Images.width,Images.height,{'FavImages.liked_at,' if gallery_mode else ''} "
+        "Images.uploaded_at,Images.is_nsfw,Images.width,Images.height, "
         "(SELECT COUNT(image) from FavImages WHERE image=Images.file) as favourites "
         "FROM Images JOIN LinkedTags ON Images.file=LinkedTags.image JOIN Tags ON Tags.id=LinkedTags.tag_id "
         f"{'JOIN FavImages ON FavImages.image=Images.file AND FavImages.user_id=$1' if gallery_mode else ''} "
@@ -46,7 +46,7 @@ async def fetch_image(
         f"{f'and {format_orientation(orientation)}' if orientation is not None else ''} "
         f"{f'and Images.file not in ({format_in([im.file for im in excluded_files])})' if excluded_files else ''} "
         f"{f'and {format_tags_where(selected_tags, excluded_tags)}' if selected_tags or excluded_tags else ''} "
-        "GROUP BY Images.file "
+        f"GROUP BY Images.file{',FavImages.liked_at' if order_by == FavOrderByType.liked_at else ''} "
         f"{f'HAVING COUNT(*)={len(selected_tags)}' if selected_tags else ''} "
         f"{format_order_by(order_by)} "
         f"{format_limit(many) if not full else ''} "
