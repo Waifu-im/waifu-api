@@ -86,7 +86,6 @@ async def fav_(
                                 gif=gif,
                                 order_by=order_by,
                                 orientation=orientation,
-                                many=many,
                                 full=True,
                                 gallery_mode=True,
                                 user_id=target_id,
