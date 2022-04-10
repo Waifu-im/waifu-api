@@ -62,12 +62,10 @@ async def random_(
 ):
     selected_tags = {st.lower() for st in selected_tags}
     excluded_tags = {et.lower() for et in excluded_tags}
-    excluded_files = {f.lower() for f in excluded_files}
+    excluded_files = {format_to_image(f.lower()) for f in excluded_files}
     if full:
         info = await get_token_info(request=request, token=authorization)
         await check_user_permissions(request=request, permissions=["admin"], user_id=info['id'])
-    if excluded_files:
-        excluded_files = [format_to_image(f) for f in excluded_files]
     database_start = time.perf_counter()
     results = await fetch_image(request.app.state.pool,
                                 is_nsfw=is_nsfw,

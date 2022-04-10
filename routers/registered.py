@@ -1,7 +1,8 @@
 import os
 import urllib
-
+from typing import Set
 import asyncpg
+
 from fastapi import APIRouter, Request, HTTPException, Depends, Query
 from fastapi.responses import Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -10,6 +11,7 @@ from starlette.status import HTTP_204_NO_CONTENT
 
 from .utils import (
     DEFAULT_REGEX,
+    fetch_image,
     format_to_image,
     json_image_encoder,
     check_user_permissions,
@@ -21,6 +23,10 @@ from .utils import (
     blacklist_callback,
     get_user_info,
     ImageResponseModel,
+    CustomBool,
+    OrderByType,
+    ImageOrientation,
+
 )
 
 router = APIRouter()
@@ -49,6 +55,14 @@ auth_scheme = HTTPBearer()
 )
 async def fav_(
         request: Request,
+        is_nsfw: CustomBool = False,
+        selected_tags: Set[DEFAULT_REGEX] = Query(set()),
+        excluded_tags: Set[DEFAULT_REGEX] = Query(set()),
+        excluded_files: Set[DEFAULT_REGEX] = Query(set()),
+        gif: bool = None,
+        order_by: OrderByType = None,
+        orientation: ImageOrientation = None,
+        many: bool = None,
         user_id: int = None,
         credentials: HTTPAuthorizationCredentials = Depends(auth_scheme),
 ):
@@ -62,22 +76,23 @@ async def fav_(
             user_id=info['id'],
         )
         target_id = user_id
-    images = await request.app.state.pool.fetch(
-        "SELECT Images.extension,Images.file,Images.id as image_id,Images.dominant_color,Images.source,"
-        "Images.uploaded_at,Images.is_nsfw,Images.width,Images.height,Tags.name,Tags.id,Tags.description,"
-        "Tags.is_nsfw as tag_is_nsfw,"
-        "(SELECT COUNT(FavImages.image) FROM FavImages WHERE image=Images.file) as favourites,"
-        "FavImages.added_at "
-        "FROM FavImages "
-        "JOIN Images ON Images.file=FavImages.image "
-        "JOIN LinkedTags ON LinkedTags.image=FavImages.image "
-        "JOIN Tags on LinkedTags.tag_id=Tags.id "
-        "WHERE user_id=$1 ORDER BY added_at DESC",
-        target_id,
-    )
+    selected_tags = {st.lower() for st in selected_tags}
+    excluded_tags = {et.lower() for et in excluded_tags}
+    excluded_files = {format_to_image(f.lower()) for f in excluded_files}
+    images = await fetch_image(request.app.state.pool,
+                                is_nsfw=is_nsfw,
+                                selected_tags=selected_tags,
+                                excluded_tags=excluded_tags,
+                                excluded_files=excluded_files,
+                                gif=gif,
+                                order_by=order_by,
+                                orientation=orientation,
+                                many=many,
+                                full=True
+                                )
     if not images:
         raise HTTPException(
-            status_code=404, detail="You have no Gallery or it is empty."
+            status_code=404, detail="You have no Gallery or there is no image matching the criteria given."
         )
     images_ = json_image_encoder(images)
     return dict(images=images_)

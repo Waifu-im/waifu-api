@@ -23,7 +23,10 @@ async def fetch_image(
         orientation=None,
         many=None,
         full=False,
+        gallery_mode=False,
+        user_id=None,
 ):
+    args_ = (user_id,) if user_id and gallery_mode else ()
     if excluded_tags is None:
         excluded_tags = set()
     if selected_tags is None:
@@ -36,6 +39,7 @@ async def fetch_image(
         "Images.uploaded_at,Images.is_nsfw,Images.width,Images.height,"
         "(SELECT COUNT(image) from FavImages WHERE image=Images.file) as favourites "
         "FROM Images JOIN LinkedTags ON Images.file=LinkedTags.image JOIN Tags ON Tags.id=LinkedTags.tag_id "
+        f"{'JOIN Images ON FavImages.image=Image.file AND FavImages.user_id=$1' if gallery_mode else ''} "
         "WHERE not Images.under_review and not Images.hidden "
         f"{format_image_type(is_nsfw, selected_tags)} "
         f"{f'and {format_gif(gif)}' if gif is not None else ''} "
@@ -48,7 +52,9 @@ async def fetch_image(
         f"{format_limit(many) if not full else ''} "
         ") AS Q "
         "JOIN LinkedTags ON LinkedTags.image=Q.file JOIN Tags ON Tags.id=LinkedTags.tag_id "
-        f"{format_order_by(order_by, table_prefix='Q.', disable_random=True)}"
+        f"{format_order_by(order_by, table_prefix='Q.', disable_random=True)}",
+        *args_
+
     )
 
 
