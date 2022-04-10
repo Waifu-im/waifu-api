@@ -25,7 +25,7 @@ class OrderByType(str, Enum):
     liked_at = "LIKED_AT"
 
 
-class FavOrderByType(str, OrderByType):
+class FavOrderByType(OrderByType):
     liked_at = "LIKED_AT"
 
 
