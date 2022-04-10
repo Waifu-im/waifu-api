@@ -62,7 +62,6 @@ async def fav_(
         gif: bool = None,
         order_by: FavOrderByType = FavOrderByType.liked_at,
         orientation: ImageOrientation = None,
-        many: bool = None,
         user_id: int = None,
         credentials: HTTPAuthorizationCredentials = Depends(auth_scheme),
 ):
