@@ -36,7 +36,7 @@ async def fetch_image(
         f"Q.is_nsfw,Q.width,Q.height,{'Q.liked_at,' if gallery_mode else ''}Tags.name,Tags.id,Tags.description,Tags.is_nsfw as tag_is_nsfw "
         "FROM ("
         "SELECT Images.file,Images.extension,Images.id as image_id,Images.dominant_color,Images.source,"
-        f"Images.uploaded_at,Images.is_nsfw,Images.width,Images.height,{'Images.liked_at,' if gallery_mode else ''} "
+        f"Images.uploaded_at,Images.is_nsfw,Images.width,Images.height,{'FavImages.liked_at,' if gallery_mode else ''} "
         "(SELECT COUNT(image) from FavImages WHERE image=Images.file) as favourites "
         "FROM Images JOIN LinkedTags ON Images.file=LinkedTags.image JOIN Tags ON Tags.id=LinkedTags.tag_id "
         f"{'JOIN FavImages ON FavImages.image=Images.file AND FavImages.user_id=$1' if gallery_mode else ''} "
