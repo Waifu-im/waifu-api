@@ -55,7 +55,7 @@ auth_scheme = HTTPBearer()
 )
 async def fav_(
         request: Request,
-        is_nsfw: CustomBool = False,
+        is_nsfw: CustomBool = CustomBool.null,
         selected_tags: Set[DEFAULT_REGEX] = Query(set()),
         excluded_tags: Set[DEFAULT_REGEX] = Query(set()),
         excluded_files: Set[DEFAULT_REGEX] = Query(set()),
