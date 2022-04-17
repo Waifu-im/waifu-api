@@ -60,7 +60,7 @@ class Image:
         for key, value in kwargs.items():
             setattr(self, key, value)
         self.url = "https://cdn.waifu.im/" + self.file + self.extension
-        self.preview_url = "https://waifu.im/preview/?image=" + self.file + self.extension
+        self.preview_url = "https://waifu.im/preview/" + self.file + '/'
 
     def __hash__(self):
         return int(self.image_id)
