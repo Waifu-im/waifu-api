@@ -60,9 +60,9 @@ async def random_(
         full: bool = False,
 
 ):
-    selected_tags = {st.lower() for st in selected_tags}
-    excluded_tags = {et.lower() for et in excluded_tags}
-    excluded_files = {format_to_image(f.lower()) for f in excluded_files}
+    selected_tags = {st.lower() for st in selected_tags if st}
+    excluded_tags = {et.lower() for et in excluded_tags if et}
+    excluded_files = {format_to_image(f.lower()) for f in excluded_files if f}
     if full:
         info = await get_token_info(request=request, token=authorization)
         await check_user_permissions(request=request, permissions=["admin"], user_id=info['id'])
@@ -107,7 +107,7 @@ async def random_(
 )
 async def image_info(request: Request, images: Set[DEFAULT_REGEX] = Query(...)):
     """Image infos"""
-    images = {format_to_image(image.lower()) for image in images}
+    images = {format_to_image(image.lower()) for image in images if image}
     image_infos = await request.app.state.pool.fetch(
         "SELECT DISTINCT Q.file,Q.extension,Q.image_id,Q.favourites,Q.dominant_color,Q.source,Q.uploaded_at,"
         "Q.is_nsfw,Q.width,Q.height,Tags.name,Tags.id,Tags.description,Tags.is_nsfw as tag_is_nsfw "
