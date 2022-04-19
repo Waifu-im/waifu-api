@@ -75,9 +75,9 @@ async def fav_(
             user_id=info['id'],
         )
         target_id = user_id
-    selected_tags = {st.lower() for st in selected_tags}
-    excluded_tags = {et.lower() for et in excluded_tags}
-    excluded_files = {format_to_image(f.lower()) for f in excluded_files}
+    selected_tags = {st.lower() for st in selected_tags if st}
+    excluded_tags = {et.lower() for et in excluded_tags if et}
+    excluded_files = {format_to_image(f.lower()) for f in excluded_files if f}
     images = await fetch_image(request.app.state.pool,
                                 is_nsfw=is_nsfw,
                                 selected_tags=selected_tags,
