@@ -9,7 +9,7 @@ from starlette.responses import Response
 
 INVALID_TOKEN_MESSAGE = f"Invalid Token, please check that you did correctly format it in the Authorization header " \
                         f"and that the token is up to date. "
-NO_PERMISSIONS_MESSAGE = "You do not have the permissions to access this content."
+MISSING_PERMISSIONS_MESSAGE = "You are missing the following permissions : "
 NOT_AUTHENTICATED_MESSAGE = "Not authenticated"
 
 with open("private/json/credentials.json", "r") as f:
@@ -112,7 +112,7 @@ async def is_valid_credentials(token_user_id, secret, connection):
     )
 
 
-async def has_permissions(
+async def get_missing_permissions(
         user_id,
         permissions,
         connection,
@@ -120,7 +120,7 @@ async def has_permissions(
 ):
     if target_id and user_id == target_id:
         return True
-    authorized = True
+    missing = []
     for perm_name in permissions:
         has_perm = await connection.fetchrow(
             "SELECT * from user_permissions "
@@ -134,16 +134,22 @@ async def has_permissions(
             target_id,
         )
         if not has_perm:
-            authorized = False
+            missing.append(perm_name)
             break
-    return authorized
+    return missing
 
 
 async def check_user_permissions(*, request, permissions, user_id, target_id=None):
-    if not await has_permissions(user_id, permissions, request.app.state.pool, target_id=target_id):
+    missing_permissions = await get_missing_permissions(
+        user_id,
+        permissions,
+        request.app.state.pool,
+        target_id=target_id
+    )
+    if missing_permissions:
         raise HTTPException(
             status_code=403,
-            detail=NO_PERMISSIONS_MESSAGE,
+            detail=MISSING_PERMISSIONS_MESSAGE + ", ".join(missing_permissions),
         )
     return True
 
