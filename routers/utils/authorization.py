@@ -116,17 +116,23 @@ async def has_permissions(
         user_id,
         permissions,
         connection,
+        target_id=None,
 ):
+    if target_id and user_id == target_id:
+        return True
     authorized = True
     for perm_name in permissions:
         has_perm = await connection.fetchrow(
-            """
-SELECT * from user_permissions
-JOIN permissions ON permissions.name=user_permissions.permission
-JOIN registered_user on registered_user.id=user_permissions.user_id
-WHERE registered_user.id=$1 and (permissions.name=$2 or permissions.position > (SELECT position from permissions where name=$2) or permissions.name='admin')""",
+            "SELECT * from user_permissions "
+            "JOIN permissions ON permissions.name=user_permissions.permission "
+            "JOIN registered_user on registered_user.id=user_permissions.user_id "
+            "WHERE registered_user.id=$1 "
+            "and (permissions.name=$2 or permissions.position > (SELECT position from permissions where name=$2) "
+            "or permissions.name='admin' ) and (target_id=$3 or target_id=$4)",
             user_id,
             perm_name,
+            target_id,
+            None,
         )
         if not has_perm:
             authorized = False
@@ -134,8 +140,8 @@ WHERE registered_user.id=$1 and (permissions.name=$2 or permissions.position > (
     return authorized
 
 
-async def check_user_permissions(*, request, permissions, user_id):
-    if not await has_permissions(user_id, permissions, request.app.state.pool):
+async def check_user_permissions(*, request, permissions, user_id, target_id=None):
+    if not await has_permissions(user_id, permissions, request.app.state.pool, target_id=target_id):
         raise HTTPException(
             status_code=403,
             detail=NO_PERMISSIONS_MESSAGE,

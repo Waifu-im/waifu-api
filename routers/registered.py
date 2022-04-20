@@ -73,6 +73,7 @@ async def fav_(
             request=request,
             permissions=["manage_galleries"],
             user_id=info['id'],
+            target_id=user_id
         )
         target_id = user_id
     selected_tags = {st.lower() for st in selected_tags}
