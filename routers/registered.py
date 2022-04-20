@@ -71,7 +71,7 @@ async def fav_(
     if user_id:
         await check_user_permissions(
             request=request,
-            permissions=["manage_galleries"],
+            permissions=["view_gallery"],
             user_id=info['id'],
             target_id=user_id
         )
@@ -133,7 +133,7 @@ async def fav_insert(
     if user_id:
         await check_user_permissions(
             request=request,
-            permissions=["manage_galleries"],
+            permissions=["manage_gallery"],
             user_id=info['id'],
             target_id=user_id,
         )
@@ -184,7 +184,7 @@ async def fav_delete(
     if user_id:
         await check_user_permissions(
             request=request,
-            permissions=["manage_galleries"],
+            permissions=["manage_gallery"],
             user_id=info['id'],
             target_id=user_id,
         )
@@ -225,7 +225,7 @@ async def fav_toggle(
     if user_id:
         await check_user_permissions(
             request=request,
-            permissions=["manage_galleries"],
+            permissions=["manage_gallery"],
             user_id=info['id'],
             target_id=user_id,
         )
