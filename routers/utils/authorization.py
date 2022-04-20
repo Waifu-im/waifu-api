@@ -127,12 +127,11 @@ async def has_permissions(
             "JOIN permissions ON permissions.name=user_permissions.permission "
             "JOIN registered_user on registered_user.id=user_permissions.user_id "
             "WHERE registered_user.id=$1 "
-            "and (permissions.name=$2 or permissions.position > (SELECT position from permissions where name=$2) "
-            "or permissions.name='admin' ) and (target_id=$3 or target_id=$4)",
+            "and (permissions.name=$2 or permissions.position > (SELECT position from permissions where name=$2))"
+            "and (user_permissions.target_id=$3 or user_permissions.target_id is NULL)",
             user_id,
             perm_name,
             target_id,
-            None,
         )
         if not has_perm:
             authorized = False
