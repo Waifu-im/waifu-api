@@ -135,6 +135,7 @@ async def fav_insert(
             request=request,
             permissions=["manage_galleries"],
             user_id=info['id'],
+            target_id=user_id,
         )
         t = await get_user_info(request.app.state.httpsession, user_id)
         target_id = t.get("id")
@@ -185,6 +186,7 @@ async def fav_delete(
             request=request,
             permissions=["manage_galleries"],
             user_id=info['id'],
+            target_id=user_id,
         )
     async with request.app.state.pool.acquire() as connection:
         await delete_fav_image(target_id, image.file, connection)
@@ -225,6 +227,7 @@ async def fav_toggle(
             request=request,
             permissions=["manage_galleries"],
             user_id=info['id'],
+            target_id=user_id,
         )
         t = await get_user_info(request.app.state.httpsession, user_id)
         target_id = t.get("id")
