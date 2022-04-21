@@ -109,7 +109,7 @@ async def custom_swagger_ui_html():
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request, e):
     return JSONResponse(
-        status_code=e.status_code, content=dict(code=e.status_code, detail=e.detail)
+        status_code=e.status_code, content=dict(detail=e.detail)
     )
 
 
