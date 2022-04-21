@@ -118,9 +118,9 @@ async def get_missing_permissions(
         connection,
         target_id=None,
 ):
-    if target_id and user_id == target_id:
-        return True
     missing = []
+    if target_id and user_id == target_id:
+        return missing
     for perm_name in permissions:
         has_perm = await connection.fetchrow(
             "SELECT * from user_permissions "
