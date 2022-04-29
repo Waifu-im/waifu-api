@@ -70,7 +70,7 @@ async def insert_fav_image(user_id, image, conn):
     except asyncpg.exceptions.UniqueViolationError:
         raise HTTPException(
             status_code=400,
-            detail="the image you provided is already in the user gallery, consider "
+            detail="the image you provided is already in the user favourites, consider "
                    "using /fav/toggle/ instead.",
         )
 
@@ -83,5 +83,5 @@ async def delete_fav_image(user_id, image, conn):
     if not res:
         raise HTTPException(
             status_code=400,
-            detail="The image you provided do not exist or is not in the user gallery.",
+            detail="The image you provided do not exist or is not in the user favourites.",
         )

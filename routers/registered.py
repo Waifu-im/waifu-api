@@ -71,7 +71,7 @@ async def fav_(
     if user_id:
         await check_user_permissions(
             request=request,
-            permissions=["view_gallery"],
+            permissions=["view_favourites"],
             user_id=info['id'],
             target_id=user_id
         )
@@ -93,7 +93,7 @@ async def fav_(
                                 )
     if not images:
         raise HTTPException(
-            status_code=404, detail="You have no Gallery or there is no image matching the criteria given."
+            status_code=404, detail="You have no favourites or there is no image matching the criteria given."
         )
     images_ = json_image_encoder(images)
     return dict(images=images_)
@@ -125,7 +125,7 @@ async def fav_insert(
         user_id=Query(None),
         credentials: HTTPAuthorizationCredentials = Depends(auth_scheme),
 ):
-    """Add an image to a user gallery."""
+    """Add an image to a user favourites."""
     image = format_to_image(image)
     user_name = None
     info = await get_token_info(request=request, token=credentials.credentials)
@@ -133,7 +133,7 @@ async def fav_insert(
     if user_id:
         await check_user_permissions(
             request=request,
-            permissions=["manage_gallery"],
+            permissions=["manage_favourites"],
             user_id=info['id'],
             target_id=user_id,
         )
@@ -177,14 +177,14 @@ async def fav_delete(
         user_id=Query(None),
         credentials: HTTPAuthorizationCredentials = Depends(auth_scheme),
 ):
-    """Remove an image from a user gallery."""
+    """Remove an image from a user favourites."""
     image = format_to_image(image)
     info = await get_token_info(request=request, token=credentials.credentials)
     target_id = info['id']
     if user_id:
         await check_user_permissions(
             request=request,
-            permissions=["manage_gallery"],
+            permissions=["manage_favourites"],
             user_id=info['id'],
             target_id=user_id,
         )
@@ -217,7 +217,7 @@ async def fav_toggle(
         user_id=Query(None),
         credentials: HTTPAuthorizationCredentials = Depends(auth_scheme),
 ):
-    """Remove or add an image to the user gallery, depending on if it is already in."""
+    """Remove or add an image to the user favourites, depending on if it is already in."""
     image = format_to_image(image)
     user_name = None
     info = await get_token_info(request=request, token=credentials.credentials)
@@ -225,7 +225,7 @@ async def fav_toggle(
     if user_id:
         await check_user_permissions(
             request=request,
-            permissions=["manage_gallery"],
+            permissions=["manage_favourites"],
             user_id=info['id'],
             target_id=user_id,
         )
