@@ -18,9 +18,6 @@ from .utils import (
     get_token_info,
     insert_fav_image,
     delete_fav_image,
-    timesrate,
-    perrate,
-    blacklist_callback,
     get_user_info,
     ImageResponseModel,
     CustomBool,
@@ -33,26 +30,8 @@ router = APIRouter()
 auth_scheme = HTTPBearer()
 
 
-@router.get(
-    "/fav",
-    tags=["Galleries"],
-    dependencies=[
-        Depends(
-            RateLimiter(times=timesrate, seconds=perrate, callback=blacklist_callback)
-        )
-    ],
-    response_model=ImageResponseModel,
-)
-@router.get(
-    "/fav/",
-    tags=["Galleries"],
-    dependencies=[
-        Depends(
-            RateLimiter(times=timesrate, seconds=perrate, callback=blacklist_callback)
-        )
-    ],
-    response_model=ImageResponseModel,
-)
+@router.get("/fav", tags=["Galleries"], response_model=ImageResponseModel)
+@router.get("/fav/", tags=["Galleries"], response_model=ImageResponseModel)
 async def fav_(
         request: Request,
         is_nsfw: CustomBool = CustomBool.null,
@@ -80,17 +59,17 @@ async def fav_(
     excluded_tags = {et.lower() for et in excluded_tags if et}
     excluded_files = {format_to_image(f.lower()) for f in excluded_files if f}
     images = await fetch_image(request.app.state.pool,
-                                is_nsfw=is_nsfw,
-                                selected_tags=selected_tags,
-                                excluded_tags=excluded_tags,
-                                excluded_files=excluded_files,
-                                gif=gif,
-                                order_by=order_by,
-                                orientation=orientation,
-                                full=True,
-                                gallery_mode=True,
-                                user_id=target_id,
-                                )
+                               is_nsfw=is_nsfw,
+                               selected_tags=selected_tags,
+                               excluded_tags=excluded_tags,
+                               excluded_files=excluded_files,
+                               gif=gif,
+                               order_by=order_by,
+                               orientation=orientation,
+                               full=True,
+                               gallery_mode=True,
+                               user_id=target_id,
+                               )
     if not images:
         raise HTTPException(
             status_code=404, detail="You have no favourites or there is no image matching the criteria given."
@@ -99,26 +78,8 @@ async def fav_(
     return dict(images=images_)
 
 
-@router.post(
-    "/fav/insert",
-    tags=["Galleries"],
-    dependencies=[
-        Depends(
-            RateLimiter(times=timesrate, seconds=perrate, callback=blacklist_callback)
-        )
-    ],
-    status_code=HTTP_204_NO_CONTENT,
-)
-@router.post(
-    "/fav/insert/",
-    tags=["Galleries"],
-    dependencies=[
-        Depends(
-            RateLimiter(times=timesrate, seconds=perrate, callback=blacklist_callback)
-        )
-    ],
-    status_code=HTTP_204_NO_CONTENT,
-)
+@router.post("/fav/insert", tags=["Galleries"], status_code=HTTP_204_NO_CONTENT)
+@router.post("/fav/insert/", tags=["Galleries"], status_code=HTTP_204_NO_CONTENT)
 async def fav_insert(
         request: Request,
         image: DEFAULT_REGEX = Query(...),
@@ -151,26 +112,8 @@ async def fav_insert(
     return Response(status_code=HTTP_204_NO_CONTENT)
 
 
-@router.delete(
-    "/fav/delete",
-    tags=["Galleries"],
-    dependencies=[
-        Depends(
-            RateLimiter(times=timesrate, seconds=perrate, callback=blacklist_callback)
-        )
-    ],
-    status_code=HTTP_204_NO_CONTENT,
-)
-@router.delete(
-    "/fav/delete/",
-    tags=["Galleries"],
-    dependencies=[
-        Depends(
-            RateLimiter(times=timesrate, seconds=perrate, callback=blacklist_callback)
-        )
-    ],
-    status_code=HTTP_204_NO_CONTENT,
-)
+@router.delete("/fav/delete", tags=["Galleries"], status_code=HTTP_204_NO_CONTENT)
+@router.delete("/fav/delete/", tags=["Galleries"], status_code=HTTP_204_NO_CONTENT)
 async def fav_delete(
         request: Request,
         image: DEFAULT_REGEX = Query(...),
@@ -193,24 +136,8 @@ async def fav_delete(
     return Response(status_code=HTTP_204_NO_CONTENT)
 
 
-@router.post(
-    "/fav/toggle",
-    tags=["Galleries"],
-    dependencies=[
-        Depends(
-            RateLimiter(times=timesrate, seconds=perrate, callback=blacklist_callback)
-        )
-    ],
-)
-@router.post(
-    "/fav/toggle/",
-    tags=["Galleries"],
-    dependencies=[
-        Depends(
-            RateLimiter(times=timesrate, seconds=perrate, callback=blacklist_callback)
-        )
-    ],
-)
+@router.post("/fav/toggle", tags=["Galleries"])
+@router.post("/fav/toggle/", tags=["Galleries"])
 async def fav_toggle(
         request: Request,
         image: DEFAULT_REGEX = Query(...),
@@ -252,24 +179,8 @@ async def fav_toggle(
         return dict(code=200, state=state)
 
 
-@router.get(
-    "/report",
-    status_code=201,
-    dependencies=[
-        Depends(
-            RateLimiter(times=timesrate, seconds=perrate, callback=blacklist_callback)
-        )
-    ],
-)
-@router.get(
-    "/report/",
-    status_code=201,
-    dependencies=[
-        Depends(
-            RateLimiter(times=timesrate, seconds=perrate, callback=blacklist_callback)
-        )
-    ],
-)
+@router.get("/report", status_code=201)
+@router.get("/report/", status_code=201)
 async def report(
         request: Request,
         image: str,

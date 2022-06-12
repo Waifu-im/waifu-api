@@ -11,13 +11,9 @@ from .utils import (
     ImageOrientation,
     format_in,
     format_to_image,
-    format_orientation,
     OrderByType,
     json_image_encoder,
     get_tags,
-    timesrate,
-    perrate,
-    blacklist_callback,
     DEFAULT_REGEX,
     get_token_info,
     check_user_permissions,
@@ -27,25 +23,8 @@ from .utils import (
 router = APIRouter()
 
 
-@router.get(
-    "/random",
-    tags=["Get Random Images"],
-    dependencies=[
-        Depends(
-            RateLimiter(times=timesrate, seconds=perrate, callback=blacklist_callback)
-        )
-    ],
-)
-@router.get(
-    "/random/",
-    tags=["Get Random Images"],
-    response_model=ImageResponseModel,
-    dependencies=[
-        Depends(
-            RateLimiter(times=timesrate, seconds=perrate, callback=blacklist_callback)
-        )
-    ],
-)
+@router.get("/random", tags=["Get Random Images"])
+@router.get("/random/", tags=["Get Random Images"], response_model=ImageResponseModel)
 async def random_(
         request: Request,
         authorization=Header(None),
@@ -89,22 +68,8 @@ async def random_(
     return dict(code=200, images=images)
 
 
-@router.get(
-    "/info",
-    dependencies=[
-        Depends(
-            RateLimiter(times=timesrate, seconds=perrate, callback=blacklist_callback)
-        )
-    ],
-)
-@router.get(
-    "/info/",
-    dependencies=[
-        Depends(
-            RateLimiter(times=timesrate, seconds=perrate, callback=blacklist_callback)
-        )
-    ],
-)
+@router.get("/info")
+@router.get("/info/")
 async def image_info(request: Request, images: Set[DEFAULT_REGEX] = Query(...)):
     """Image infos"""
     images = {format_to_image(image.lower()) for image in images if image}
