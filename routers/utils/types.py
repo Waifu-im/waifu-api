@@ -4,7 +4,7 @@ from enum import Enum
 from pydantic import constr, BaseModel
 from pydantic import constr, BaseModel, ValidationError, BoolError, validator
 
-DEFAULT_REGEX = constr(regex="^[A-Za-z0-9_.-]*$")
+DEFAULT_REGEX = constr(regex="^[A-Za-z0-9_.-]+$")
 
 
 class CustomBool(str, Enum):
