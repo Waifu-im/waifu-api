@@ -5,7 +5,7 @@ After=network.target
 [Service]
 WorkingDirectory=/path/to/working/directory
 ExecStart=/path/to/venv/bin/uvicorn --host 127.0.0.1 --port 8034 --proxy-headers --forwarded-allow-ips '*' --use-colors --workers 6 main:app
-User=pi
+User=waifu_user
 Restart=always
 
 [Install]
