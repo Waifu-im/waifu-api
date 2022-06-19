@@ -17,3 +17,6 @@ You should visite the [website](https://waifu.im) to learn a bit more about waif
 
 ## Documentation
 You can [read the docs here](https://waifu.im/docs/).
+
+## Contact us
+Don't hesitate to [contact us](https://waifu.im/contact/) if you need help!
