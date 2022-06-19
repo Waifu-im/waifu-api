@@ -1,18 +1,13 @@
 [Unit]
 Description=Waifu API
-After=network-online.target
-
-StartLimitIntervalSec=500
-StartLimitBurst=10
+After=network.target
 
 [Service]
-Type=simple
-WorkingDirectory=/path/to/cwd/
-ExecStart=/path/to/venv/bin/uvicorn --host 0.0.0.0 --port the_port_theapi_run_on --proxy-headers --forwarded-allow-ips '*' --use-colors --workers 9 main:app
+WorkingDirectory=/path/to/working/directory
+ExecStart=/path/to/venv/bin/uvicorn --host 127.0.0.1 --port 8034 --proxy-headers --forwarded-allow-ips '*' --use-colors --workers 6 main:app
 User=pi
 Restart=always
-StandardOutput=journal
-StandardError=journal
+
 [Install]
 WantedBy=multi-user.target
 
