@@ -6,7 +6,6 @@ import asyncpg
 from fastapi import APIRouter, Request, HTTPException, Depends, Query
 from fastapi.responses import Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from fastapi_limiter.depends import RateLimiter
 from starlette.status import HTTP_204_NO_CONTENT
 
 from .utils import (

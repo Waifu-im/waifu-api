@@ -58,7 +58,7 @@ class ImageQueue:
 class Image:
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
-            setattr(self, key, value)
+            setattr(self, key, int(value) if value.isdecimal() else value)
         self.url = "https://cdn.waifu.im/" + self.file + self.extension
         self.preview_url = "https://waifu.im/preview/" + self.file + '/'
 

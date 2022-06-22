@@ -62,6 +62,8 @@ def json_image_encoder(images, tag_mod=False):
         tagmapping = []
         for im in images:
             im = jsonable_encoder(im)
+            im["width"] = int(im["width"])
+            im["height"] = int(im["height"])
             tagmapping.append(
                 (
                     Tag(
