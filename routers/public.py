@@ -3,7 +3,6 @@ from typing import Set
 
 from fastapi import APIRouter, Request, HTTPException, Depends, Query, Header
 from fastapi.encoders import jsonable_encoder
-from fastapi_limiter.depends import RateLimiter
 
 from .utils import (
     fetch_image,
@@ -65,11 +64,11 @@ async def random_(
         raise HTTPException(status_code=404, detail=f"No image found matching the criteria given")
     images_to_return = [im["file"] + im["extension"] for im in images]
     print(f"Files :" + "\n".join(images_to_return))
-    return dict(code=200, images=images)
+    return dict(images=images)
 
 
-@router.get("/info")
-@router.get("/info/")
+@router.get("/info", response_model=ImageResponseModel)
+@router.get("/info/", response_model=ImageResponseModel)
 async def image_info(request: Request, images: Set[DEFAULT_REGEX] = Query(...)):
     """Image infos"""
     images = {format_to_image(image.lower()) for image in images if image}

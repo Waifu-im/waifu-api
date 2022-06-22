@@ -106,8 +106,8 @@ class ImageModel(BaseModel):
     source: typing.Union[str, None]
     uploaded_at: str
     is_nsfw: bool = False
-    width: str
-    height: str
+    width: int
+    height: int
     url: str
     preview_url: str
     tags: typing.List[TagModel]
