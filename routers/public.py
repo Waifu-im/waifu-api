@@ -81,7 +81,7 @@ async def image_info(request: Request, images: Set[DEFAULT_REGEX] = Query(...)):
         "Images.uploaded_at,Images.is_nsfw,Images.width,Images.height,"
         "(SELECT COUNT(image) from FavImages WHERE image=Images.file) as favourites "
         "FROM Images "
-        f"WHERE Images.file in ({image_as_string}) OR Images.id in ({image_as_int}) "
+        f"WHERE Images.file IN ({image_as_string}) "
         "GROUP BY Images.file "
         ") AS Q "
         "JOIN LinkedTags ON LinkedTags.image=Q.file JOIN Tags ON Tags.id=LinkedTags.tag_id"
