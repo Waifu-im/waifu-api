@@ -71,8 +71,8 @@ async def random_(
 @router.get("/info/", response_model=ImageResponseModel)
 async def image_info(request: Request, images: Set[DEFAULT_REGEX] = Query(...)):
     """Image infos"""
-    images = {format_to_image(image.lower()) for image in images if image}
-    formated_image_string = format_in([im.file for im in images])
+    image_as_string = format_in([im.file for im in {format_to_image(image.lower()) for image in images if image and image.decimal()}])
+    image_as_int = format_in({image for image in images if image and image.isdecimal()})
     image_infos = await request.app.state.pool.fetch(
         "SELECT DISTINCT Q.file,Q.extension,Q.image_id,Q.favourites,Q.dominant_color,Q.source,Q.uploaded_at,"
         "Q.is_nsfw,Q.width,Q.height,Tags.name,Tags.id,Tags.description,Tags.is_nsfw as tag_is_nsfw "
@@ -81,7 +81,7 @@ async def image_info(request: Request, images: Set[DEFAULT_REGEX] = Query(...)):
         "Images.uploaded_at,Images.is_nsfw,Images.width,Images.height,"
         "(SELECT COUNT(image) from FavImages WHERE image=Images.file) as favourites "
         "FROM Images "
-        f"WHERE Images.file in ({formated_image_string}) OR Images.id in ({formated_image_string}) "
+        f"WHERE Images.file in ({image_as_string}) OR Images.id in ({image_as_int}) "
         "GROUP BY Images.file "
         ") AS Q "
         "JOIN LinkedTags ON LinkedTags.image=Q.file JOIN Tags ON Tags.id=LinkedTags.tag_id"
