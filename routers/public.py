@@ -71,7 +71,7 @@ async def random_(
 @router.get("/info/", response_model=ImageResponseModel)
 async def image_info(request: Request, images: Set[DEFAULT_REGEX] = Query(...)):
     """Image infos"""
-    image_as_string = format_in([im.file for im in {format_to_image(image.lower()) for image in images if image and image.decimal()}])
+    image_as_string = format_in([im.file for im in {format_to_image(image.lower()) for image in images if image and image.isdecimal()}])
     image_as_int = format_in({image for image in images if image and image.isdecimal()})
     image_infos = await request.app.state.pool.fetch(
         "SELECT DISTINCT Q.file,Q.extension,Q.image_id,Q.favourites,Q.dominant_color,Q.source,Q.uploaded_at,"
