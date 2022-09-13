@@ -59,8 +59,8 @@ class Image:
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
             setattr(self, key, value)
-        self.url = "https://cdn.waifu.im/" + self.file + self.extension
-        self.preview_url = "https://waifu.im/preview/" + self.file + '/'
+        self.url = "https://cdn.waifu.im/" + self.image_id+ self.extension
+        self.preview_url = "https://waifu.im/preview/" + self.image_id + '/'
 
     def __hash__(self):
         return int(self.image_id)
@@ -70,10 +70,10 @@ class Image:
 
 
 class PartialImage:
-    def __init__(self, file, extension):
-        self.file = file
+    def __init__(self, image_id, extension):
+        self.image_id = image_id
         self.extension = extension
-        self.filename = self.file + self.extension
+        self.filename = self.image_id + self.extension
 
 
 class Tag:
@@ -98,7 +98,7 @@ class TagModel(BaseModel):
 
 
 class ImageModel(BaseModel):
-    file: typing.Union[str]
+    signature: typing.Union[str]
     extension: str
     image_id: int
     favourites: int

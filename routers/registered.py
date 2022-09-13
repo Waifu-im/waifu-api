@@ -107,7 +107,7 @@ async def fav_insert(
                 target_id,
                 user_name,
             )
-        await insert_fav_image(target_id, image.file, connection)
+        await insert_fav_image(target_id, image.image_id, connection)
     return Response(status_code=HTTP_204_NO_CONTENT)
 
 
@@ -131,7 +131,7 @@ async def fav_delete(
             target_id=user_id,
         )
     async with request.app.state.pool.acquire() as connection:
-        await delete_fav_image(target_id, image.file, connection)
+        await delete_fav_image(target_id, image.image_id, connection)
     return Response(status_code=HTTP_204_NO_CONTENT)
 
 
@@ -167,14 +167,14 @@ async def fav_toggle(
             )
         res = await connection.fetchval("SELECT image FROM FavImages WHERE user_id = $1 and image = $2",
                                         target_id,
-                                        image.file,
+                                        image.image_id,
                                         )
         if res:
             state = "DELETED"
-            await delete_fav_image(target_id, image.file, connection)
+            await delete_fav_image(target_id, image.image_id, connection)
         else:
             state = "INSERTED"
-            await insert_fav_image(target_id, image.file, connection)
+            await insert_fav_image(target_id, image.image_id, connection)
         return dict(code=200, state=state)
 
 
@@ -195,7 +195,7 @@ async def report(
         user_id=info['id'],
     )
     existed = False
-    image_name = os.path.splitext(image)[0]
+    image_id = os.path.splitext(image)[0]
     async with request.app.state.pool.acquire() as conn:
         if user_id:
             t = await get_user_info(request.app.state.httpsession, user_id)
@@ -210,7 +210,7 @@ async def report(
             await conn.execute(
                 "INSERT INTO Reported_images (image,author_id,description) VALUES ($"
                 "1,$2,$3)",
-                image_name,
+                image_id,
                 user_id,
                 description if not description else urllib.parse.unquote(description),
             )
@@ -221,7 +221,7 @@ async def report(
         except asyncpg.exceptions.UniqueViolationError:
             existed = True
             res = await conn.fetchrow(
-                "SELECT * FROM Reported_images WHERE image=$1", image_name
+                "SELECT * FROM Reported_images WHERE image=$1", image_id
             )
             image_name = res["image"]
             user_id = res["author_id"]

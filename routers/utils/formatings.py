@@ -34,7 +34,7 @@ def format_tags_where(selected_tags, excluded_tags):
         results.append(f"Tags.name in ({format_in(selected_tags)})")
     if excluded_tags:
         results.append("NOT EXISTS"
-                       "(SELECT 1 FROM LinkedTags AS lk JOIN Tags T ON lk.tag_id=T.id WHERE lk.image = Images.file "
+                       "(SELECT 1 FROM LinkedTags AS lk JOIN Tags T ON lk.tag_id=T.id WHERE lk.image_id = Images.image_id "
                        f"AND T.name in ({format_in(excluded_tags)}))")
     return " and ".join(results)
 
@@ -78,7 +78,7 @@ def json_image_encoder(images, tag_mod=False):
         for tag in tagmapping.keys():
             tag_images = tagmapping.getlist(tag.tag_id)
             tag_images = [
-                dict(t, **{"url": "https://cdn.waifu.im/" + t["file"] + t["extension"]})
+                dict(t, **{"url": "https://cdn.waifu.im/" + t["image_id"] + t["extension"]})
                 for t in tag_images
             ]
             tags_.append(dict(vars(tag), **{"images": tag_images}))

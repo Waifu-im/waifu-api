@@ -62,7 +62,7 @@ async def random_(
     if not images:
         print("No image found")
         raise HTTPException(status_code=404, detail=f"No image found matching the criteria given")
-    images_to_return = [im["file"] + im["extension"] for im in images]
+    images_to_return = [im["image_id"] + im["extension"] for im in images]
     print(f"Files :" + "\n".join(images_to_return))
     return dict(images=images)
 
@@ -71,21 +71,20 @@ async def random_(
 @router.get("/info/", response_model=ImageResponseModel)
 async def image_info(request: Request, images: Set[DEFAULT_REGEX] = Query(...)):
     """Image infos"""
-    image_as_string = format_in([im.file for im in {format_to_image(image.lower()) for image in images if image and not image.isdecimal()}])
+    image_as_string = format_in([im.image_id for im in {format_to_image(image.lower()) for image in images if image and not image.isdecimal()}])
     image_as_int = format_in({image for image in images if image and image.isdecimal()})
-    print(image_as_int)
     image_infos = await request.app.state.pool.fetch(
-        "SELECT DISTINCT Q.file,Q.extension,Q.image_id,Q.favourites,Q.dominant_color,Q.source,Q.uploaded_at,"
+        "SELECT DISTINCT Q.signature,Q.extension,Q.image_id,Q.favourites,Q.dominant_color,Q.source,Q.uploaded_at,"
         "Q.is_nsfw,Q.width,Q.height,Tags.name,Tags.id,Tags.description,Tags.is_nsfw as tag_is_nsfw "
         "FROM ("
-        "SELECT Images.file,Images.extension,Images.id as image_id,Images.dominant_color,Images.source,"
+        "SELECT Images.signature,Images.extension,Images.image_id,Images.dominant_color,Images.source,"
         "Images.uploaded_at,Images.is_nsfw,Images.width,Images.height,"
-        "(SELECT COUNT(image) from FavImages WHERE image=Images.file) as favourites "
+        "(SELECT COUNT(image_id) from FavImages WHERE image_id=Images.image_id) as favourites "
         "FROM Images "
-        f"WHERE {f'Images.file IN ({image_as_string})' if image_as_string else ''}{' OR ' if image_as_int and image_as_string else ''}{f'Images.id IN ({image_as_int})' if image_as_int else ''} "
-        "GROUP BY Images.file "
+        f"WHERE {f'Images.signature IN ({image_as_string})' if image_as_string else ''}{' OR ' if image_as_int and image_as_string else ''}{f'Images.image_id IN ({image_as_int})' if image_as_int else ''} "
+        "GROUP BY Images.image_id "
         ") AS Q "
-        "JOIN LinkedTags ON LinkedTags.image=Q.file JOIN Tags ON Tags.id=LinkedTags.tag_id"
+        "JOIN LinkedTags ON LinkedTags.image_id=Q.image_id JOIN Tags ON Tags.id=LinkedTags.tag_id"
     )
     if not image_infos:
         raise HTTPException(404, detail="You did not provide any valid filename.")
