@@ -71,9 +71,9 @@ class Image:
 
 class PartialImage:
     def __init__(self, image_id, extension):
-        self.image_id = image_id
+        self.image_id = int(image_id)
         self.extension = extension
-        self.filename = self.image_id + self.extension
+        self.filename = str(self.image_id) + self.extension
 
 
 class Tag:
