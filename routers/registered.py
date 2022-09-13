@@ -165,7 +165,7 @@ async def fav_toggle(
                 target_id,
                 user_name,
             )
-        res = await connection.fetchval("SELECT image FROM FavImages WHERE user_id = $1 and image = $2",
+        res = await connection.fetchval("SELECT image_id FROM FavImages WHERE user_id = $1 and image_id = $2",
                                         target_id,
                                         image.image_id,
                                         )

@@ -61,7 +61,7 @@ async def fetch_image(
 
 async def insert_fav_image(user_id, image, conn):
     try:
-        await conn.execute("INSERT INTO FavImages(user_id,image) VALUES($1,$2)", user_id, image)
+        await conn.execute("INSERT INTO FavImages(user_id,image_id) VALUES($1,$2)", user_id, image)
     except asyncpg.exceptions.ForeignKeyViolationError:
         raise HTTPException(
             status_code=400,
@@ -76,7 +76,7 @@ async def insert_fav_image(user_id, image, conn):
 
 
 async def delete_fav_image(user_id, image, conn):
-    res = await conn.fetchval("DELETE FROM FavImages WHERE user_id = $1 AND image = $2 RETURNING  *",
+    res = await conn.fetchval("DELETE FROM FavImages WHERE user_id = $1 AND image_id = $2 RETURNING  *",
                               user_id,
                               image,
                               )
