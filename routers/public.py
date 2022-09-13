@@ -62,7 +62,7 @@ async def random_(
     if not images:
         print("No image found")
         raise HTTPException(status_code=404, detail=f"No image found matching the criteria given")
-    images_to_return = [im["image_id"] + im["extension"] for im in images]
+    images_to_return = [str(im["image_id"]) + im["extension"] for im in images]
     print(f"Files :" + "\n".join(images_to_return))
     return dict(images=images)
 
