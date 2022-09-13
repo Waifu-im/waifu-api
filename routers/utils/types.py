@@ -59,8 +59,8 @@ class Image:
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
             setattr(self, key, value)
-        self.url = "https://cdn.waifu.im/" + self.image_id+ self.extension
-        self.preview_url = "https://waifu.im/preview/" + self.image_id + '/'
+        self.url = "https://cdn.waifu.im/" + str(self.image_id) + self.extension
+        self.preview_url = "https://waifu.im/preview/" + str(self.image_id) + '/'
 
     def __hash__(self):
         return int(self.image_id)
