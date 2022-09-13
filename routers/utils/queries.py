@@ -32,7 +32,7 @@ async def fetch_image(
     if selected_tags is None:
         selected_tags = set()
     return await connection.fetch(
-        "SELECT DISTINCT Q.file,Q.extension,Q.image_id,Q.favourites,Q.dominant_color,Q.source,Q.uploaded_at,"
+        "SELECT DISTINCT Q.signature,Q.extension,Q.image_id,Q.favourites,Q.dominant_color,Q.source,Q.uploaded_at,"
         f"Q.is_nsfw,Q.width,Q.height,{'Q.liked_at,' if gallery_mode else ''}"
         "Tags.name,Tags.id,Tags.description,Tags.is_nsfw as tag_is_nsfw "
         "FROM ("
