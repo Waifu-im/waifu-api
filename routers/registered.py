@@ -208,7 +208,7 @@ async def report(
             user_id = info["id"]
         try:
             await conn.execute(
-                "INSERT INTO Reported_images (image,author_id,description) VALUES ($"
+                "INSERT INTO Reported_images (image_id,author_id,description) VALUES ($"
                 "1,$2,$3)",
                 image_id,
                 user_id,
@@ -221,7 +221,7 @@ async def report(
         except asyncpg.exceptions.UniqueViolationError:
             existed = True
             res = await conn.fetchrow(
-                "SELECT * FROM Reported_images WHERE image=$1", image_id
+                "SELECT * FROM Reported_images WHERE image_id=$1", image_id
             )
             image_name = res["image"]
             user_id = res["author_id"]
