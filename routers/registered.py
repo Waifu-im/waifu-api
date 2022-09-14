@@ -228,5 +228,5 @@ async def report(
             description = res["description"]
 
     return dict(
-        image=image_name, author_id=user_id, description=description, existed=existed
+        image=image_id, author_id=user_id, description=description, existed=existed
     )
