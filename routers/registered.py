@@ -223,7 +223,7 @@ async def report(
             res = await conn.fetchrow(
                 "SELECT * FROM Reported_images WHERE image_id=$1", image_id
             )
-            image_name = res["image"]
+            image_id = int(res["image_id"])
             user_id = res["author_id"]
             description = res["description"]
 
