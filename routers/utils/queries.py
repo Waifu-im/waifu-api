@@ -31,6 +31,7 @@ async def fetch_image(
         excluded_tags = set()
     if selected_tags is None:
         selected_tags = set()
+
     return await connection.fetch(
         "SELECT DISTINCT Q.signature,Q.extension,Q.image_id,Q.favourites,Q.dominant_color,Q.source,Q.uploaded_at,"
         f"Q.is_nsfw,Q.width,Q.height,{'Q.liked_at,' if gallery_mode else ''}"
@@ -45,7 +46,7 @@ async def fetch_image(
         f"{format_image_type(is_nsfw, selected_tags)} "
         f"{f'and {format_gif(gif)}' if gif is not None else ''} "
         f"{f'and {format_orientation(orientation)}' if orientation is not None else ''} "
-        f"{f'and Images.image_id not in ({format_in([im.image_id for im in excluded_files])})' if excluded_files else ''} "
+        f"{f'and Images.image_id not in ({format_in([im.image_id for im in excluded_files if im.image_id.isdecimal()])})' if excluded_files else ''} "
         f"{f'and {format_tags_where(selected_tags, excluded_tags)}' if selected_tags or excluded_tags else ''} "
         f"GROUP BY Images.image_id{',FavImages.liked_at' if order_by == FavOrderByType.liked_at else ''} "
         f"{f'HAVING COUNT(*)={len(selected_tags)}' if selected_tags else ''} "
