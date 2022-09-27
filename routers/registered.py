@@ -4,7 +4,7 @@ from typing import Set
 import asyncpg
 
 from fastapi import APIRouter, Request, HTTPException, Depends, Query
-from fastapi.responses import Response
+from fastapi.responses import Response, ORJSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from starlette.status import HTTP_204_NO_CONTENT
 
@@ -74,7 +74,7 @@ async def fav_(
             status_code=404, detail="You have no favourites or there is no image matching the criteria given."
         )
     images_ = json_image_encoder(images)
-    return dict(images=images_)
+    return ORJSONResponse(dict(images=images_))
 
 
 @router.post("/fav/insert", tags=["Galleries"], status_code=HTTP_204_NO_CONTENT)
@@ -175,7 +175,7 @@ async def fav_toggle(
         else:
             state = "INSERTED"
             await insert_fav_image(target_id, image.image_id, connection)
-        return dict(code=200, state=state)
+        return ORJSONResponse(dict(state=state))
 
 
 @router.get("/report", status_code=201)
@@ -227,6 +227,6 @@ async def report(
             user_id = res["author_id"]
             description = res["description"]
 
-    return dict(
+    return ORJSONResponse(dict(
         image=image_id, author_id=user_id, description=description, existed=existed
-    )
+    ))
