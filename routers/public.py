@@ -2,6 +2,7 @@ import time
 from typing import Set
 
 from fastapi import APIRouter, Request, HTTPException, Depends, Query, Header
+from fastapi.responses import ORJSONResponse
 from fastapi.encoders import jsonable_encoder
 
 from .utils import (
@@ -64,7 +65,7 @@ async def random_(
         raise HTTPException(status_code=404, detail=f"No image found matching the criteria given")
     images_to_return = [str(im["image_id"]) + im["extension"] for im in images]
     print(f"Files :" + "\n".join(images_to_return))
-    return dict(images=images)
+    return ORJSONResponse(dict(images=images))
 
 
 @router.get("/info", response_model=ImageResponseModel)
@@ -89,7 +90,7 @@ async def image_info(request: Request, images: Set[DEFAULT_REGEX] = Query(...)):
     if not image_infos:
         raise HTTPException(404, detail="You did not provide any valid filename.")
     infos = json_image_encoder(image_infos)
-    return dict(images=infos)
+    return ORJSONResponse(dict(images=infos))
 
 
 @router.get("/tags")
@@ -99,7 +100,7 @@ async def image_info(request: Request, images: Set[DEFAULT_REGEX] = Query(...)):
 async def endpoints_(request: Request, full: bool = False):
     """endpoints with and without info"""
     data = await get_tags(request.app, full=full)
-    return jsonable_encoder(data)
+    return data
 
 
 @router.get("/test")
