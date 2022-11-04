@@ -1,3 +1,5 @@
+import random
+
 import asyncpg
 from fastapi import HTTPException
 from .types import FavOrderByType
@@ -31,8 +33,7 @@ async def fetch_image(
         excluded_tags = set()
     if selected_tags is None:
         selected_tags = set()
-
-    return await connection.fetch(
+    res = await connection.fetch(
         "SELECT DISTINCT Q.signature,Q.extension,Q.image_id,Q.favourites,Q.dominant_color,Q.source,Q.uploaded_at,"
         f"Q.is_nsfw,Q.width,Q.height,{'Q.liked_at,' if gallery_mode else ''}"
         "Tags.name,Tags.id,Tags.description,Tags.is_nsfw as tag_is_nsfw "
@@ -56,8 +57,10 @@ async def fetch_image(
         "JOIN LinkedTags ON LinkedTags.image_id=Q.image_id JOIN Tags ON Tags.id=LinkedTags.tag_id "
         f"{format_order_by(order_by, table_prefix='Q.', disable_random=True)}",
         *args_
-
     )
+    if order_by is None:
+        random.shuffle(res)
+    return res
 
 
 async def insert_fav_image(user_id, image, conn):
