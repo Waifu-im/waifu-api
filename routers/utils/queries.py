@@ -1,5 +1,6 @@
 import random
 
+import random
 import asyncpg
 from fastapi import HTTPException
 from .types import FavOrderByType
