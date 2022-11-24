@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 WorkingDirectory=/path/to/working/directory
-ExecStart=./waifu-api
+ExecStart=/path/to/binary
 User=waifu_user
 Restart=always
 
