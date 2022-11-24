@@ -15,6 +15,7 @@ func CreateApp(globals api.Globals) {
 	app := echo.New()
 	app.HTTPErrorHandler = customHTTPErrorHandler
 	app.Pre(middleware.RemoveTrailingSlash())
+	app.Use(middleware.CORS())
 	_ = image.AddRouter(globals, app)
 	_ = tag.AddRouter(globals, app)
 	_ = fav.AddRouter(globals, app)
