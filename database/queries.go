@@ -128,8 +128,7 @@ func (database Database) FetchImages(
 		}
 		imageRows.Rows = append(imageRows.Rows, imageRow)
 	}
-	err = rows.Err()
-	if err != nil {
+	if err = rows.Err(); err != nil {
 		return imageRows, err
 	}
 	if orderBy == Random && (full || many || len(includedFiles) > 0) {
@@ -141,56 +140,40 @@ func (database Database) FetchImages(
 
 func (database Database) ToggleImageInFav(userId uint, imageId uint) (string, error) {
 	var empty uint
-	err := database.Db.QueryRow("SELECT image_id FROM FavImages WHERE user_id = $1 and image_id = $2", userId, imageId).Scan(&empty)
-	if err != nil {
+	if err := database.Db.QueryRow("SELECT image_id FROM FavImages WHERE user_id = $1 and image_id = $2", userId, imageId).Scan(&empty); err != nil {
 		if err == sql.ErrNoRows {
-			err = database.InsertImageToFav(userId, imageId)
-			if err != nil {
+			if err = database.InsertImageToFav(userId, imageId); err != nil {
 				return "", err
 			}
 			return "INSERTED", nil
 		}
 		return "", err
 	}
-	err = database.DeleteImageFromFav(userId, imageId)
-	if err != nil {
+	if err := database.DeleteImageFromFav(userId, imageId); err != nil {
 		return "", err
 	}
 	return "DELETED", nil
-
 }
 
 func (database Database) InsertImageToFav(userId uint, imageId uint) error {
 	_, err := database.Db.Exec("INSERT INTO FavImages(user_id,image_id) VALUES($1,$2)", userId, imageId)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func (database Database) DeleteImageFromFav(userId uint, imageId uint) error {
 	var empty uint
 	err := database.Db.QueryRow("DELETE FROM FavImages WHERE user_id=$1 and image_id=$2 RETURNING image_id", userId, imageId).Scan(&empty)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func (database Database) InsertUser(user ipc.User) error {
 	_, err := database.Db.Exec("INSERT INTO Registered_user(id,name) VALUES($1,$2) ON CONFLICT(id) DO UPDATE SET name=$2", user.Id, user.FullName)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func (database Database) Report(userId uint, imageId uint, description *string) (ReportRes, error) {
 	var res ReportRes
 	err := database.Db.QueryRow("INSERT INTO Reported_images (author_id,description,image_id) VALUES ($1,$2,$3) ON CONFLICT(image_id) DO UPDATE SET author_id=excluded.author_id RETURNING author_id,description,image_id, (xmax!=0) as existed", userId, description, imageId).Scan(&res.AuthorId, &res.Description, &res.ImageId, &res.Existed)
-	if err != nil {
-		return res, err
-	}
 	return res, err
 }
 
@@ -210,16 +193,12 @@ func (database Database) GetTags() ([]Tag, error) {
 		tagRows = append(tagRows, tag)
 	}
 	err = rows.Err()
-	if err != nil {
-		return tagRows, err
-	}
-	return tagRows, nil
+	return tagRows, err
 }
 
 func (database Database) IsValidCredentials(userId uint, secret string) (bool, error) {
 	var isBlacklisted bool
-	err := database.Db.QueryRow(`SELECT is_blacklisted FROM Registered_user WHERE id=$1 and secret=$2`, userId, secret).Scan(&isBlacklisted)
-	if err != nil {
+	if err := database.Db.QueryRow(`SELECT is_blacklisted FROM Registered_user WHERE id=$1 and secret=$2`, userId, secret).Scan(&isBlacklisted); err != nil {
 		if err == sql.ErrNoRows {
 			return false, nil
 		}
@@ -249,13 +228,12 @@ func (database Database) GetMissingPermissions(userId uint, targetUserId uint, p
 	}
 	userPermissions := PermissionsInformation{}
 	for _, perm := range permissions {
-		err := database.Db.QueryRow(query, userId, perm, targetUserId).Scan(
+		if err := database.Db.QueryRow(query, userId, perm, targetUserId).Scan(
 			&userPermissions.UserId,
 			&userPermissions.TargetId,
 			&userPermissions.Position,
 			&userPermissions.Name,
-		)
-		if err != nil {
+		); err != nil {
 			if err == sql.ErrNoRows {
 				missing = append(missing, perm)
 				continue
@@ -267,8 +245,7 @@ func (database Database) GetMissingPermissions(userId uint, targetUserId uint, p
 }
 
 func (database Database) LogRequest(ip string, url string, userAgent string, userId uint) {
-	_, err := database.Db.Exec("INSERT INTO api_logs(remote_address,url,user_agent,user_id) VALUES($1,$2,$3,$4)", ip, url, CreateNullString(userAgent), CreateNullUInt(userId))
-	if err != nil {
+	if _, err := database.Db.Exec("INSERT INTO api_logs(remote_address,url,user_agent,user_id) VALUES($1,$2,$3,$4)", ip, url, CreateNullString(userAgent), CreateNullUInt(userId)); err != nil {
 		fmt.Println(err)
 	}
 }

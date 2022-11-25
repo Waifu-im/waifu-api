@@ -37,8 +37,7 @@ func (ipc IPC) GetUser(userId uint) (User, int, error) {
 	if err != nil {
 		return user, res.StatusCode, err
 	}
-	jsonErr := json.Unmarshal(body, &user)
-	if jsonErr != nil {
+	if err := json.Unmarshal(body, &user); err != nil {
 		return user, res.StatusCode, err
 	}
 	return user, res.StatusCode, nil

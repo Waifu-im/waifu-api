@@ -40,7 +40,7 @@ func (imr Route) RouteSelector(favRoute bool) echo.HandlerFunc {
 			orderBy = database.LikedAt
 		}
 
-		err := QueryParamsBinder(
+		if err := QueryParamsBinder(
 			favRoute,
 			c,
 			&isNsfw,
@@ -53,8 +53,7 @@ func (imr Route) RouteSelector(favRoute bool) echo.HandlerFunc {
 			&orientation,
 			&many,
 			&full,
-		)
-		if err != nil {
+		); err != nil {
 			return err
 		}
 		ri, err := imr.Globals.Database.FetchImages(

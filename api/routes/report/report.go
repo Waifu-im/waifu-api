@@ -14,8 +14,7 @@ func (r Route) Report(c echo.Context) error {
 		Description *string `json:"description"`
 	}
 	var userId uint
-	err := c.Bind(&image)
-	if err != nil {
+	if err := c.Bind(&image); err != nil {
 		return err
 	}
 	if image.Id == 0 {
@@ -37,8 +36,7 @@ func (r Route) Report(c echo.Context) error {
 		if status == http.StatusInternalServerError {
 			return c.JSON(http.StatusInternalServerError, api.JSONError{Detail: "Something went wrong with the IPC request"})
 		}
-		err = r.Database.InsertUser(user)
-		if err != nil {
+		if err = r.Database.InsertUser(user); err != nil {
 			return err
 		}
 	}

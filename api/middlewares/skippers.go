@@ -10,8 +10,7 @@ import (
 func BoolParamsSkipper(sourceParam string, contextKey string, skipAfter bool) func(*echo.Context) (bool, error) {
 	return func(c *echo.Context) (bool, error) {
 		var param bool
-		err := echo.QueryParamsBinder(*c).Bool(sourceParam, &param).BindError()
-		if err != nil {
+		if err := echo.QueryParamsBinder(*c).Bool(sourceParam, &param).BindError(); err != nil {
 			return false, err
 		}
 		if contextKey != "" {
@@ -24,8 +23,7 @@ func BoolParamsSkipper(sourceParam string, contextKey string, skipAfter bool) fu
 func UIntParamsSkipper(sourceParam string, contextKey string, skipAfter bool) func(ctx *echo.Context) (bool, error) {
 	return func(c *echo.Context) (bool, error) {
 		var param uint
-		err := echo.QueryParamsBinder(*c).Uint(sourceParam, &param).BindError()
-		if err != nil {
+		if err := echo.QueryParamsBinder(*c).Uint(sourceParam, &param).BindError(); err != nil {
 			return false, err
 		}
 		if param == 0 && skipAfter {

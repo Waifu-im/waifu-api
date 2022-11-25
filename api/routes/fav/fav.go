@@ -12,8 +12,7 @@ import (
 func (r Route) Insert(c echo.Context) error {
 	var image Image
 	var userId uint
-	err := c.Bind(&image)
-	if err != nil {
+	if err := c.Bind(&image); err != nil {
 		return err
 	}
 	if image.Id == 0 {
@@ -40,10 +39,8 @@ func (r Route) Insert(c echo.Context) error {
 			return err
 		}
 	}
-	err = r.Database.InsertImageToFav(userId, image.Id)
-	if err != nil {
-		pqe, ok := err.(*pq.Error)
-		if ok {
+	if err := r.Database.InsertImageToFav(userId, image.Id); err != nil {
+		if pqe, ok := err.(*pq.Error); ok {
 			if pqe.Code == "23503" {
 				return c.JSON(http.StatusBadRequest, api.JSONError{Detail: "The image you provided does not exist."})
 			}
@@ -59,8 +56,7 @@ func (r Route) Insert(c echo.Context) error {
 func (r Route) Delete(c echo.Context) error {
 	var image Image
 	var userId uint
-	err := c.Bind(&image)
-	if err != nil {
+	if err := c.Bind(&image); err != nil {
 		return err
 	}
 	if image.Id == 0 {
@@ -73,8 +69,7 @@ func (r Route) Delete(c echo.Context) error {
 	} else {
 		userId = userIdInterface.(uint)
 	}
-	err = r.Database.DeleteImageFromFav(userId, image.Id)
-	if err != nil {
+	if err := r.Database.DeleteImageFromFav(userId, image.Id); err != nil {
 		if err == sql.ErrNoRows {
 			return c.JSON(http.StatusBadRequest, api.JSONError{Detail: "The image you provided do not exist or it is not in the user favourites."})
 		}
@@ -86,8 +81,7 @@ func (r Route) Delete(c echo.Context) error {
 func (r Route) Toggle(c echo.Context) error {
 	var image Image
 	var userId uint
-	err := c.Bind(&image)
-	if err != nil {
+	if err := c.Bind(&image); err != nil {
 		return err
 	}
 	if image.Id == 0 {
@@ -109,8 +103,7 @@ func (r Route) Toggle(c echo.Context) error {
 		if status == http.StatusInternalServerError {
 			return c.JSON(http.StatusInternalServerError, api.JSONError{Detail: IPCError})
 		}
-		err = r.Database.InsertUser(user)
-		if err != nil {
+		if err := r.Database.InsertUser(user); err != nil {
 			return err
 		}
 	}

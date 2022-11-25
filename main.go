@@ -11,14 +11,10 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"log"
-	"os"
-	"os/signal"
-	"syscall"
 )
 
 func main() {
-	err := godotenv.Load()
-	if err != nil {
+	if err := godotenv.Load(); err != nil {
 		log.Fatalln("Error loading .env file")
 	}
 	config := configuration.Load()
@@ -37,8 +33,4 @@ func main() {
 		},
 	}
 	app.CreateApp(globals)
-	_ = globals.Database.Db.Close()
-	sc := make(chan os.Signal, 1)
-	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
-	<-sc
 }

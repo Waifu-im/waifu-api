@@ -19,8 +19,7 @@ func customHTTPErrorHandler(err error, c echo.Context) {
 		_ = c.JSON(http.StatusUnauthorized, api.JSONError{Detail: "Missing or malformed token"})
 		return
 	}
-	httpError, ok := err.(*echo.HTTPError)
-	if ok {
+	if httpError, ok := err.(*echo.HTTPError); ok {
 		// echo JWT middleware package doesn't directly return the error they defined so the error cannot be directly compared
 		if httpError.Message == middleware.ErrJWTInvalid.Message {
 			_ = c.JSON(http.StatusUnauthorized, api.JSONError{Detail: "Invalid token (note that if you are using a token generated before the golang version of the api, the token encryption has changed, please check your new token at https://waifu.im/dashboard/"})
@@ -29,14 +28,12 @@ func customHTTPErrorHandler(err error, c echo.Context) {
 		_ = c.JSON(httpError.Code, api.JSONError{Detail: fmt.Sprintf("%v", httpError.Message)})
 		return
 	}
-	be, ok := err.(*echo.BindingError)
-	if ok {
+	if be, ok := err.(*echo.BindingError); ok {
 		_ = c.JSON(http.StatusBadRequest, api.JSONError{Detail: fmt.Sprintf("Bad Request, error on %v, %v", be.Field, be.Message)})
 		return
 	}
 	fmt.Println(err)
-	pqe, ok := err.(*pq.Error)
-	if ok && (pqe.Code == "53300" || pqe.Code == "53400") {
+	if pqe, ok := err.(*pq.Error); ok && (pqe.Code == "53300" || pqe.Code == "53400") {
 		_ = c.JSON(http.StatusServiceUnavailable, api.JSONError{Detail: fmt.Sprintf("Service Unavailable, there is currently too many connections to the database. Postgresql error code: %v", pqe.Code)})
 		return
 	}

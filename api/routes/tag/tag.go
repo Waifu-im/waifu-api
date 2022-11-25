@@ -8,8 +8,7 @@ import (
 func (r Route) Tags(c echo.Context) error {
 	var full bool
 	mapping := make(map[bool][]interface{})
-	err := echo.QueryParamsBinder(c).Bool("full", &full).BindError()
-	if err != nil {
+	if err := echo.QueryParamsBinder(c).Bool("full", &full).BindError(); err != nil {
 		return err
 	}
 	tags, err := r.Database.GetTags()
