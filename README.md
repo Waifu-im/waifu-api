@@ -1,7 +1,6 @@
-<p align="center">
-    <a href="https://waifu.im/preview/7892/"><img src="https://cdn.waifu.im/7892.jpg" alt=""/></a>
-</p>
-<h1 align="center">WAIFU.IM</h1>
+<h1 align="center">
+    <a href="https://waifu.im/preview/7892/"><img src="https://cdn.waifu.im/7892.jpg" alt=""/></a>WAIFU.IM
+</h1>
 <p align="center">
     An easy to use API that allows you to get waifu pictures from an archive of over 4000 images and multiple tags!
 </p>
