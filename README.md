@@ -1,15 +1,12 @@
 <h1 align="center">WAIFU.IM</h1>
 
 <p align="center">
-    An easy to use API that allows you to get waifu pictures from an archive of over 4000 images and multiple tags!
-</p>
-<p align="center">
     <a href="https://waifu.im/preview/7892/"><img src="https://cdn.waifu.im/7892.jpg" alt=""/></a>
 </p>
 
-
-[Waifu.im](https://waifu.im) was originally created to be an alternative to [waifu.pics](https://waifu.pics), because it didn't match some of my requirements. Bit by bit waifu.im has been improved to an extent that it is now one of the best Waifu APIs. You can compose a gallery of your favorite pictures, and even upload new ones. It is easy to use and well-thought-out so that most of the endpoints have the same json structure. Finally, I would like to thank [JSH32](https://github.com/JSH32) for his precious advice regarding the infrastructure when he did not even know me.
-
+<p align="center">
+    An easy to use API that allows you to get waifu pictures from an archive of over 4000 images and multiple tags!
+</p>
 
 ## Features
 
