@@ -9,27 +9,26 @@ import (
 
 func AddRouter(globals api.Globals, app *echo.Echo) error {
 	route := Route(globals)
-	// No need to add the JWT and the token Verification middleware since it has been added previously in image
 	app.POST(
 		"/fav/insert",
 		route.Insert,
 		middleware.JWTWithConfig(globals.JWTConfig),
 		middlewares.TokenVerification(globals),
-		middlewares.PermissionsVerification(globals, []string{"manage_favourites"}, middlewares.SkipOrSetUser(false)),
+		middlewares.PermissionsVerification(globals, []string{"manage_favourites"}, middlewares.SkipOrSetUser(true)),
 	)
 	app.DELETE(
 		"/fav/delete",
 		route.Delete,
 		middleware.JWTWithConfig(globals.JWTConfig),
 		middlewares.TokenVerification(globals),
-		middlewares.PermissionsVerification(globals, []string{"manage_favourites"}, middlewares.SkipOrSetUser(false)),
+		middlewares.PermissionsVerification(globals, []string{"manage_favourites"}, middlewares.SkipOrSetUser(true)),
 	)
 	app.POST(
 		"/fav/toggle",
 		route.Toggle,
 		middleware.JWTWithConfig(globals.JWTConfig),
 		middlewares.TokenVerification(globals),
-		middlewares.PermissionsVerification(globals, []string{"manage_favourites"}, middlewares.SkipOrSetUser(false)),
+		middlewares.PermissionsVerification(globals, []string{"manage_favourites"}, middlewares.SkipOrSetUser(true)),
 	)
 	return nil
 }

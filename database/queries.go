@@ -265,3 +265,29 @@ func (database Database) GetMissingPermissions(userId uint, targetUserId uint, p
 	}
 	return missing, nil
 }
+
+func (database Database) LogRequest(ip string, url string, userAgent string, userId uint) {
+	_, err := database.Db.Exec("INSERT INTO api_logs(remote_address,url,user_agent,user_id) VALUES($1,$2,$3,$4)", ip, url, CreateNullString(userAgent), CreateNullUInt(userId))
+	if err != nil {
+		fmt.Println(err)
+	}
+}
+
+func CreateNullString(s string) sql.NullString {
+	if len(s) == 0 {
+		return sql.NullString{}
+	}
+	return sql.NullString{
+		String: s,
+		Valid:  true,
+	}
+}
+func CreateNullUInt(i uint) sql.NullInt64 {
+	if i == 0 {
+		return sql.NullInt64{}
+	}
+	return sql.NullInt64{
+		Int64: int64(i),
+		Valid: true,
+	}
+}
