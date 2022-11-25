@@ -1,4 +1,4 @@
-<p align="center"><strong><font size="6">WAIFU.IM</font></strong></p>
+<h1 align="center">WAIFU.IM</h1>
 <p align="center">
     <a href="https://waifu.im/preview/7892/"><img src="https://cdn.waifu.im/7892.jpg" alt=""/></a>
 </p>
