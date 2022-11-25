@@ -9,7 +9,7 @@ import (
 // Some useful func to generate the search/fav query inside queries.go.
 
 func FormatNsfw(isNfw string) string {
-	s := "Images.is_nsfw"
+	s := "Images.is_nsfw "
 	if isNfw == True || isNfw == Null {
 		return s
 	}
@@ -26,12 +26,12 @@ func FormatNsfwTags(isNsfw string, includedTags []string, parameters *[]any) str
 		s += fmt.Sprintf("EXISTS(SELECT name from Tags T2 WHERE T2.is_nsfw AND T2.name ILIKE ANY($%v))) ", len(*parameters)+1)
 		*parameters = append(*parameters, pq.Array(includedTags))
 	} else if isNsfw != Null {
-		s = "and " + FormatNsfw(isNsfw) + " "
+		s = "and " + FormatNsfw(isNsfw)
 	}
 	return s
 }
 func FormatGif(gif string) string {
-	s := "Images.extension='.gif'"
+	s := "Images.extension='.gif' "
 	if gif == True {
 		return "and " + s
 	} else if gif == False {
@@ -51,7 +51,7 @@ func FormatOrientation(orientation string) string {
 	} else {
 		s = " < "
 	}
-	return "Images.width" + s + "Images.height"
+	return "and Images.width" + s + "Images.height "
 }
 
 func FormatOrderBy(orderBy string, prefix string, randomEnabled bool) string {
