@@ -10,7 +10,7 @@ An easy to use API that allows you to get waifu pictures from an archive of over
 
 As users can add pictures to their galleries, we receive information about the top images, here's the most popular one at the day I write this.
 
-[<img src="https://cdn.waifu.im/aa48cd9dc6b64367.jpg" width="500">]("https://waifu.im/preview/?image=aa48cd9dc6b64367.jpg")
+[<img src="https://cdn.waifu.im/1982.jpg" width="500">]("https://waifu.im/preview/1982/")
 
 ## Website
 You should visite the [website](https://waifu.im) to learn a bit more about waifu.im
