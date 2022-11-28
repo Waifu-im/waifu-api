@@ -32,13 +32,22 @@ func CreateApp(globals api.Globals) {
 		LogURI:       true,
 		LogUserAgent: true,
 		LogRemoteIP:  true,
+		LogHeaders:   []string{"Accept-Version"},
 		LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
 			if v.Status == http.StatusOK || v.Status == http.StatusNoContent {
 				var userId uint
+				var version string
 				if claims := middlewares.GetUserClaims(c); claims != nil {
 					userId = claims.UserId
 				}
-				go globals.Database.LogRequest(v.RemoteIP, "https://"+v.Host+v.URI, v.UserAgent, userId)
+				if len(v.Headers["Accept-Version"]) > 0 {
+					max := len(v.Headers["Accept-Version"][0])
+					if len(v.Headers["Accept-Version"][0]) > 20 {
+						max = 20
+					}
+					version = v.Headers["Accept-Version"][0][0:max]
+				}
+				go globals.Database.LogRequest(v.RemoteIP, "https://"+v.Host+v.URI, v.UserAgent, userId, version)
 			}
 			return nil
 		},
@@ -49,7 +58,7 @@ func CreateApp(globals api.Globals) {
 	_ = report.AddRouter(globals, app)
 	go func() {
 		if err := app.Start(":" + globals.Configuration.Port); err != nil && err != http.ErrServerClosed {
-			app.Logger.Fatal("Shutting Down...")
+			app.Logger.Fatal(err)
 		}
 	}()
 	quit := make(chan os.Signal, 1)

@@ -244,8 +244,8 @@ func (database Database) GetMissingPermissions(userId uint, targetUserId uint, p
 	return missing, nil
 }
 
-func (database Database) LogRequest(ip string, url string, userAgent string, userId uint) {
-	if _, err := database.Db.Exec("INSERT INTO api_logs(remote_address,url,user_agent,user_id) VALUES($1,$2,$3,$4)", ip, url, CreateNullString(userAgent), CreateNullUInt(userId)); err != nil {
+func (database Database) LogRequest(ip string, url string, userAgent string, userId uint, version string) {
+	if _, err := database.Db.Exec("INSERT INTO api_logs(remote_address,url,user_agent,user_id,version) VALUES($1,$2,$3,$4,$5)", ip, url, CreateNullString(userAgent), CreateNullUInt(userId), CreateNullString(version)); err != nil {
 		fmt.Println(err)
 	}
 }
