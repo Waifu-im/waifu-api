@@ -109,6 +109,11 @@ func (r Route) Toggle(c echo.Context) error {
 	}
 	status, err := r.Database.ToggleImageInFav(userId, image.Id)
 	if err != nil {
+		if pqe, ok := err.(*pq.Error); ok {
+			if pqe.Code == "23503" {
+				return c.JSON(http.StatusBadRequest, api.JSONError{Detail: "The image you provided does not exist."})
+			}
+		}
 		return err
 	}
 	return c.JSON(
