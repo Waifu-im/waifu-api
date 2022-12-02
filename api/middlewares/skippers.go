@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"github.com/labstack/echo/v4"
-	"io/ioutil"
+	"io"
 )
 
 func BoolParamsSkipper(sourceParam string, contextKey string, skipAfter bool) func(*echo.Context) (bool, error) {
@@ -39,8 +39,8 @@ func SkipOrSetUser(isSkipper bool) func(*echo.Context) (bool, error) {
 	// I use this 'skipper' has a function to set the user id present in the body so that permissions can check for it later
 	return func(c *echo.Context) (bool, error) {
 		var bodyBytes []byte
-		bodyBytes, _ = ioutil.ReadAll((*c).Request().Body)
-		(*c).Request().Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
+		bodyBytes, _ = io.ReadAll((*c).Request().Body)
+		(*c).Request().Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 		user := struct {
 			Id uint `json:"user_id"`
 		}{}

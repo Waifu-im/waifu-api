@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"time"
 )
 
 type IPC struct {
@@ -18,7 +17,7 @@ type User struct {
 
 func (ipc IPC) GetUser(userId uint) (User, int, error) {
 	user := User{}
-	res, err := http.Get(ipc.BaseUrl+fmt.Sprintf("/userinfo/?id=%v", userId))
+	res, err := http.Get(ipc.BaseUrl + fmt.Sprintf("/userinfo/?id=%v", userId))
 	if err != nil {
 		return user, 0, err
 	}
