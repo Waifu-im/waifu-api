@@ -3,7 +3,7 @@ package ipc
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"time"
 )
@@ -18,12 +18,10 @@ type User struct {
 
 func (ipc IPC) GetUser(userId uint) (User, int, error) {
 	user := User{}
-	req, err := http.NewRequest(http.MethodGet, ipc.BaseUrl+fmt.Sprintf("/userinfo/?id=%v", userId), nil)
+	res, err := http.Get(ipc.BaseUrl+fmt.Sprintf("/userinfo/?id=%v", userId))
 	if err != nil {
 		return user, 0, err
 	}
-	client := http.Client{Timeout: time.Second * 2}
-	res, err := client.Do(req)
 	if err != nil {
 		return user, 0, err
 	}
@@ -33,7 +31,7 @@ func (ipc IPC) GetUser(userId uint) (User, int, error) {
 	if res.Body != nil {
 		defer res.Body.Close()
 	}
-	body, err := ioutil.ReadAll(res.Body)
+	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return user, res.StatusCode, err
 	}
