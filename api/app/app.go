@@ -22,7 +22,19 @@ func CreateApp(globals api.Globals) {
 	app := echo.New()
 	app.HTTPErrorHandler = customHTTPErrorHandler
 	app.Pre(middleware.RemoveTrailingSlash())
-	app.Use(middleware.CORS())
+	app.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		AllowCredentials: true,
+		AllowOrigins:     []string{"*"},
+		AllowMethods: []string{
+			http.MethodGet,
+			http.MethodHead,
+			http.MethodPut,
+			http.MethodPatch,
+			http.MethodPost,
+			http.MethodDelete,
+			http.MethodOptions,
+		},
+	}))
 	// Using default logger
 	app.Use(middleware.Logger())
 	// Adding a custom one for the database
