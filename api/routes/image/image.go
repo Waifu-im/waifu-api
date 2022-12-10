@@ -38,6 +38,7 @@ func (imr Route) RouteSelector(favRoute bool) echo.HandlerFunc {
 		}
 		if favRoute {
 			orderBy = database.LikedAt
+                        isNsfw = database.Null
 		}
 
 		if err := QueryParamsBinder(
