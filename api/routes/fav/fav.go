@@ -107,7 +107,7 @@ func (r Route) Toggle(c echo.Context) error {
 			return err
 		}
 	}
-	status, err := r.Database.ToggleImageInFav(userId, image.Id)
+	state, err := r.Database.ToggleImageInFav(userId, image.Id)
 	if err != nil {
 		if pqe, ok := err.(*pq.Error); ok {
 			if pqe.Code == "23503" {
@@ -119,7 +119,7 @@ func (r Route) Toggle(c echo.Context) error {
 	return c.JSON(
 		200,
 		struct {
-			Status string `json:"status"`
-		}{status},
+			State string `json:"state"`
+		}{state},
 	)
 }
