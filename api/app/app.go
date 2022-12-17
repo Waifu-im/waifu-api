@@ -37,7 +37,7 @@ func CreateApp(globals api.Globals) {
 				http.MethodDelete,
 				http.MethodOptions,
 			},
-			AllowHeaders: []string{"Accept-Version"},
+			AllowHeaders: []string{"Accept-Version", "Authorization"},
 		}))
 	*/
 	// Using default logger
