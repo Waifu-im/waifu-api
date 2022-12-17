@@ -23,7 +23,8 @@ func CreateApp(globals api.Globals) {
 	app.HTTPErrorHandler = customHTTPErrorHandler
 	app.Pre(middleware.RemoveTrailingSlash())
 	/*
-		Already set with nginx.
+		Already set with nginx
+
 		app.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 			AllowCredentials: true,
 			AllowOrigins:     []string{"*"},
@@ -36,6 +37,7 @@ func CreateApp(globals api.Globals) {
 				http.MethodDelete,
 				http.MethodOptions,
 			},
+			AllowHeaders: []string{"Accept-Version"},
 		}))
 	*/
 	// Using default logger
