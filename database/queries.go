@@ -27,7 +27,7 @@ func (database Database) FetchImages(
 	userId uint,
 ) (ImageRows, error) {
 	var parameters []any
-	query := "SELECT DISTINCT Q.signature,Q.extension,Q.image_id,Q.favourites,Q.dominant_color,Q.source,Q.uploaded_at,Q.is_nsfw,Q.width,Q.height,"
+	query := "SELECT DISTINCT Q.signature,Q.extension,Q.image_id,Q.favorites,Q.dominant_color,Q.source,Q.uploaded_at,Q.is_nsfw,Q.width,Q.height,"
 	if userId != 0 {
 		query += "Q.liked_at,"
 	}
@@ -38,7 +38,7 @@ func (database Database) FetchImages(
 	if userId != 0 {
 		query += "FavImages.liked_at,"
 	}
-	query += "(SELECT COUNT(image_id) from FavImages WHERE image_id=Images.image_id) as favourites " +
+	query += "(SELECT COUNT(image_id) from FavImages WHERE image_id=Images.image_id) as favorites " +
 		"FROM Images JOIN LinkedTags ON Images.image_id=LinkedTags.image_id JOIN Tags ON Tags.id=LinkedTags.tag_id "
 	if userId != 0 {
 		query += fmt.Sprintf("JOIN FavImages ON FavImages.image_id=Images.image_id AND FavImages.user_id=$%v ", len(parameters)+1)
@@ -92,7 +92,7 @@ func (database Database) FetchImages(
 				&imageRow.Signature,
 				&imageRow.Extension,
 				&imageRow.ImageId,
-				&imageRow.Favourites,
+				&imageRow.Favorites,
 				&imageRow.DominantColor,
 				&imageRow.Source,
 				&imageRow.UploadedAt,
@@ -109,7 +109,7 @@ func (database Database) FetchImages(
 				&imageRow.Signature,
 				&imageRow.Extension,
 				&imageRow.ImageId,
-				&imageRow.Favourites,
+				&imageRow.Favorites,
 				&imageRow.DominantColor,
 				&imageRow.Source,
 				&imageRow.UploadedAt,

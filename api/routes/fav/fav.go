@@ -45,12 +45,17 @@ func (r Route) Insert(c echo.Context) error {
 				return c.JSON(http.StatusBadRequest, api.JSONError{Detail: "The image you provided does not exist."})
 			}
 			if pqe.Code == "23505" {
-				return c.JSON(http.StatusBadRequest, api.JSONError{Detail: "The image you provided is already in the user favourites, consider using /fav/toggle instead."})
+				return c.JSON(http.StatusBadRequest, api.JSONError{Detail: "The image you provided is already in the user favorites, consider using /fav/toggle instead."})
 			}
 		}
 		return err
 	}
-	return c.NoContent(http.StatusNoContent)
+	return c.JSON(
+		200,
+		struct {
+			State string `json:"state"`
+		}{"INSERTED"},
+	)
 }
 
 func (r Route) Delete(c echo.Context) error {
@@ -71,11 +76,16 @@ func (r Route) Delete(c echo.Context) error {
 	}
 	if err := r.Database.DeleteImageFromFav(userId, image.Id); err != nil {
 		if err == sql.ErrNoRows {
-			return c.JSON(http.StatusBadRequest, api.JSONError{Detail: "The image you provided do not exist or it is not in the user favourites."})
+			return c.JSON(http.StatusBadRequest, api.JSONError{Detail: "The image you provided do not exist or it is not in the user favorites."})
 		}
 		return err
 	}
-	return c.NoContent(http.StatusNoContent)
+	return c.JSON(
+		200,
+		struct {
+			State string `json:"state"`
+		}{"DELETED"},
+	)
 }
 
 func (r Route) Toggle(c echo.Context) error {

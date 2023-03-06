@@ -13,7 +13,7 @@ type ImageRow struct {
 	Signature     string  `field:"signature" json:"signature"`
 	Extension     string  `field:"extension" json:"extension"`
 	ImageId       uint    `field:"image_id" json:"image_id"`
-	Favourites    uint    `field:"favourites" json:"favourites"`
+	Favorites     uint    `field:"favorites" json:"favorites"`
 	DominantColor string  `field:"dominant_color" json:"dominant_color"`
 	Source        *string `field:"source" json:"source"`
 	UploadedAt    string  `field:"uploaded_at" json:"uploaded_at"`
@@ -46,7 +46,7 @@ type Image struct {
 	Signature     string  `json:"signature"`
 	Extension     string  `json:"extension"`
 	ImageId       uint    `json:"image_id"`
-	Favourites    uint    `json:"favourites"`
+	Favorites     uint    `json:"favorites"`
 	DominantColor string  `json:"dominant_color"`
 	Source        *string `json:"source"`
 	UploadedAt    string  `json:"uploaded_at"`
@@ -68,7 +68,7 @@ func (ir ImageRows) GetImage(ImageId uint) Image {
 					im.Signature,
 					im.Extension,
 					im.ImageId,
-					im.Favourites,
+					im.Favorites,
 					im.DominantColor,
 					im.Source,
 					im.UploadedAt,

@@ -14,21 +14,21 @@ func AddRouter(globals api.Globals, app *echo.Echo) error {
 		route.Insert,
 		middleware.JWTWithConfig(globals.JWTConfig),
 		middlewares.TokenVerification(globals),
-		middlewares.PermissionsVerification(globals, []string{"manage_favourites"}, middlewares.SkipOrSetUser(true)),
+		middlewares.PermissionsVerification(globals, []string{"manage_favorites"}, middlewares.SkipOrSetUser(true)),
 	)
 	app.DELETE(
 		"/fav/delete",
 		route.Delete,
 		middleware.JWTWithConfig(globals.JWTConfig),
 		middlewares.TokenVerification(globals),
-		middlewares.PermissionsVerification(globals, []string{"manage_favourites"}, middlewares.SkipOrSetUser(true)),
+		middlewares.PermissionsVerification(globals, []string{"manage_favorites"}, middlewares.SkipOrSetUser(true)),
 	)
 	app.POST(
 		"/fav/toggle",
 		route.Toggle,
 		middleware.JWTWithConfig(globals.JWTConfig),
 		middlewares.TokenVerification(globals),
-		middlewares.PermissionsVerification(globals, []string{"manage_favourites"}, middlewares.SkipOrSetUser(true)),
+		middlewares.PermissionsVerification(globals, []string{"manage_favorites"}, middlewares.SkipOrSetUser(true)),
 	)
 	return nil
 }

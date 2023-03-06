@@ -24,7 +24,7 @@ func AddRouter(globals api.Globals, app *echo.Echo) error {
 		route.RouteSelector(true),
 		middleware.JWTWithConfig(globals.JWTConfig),
 		middlewares.TokenVerification(globals),
-		middlewares.PermissionsVerification(globals, []string{"view_favourites"}, middlewares.UIntParamsSkipper("user_id", "target_user_id", true)),
+		middlewares.PermissionsVerification(globals, []string{"view_favorites"}, middlewares.UIntParamsSkipper("user_id", "target_user_id", true)),
 	)
 	return nil
 }

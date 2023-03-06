@@ -10,7 +10,7 @@ const (
 )
 
 const (
-	Favourites = "FAVOURITES"
+	Favorites  = "FAVORITES"
 	UploadedAt = "UPLOADED_AT"
 	LikedAt    = "LIKED_AT"
 	Random     = "RANDOM"

@@ -16,7 +16,7 @@ func getThreeState() []string {
 }
 
 func getOrderBy(includeLikedAt bool) []string {
-	arr := []string{database.Favourites, database.UploadedAt, database.Random}
+	arr := []string{database.Favorites, database.UploadedAt, database.Random}
 	if includeLikedAt {
 		arr = append(arr, database.LikedAt)
 	}
