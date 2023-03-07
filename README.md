@@ -11,7 +11,7 @@
 - Tag based architecture that allows you to filter the search
 - More than 4500 images
 - Regularly sorted database
-- Save your favourite pictures
+- Save your favorite pictures
 - Order results by date, random, most liked
 - Filter by tags, image orientation, GIFs, and adult content
 - Exclude or force to return specific images
