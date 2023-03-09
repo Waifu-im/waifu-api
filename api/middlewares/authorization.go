@@ -12,6 +12,7 @@ func defaultSkipper(_ *echo.Context) (bool, error) {
 	return false, nil
 }
 
+// TokenVerification check that the user secret (that is what is used to refresh a token) is the same as in db.
 func TokenVerification(globals api.Globals) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
@@ -35,6 +36,7 @@ func TokenVerification(globals api.Globals) echo.MiddlewareFunc {
 	}
 }
 
+// PermissionsVerification it will check if the user as the provided permission, there is a skipper to skip if not needed
 func PermissionsVerification(globals api.Globals, permissions []string, skipper func(c *echo.Context) (bool, error)) echo.MiddlewareFunc {
 	if skipper == nil {
 		skipper = defaultSkipper

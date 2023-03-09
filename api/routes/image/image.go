@@ -25,20 +25,24 @@ func (imr Route) RouteSelector(favRoute bool) echo.HandlerFunc {
 		var full = false
 		var warning string
 		var userId uint
+		// We check if the user provided user_id
 		userIdInterface := c.Get("target_user_id")
 		if userIdInterface == nil || !favRoute {
+			// if the user_id was not provided, or it is not a favorite route
 			if favRoute {
+				// if it's a favorites route it means user_id was not provided, so we set the user_id as the token's owner
 				claims := middlewares.GetUserClaims(c)
 				userId = claims.UserId
 			} else {
 				userId = 0
 			}
 		} else {
+			// user_id was provided
 			userId = userIdInterface.(uint)
 		}
 		if favRoute {
 			orderBy = database.LikedAt
-                        isNsfw = database.Null
+			isNsfw = database.Null
 		}
 
 		if err := QueryParamsBinder(
@@ -76,10 +80,10 @@ func (imr Route) RouteSelector(favRoute bool) echo.HandlerFunc {
 		if gif == database.True {
 			warning = GifWarning
 		}
-		jsResponse := ri.JsonLike()
-		if len(jsResponse.Images) == 0 {
+		jsonResponse := ri.JsonLike()
+		if len(jsonResponse.Images) == 0 {
 			return c.JSON(http.StatusNotFound, api.JSONError{Detail: NotFoundMessage + warning})
 		}
-		return c.JSON(http.StatusOK, jsResponse)
+		return c.JSON(http.StatusOK, jsonResponse)
 	}
 }

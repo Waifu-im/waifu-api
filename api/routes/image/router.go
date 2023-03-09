@@ -3,8 +3,8 @@ package image
 import (
 	"github.com/Waifu-im/waifu-api/api"
 	"github.com/Waifu-im/waifu-api/api/middlewares"
+	echojwt "github.com/labstack/echo-jwt/v4"
 	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
 )
 
 func AddRouter(globals api.Globals, app *echo.Echo) error {
@@ -14,7 +14,7 @@ func AddRouter(globals api.Globals, app *echo.Echo) error {
 	app.GET(
 		"/search",
 		route.RouteSelector(false),
-		middleware.JWTWithConfig(globals.JWTConfig),
+		echojwt.WithConfig(globals.JWTConfig),
 		middlewares.TokenVerification(globals),
 		middlewares.PermissionsVerification(globals, []string{"admin"}, middlewares.BoolParamsSkipper("full", "", true)),
 	)
@@ -22,7 +22,7 @@ func AddRouter(globals api.Globals, app *echo.Echo) error {
 	app.GET(
 		"/fav",
 		route.RouteSelector(true),
-		middleware.JWTWithConfig(globals.JWTConfig),
+		echojwt.WithConfig(globals.JWTConfig),
 		middlewares.TokenVerification(globals),
 		middlewares.PermissionsVerification(globals, []string{"view_favorites"}, middlewares.UIntParamsSkipper("user_id", "target_user_id", true)),
 	)

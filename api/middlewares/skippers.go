@@ -7,6 +7,8 @@ import (
 	"io"
 )
 
+// BoolParamsSkipper return true when skipAfter and no param provided (only for bool param).
+// If a param is provided it can assign it to a context 'variable' if contextKey is passed
 func BoolParamsSkipper(sourceParam string, contextKey string, skipAfter bool) func(*echo.Context) (bool, error) {
 	return func(c *echo.Context) (bool, error) {
 		var param bool
@@ -20,6 +22,8 @@ func BoolParamsSkipper(sourceParam string, contextKey string, skipAfter bool) fu
 	}
 }
 
+// UIntParamsSkipper return true when skipAfter and no param provided (only for uint param).
+// If a param is provided it can assign it to a context 'variable' if contextKey is passed
 func UIntParamsSkipper(sourceParam string, contextKey string, skipAfter bool) func(ctx *echo.Context) (bool, error) {
 	return func(c *echo.Context) (bool, error) {
 		var param uint
@@ -35,8 +39,9 @@ func UIntParamsSkipper(sourceParam string, contextKey string, skipAfter bool) fu
 		return false, nil
 	}
 }
+
+// SkipOrSetUser I use this 'skipper' has a function to set the user id present in the body so that permissions can check for it later
 func SkipOrSetUser(isSkipper bool) func(*echo.Context) (bool, error) {
-	// I use this 'skipper' has a function to set the user id present in the body so that permissions can check for it later
 	return func(c *echo.Context) (bool, error) {
 		var bodyBytes []byte
 		bodyBytes, _ = io.ReadAll((*c).Request().Body)

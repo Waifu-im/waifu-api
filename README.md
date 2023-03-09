@@ -9,7 +9,7 @@
 ## Features
 
 - Tag based architecture that allows you to filter the search
-- More than 4500 images
+- More than 4000 images
 - Regularly sorted database
 - Save your favorite pictures
 - Order results by date, random, most liked
