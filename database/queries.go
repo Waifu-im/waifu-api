@@ -131,7 +131,7 @@ func (database Database) FetchImages(
 	if err = rows.Err(); err != nil {
 		return imageRows, err
 	}
-	if orderBy == Random && (full || many || len(includedFiles) > 0 || userID != 0) {
+	if orderBy == Random && (full || many || len(includedFiles) > 0 || userId != 0) {
 		rand.Seed(time.Now().UnixNano())
 		rand.Shuffle(len(imageRows.Rows), func(i, j int) { imageRows.Rows[i], imageRows.Rows[j] = imageRows.Rows[j], imageRows.Rows[i] })
 	}
