@@ -43,7 +43,7 @@ func FormatGif(gif string) string {
 }
 
 func FormatOrientation(orientation string) string {
-	if orientation == constants.Null {
+	if orientation == constants.Random {
 		return ""
 	}
 	var s string

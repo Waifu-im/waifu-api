@@ -24,7 +24,7 @@ func getOrderBy(includeLikedAt bool) []string {
 }
 
 func getOrientation() []string {
-	return []string{constants.Portrait, constants.Landscape}
+	return []string{constants.Portrait, constants.Landscape, constants.Random}
 }
 
 func isSafeString(value string) bool {
@@ -37,10 +37,7 @@ func isThreeState(value string) bool {
 }
 
 func isOrderBy(value string, favMode bool) bool {
-	if favMode {
-		return slices.Contains(getOrderBy(true), strings.ToUpper(value))
-	}
-	return slices.Contains(getOrderBy(false), strings.ToUpper(value))
+	return slices.Contains(getOrderBy(favMode), strings.ToUpper(value))
 }
 
 func isOrientation(value string) bool {

@@ -26,7 +26,7 @@ func (controller Controller) RouteSelector(favRoute bool) echo.HandlerFunc {
 		var excludedFiles []string
 		var gif = constants.Null
 		var orderBy = constants.Random
-		var orientation = constants.Null
+		var orientation = constants.Random
 		var many = false
 		var full = false
 		var warning string

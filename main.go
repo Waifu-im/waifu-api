@@ -62,6 +62,7 @@ func main() {
 				}
 				if len(v.Headers["Version"]) > 0 {
 					max := len(v.Headers["Version"][0])
+					// Check if string length is > than 20 if yes we set 20 to the max
 					if len(v.Headers["Version"][0]) > 20 {
 						max = 20
 					}
