@@ -15,10 +15,10 @@ type Controller struct {
 
 func (controller Controller) Report(c echo.Context) error {
 	var image struct {
-		Id          uint    `json:"image_id"`
+		Id          int64   `json:"image_id"`
 		Description *string `json:"description"`
 	}
-	var userId uint
+	var userId int64
 	if err := c.Bind(&image); err != nil {
 		return err
 	}
@@ -30,7 +30,7 @@ func (controller Controller) Report(c echo.Context) error {
 		claims := middlewares.GetUserClaims(c)
 		userId = claims.UserId
 	} else {
-		userId = userIdInterface.(uint)
+		userId = userIdInterface.(int64)
 		user, status, err := controller.Globals.Ipc.GetUser(userId)
 		if err != nil {
 			return err

@@ -23,12 +23,12 @@ func BoolParamsSkipper(sourceParam string, contextKey string, skipAfter bool) fu
 	}
 }
 
-// UIntParamsSkipper return true when skipAfter and no param provided (only for uint param).
+// Int64ParamsSkipper return true when skipAfter and no param provided (only for int64 param).
 // If a param is provided it can assign it to a context 'variable' if contextKey is passed
-func UIntParamsSkipper(sourceParam string, contextKey string, skipAfter bool) func(ctx *echo.Context) (bool, error) {
+func Int64ParamsSkipper(sourceParam string, contextKey string, skipAfter bool) func(ctx *echo.Context) (bool, error) {
 	return func(c *echo.Context) (bool, error) {
-		var param uint
-		if err := echo.QueryParamsBinder(*c).Uint(sourceParam, &param).BindError(); err != nil {
+		var param int64
+		if err := echo.QueryParamsBinder(*c).Int64(sourceParam, &param).BindError(); err != nil {
 			return false, err
 		}
 		if param == 0 && skipAfter {

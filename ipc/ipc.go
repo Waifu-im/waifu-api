@@ -11,11 +11,11 @@ type IPC struct {
 	BaseUrl string
 }
 type User struct {
-	Id       uint   `json:"id"`
+	Id       int64  `json:"id"`
 	FullName string `json:"full_name"`
 }
 
-func (ipc IPC) GetUser(userId uint) (User, int, error) {
+func (ipc IPC) GetUser(userId int64) (User, int, error) {
 	user := User{}
 	res, err := http.Get(ipc.BaseUrl + fmt.Sprintf("/userinfo/?id=%v", userId))
 	if err != nil {

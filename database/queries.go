@@ -26,9 +26,10 @@ func (database Database) FetchImages(
 	orientation string,
 	many bool,
 	full bool,
-	userId uint,
-) (ImageRows, error) {
+	userId int64,
+) (ImageRows, time.Duration, error) {
 	var parameters []any
+
 	query := "SELECT DISTINCT Q.signature,Q.extension,Q.image_id,Q.favorites,Q.dominant_color,Q.source,Q.uploaded_at,Q.is_nsfw,Q.width,Q.height,"
 	if userId != 0 {
 		query += "Q.liked_at,"
@@ -81,10 +82,14 @@ func (database Database) FetchImages(
 	}
 	query += ") AS Q JOIN LinkedTags ON LinkedTags.image_id=Q.image_id JOIN Tags ON Tags.id=LinkedTags.tag_id "
 	query += FormatOrderBy(orderBy, "Q.", false)
+
 	imageRows := ImageRows{database.configuration, []ImageRow{}}
+
+	start := time.Now()
+
 	rows, err := database.Db.Query(query, parameters...)
 	if err != nil {
-		return imageRows, err
+		return imageRows, time.Since(start), err
 	}
 	defer rows.Close()
 	for rows.Next() {
@@ -126,22 +131,22 @@ func (database Database) FetchImages(
 			)
 		}
 		if err != nil {
-			return imageRows, err
+			return imageRows, time.Since(start), err
 		}
 		imageRows.Rows = append(imageRows.Rows, imageRow)
 	}
 	if err = rows.Err(); err != nil {
-		return imageRows, err
+		return imageRows, time.Since(start), err
 	}
 	if orderBy == constants.Random && (full || many || len(includedFiles) > 0 || userId != 0) {
 		rand.Seed(time.Now().UnixNano())
 		rand.Shuffle(len(imageRows.Rows), func(i, j int) { imageRows.Rows[i], imageRows.Rows[j] = imageRows.Rows[j], imageRows.Rows[i] })
 	}
-	return imageRows, nil
+	return imageRows, time.Since(start), nil
 }
 
-func (database Database) ToggleImageInFav(userId uint, imageId uint) (string, error) {
-	var empty uint
+func (database Database) ToggleImageInFav(userId int64, imageId int64) (string, error) {
+	var empty int64
 	if err := database.Db.QueryRow("SELECT image_id FROM FavImages WHERE user_id = $1 and image_id = $2", userId, imageId).Scan(&empty); err != nil {
 		if err == sql.ErrNoRows {
 			if err = database.InsertImageToFav(userId, imageId); err != nil {
@@ -157,13 +162,13 @@ func (database Database) ToggleImageInFav(userId uint, imageId uint) (string, er
 	return "DELETED", nil
 }
 
-func (database Database) InsertImageToFav(userId uint, imageId uint) error {
+func (database Database) InsertImageToFav(userId int64, imageId int64) error {
 	_, err := database.Db.Exec("INSERT INTO FavImages(user_id,image_id) VALUES($1,$2)", userId, imageId)
 	return err
 }
 
-func (database Database) DeleteImageFromFav(userId uint, imageId uint) error {
-	var empty uint
+func (database Database) DeleteImageFromFav(userId int64, imageId int64) error {
+	var empty int64
 	err := database.Db.QueryRow("DELETE FROM FavImages WHERE user_id=$1 and image_id=$2 RETURNING image_id", userId, imageId).Scan(&empty)
 	return err
 }
@@ -173,7 +178,7 @@ func (database Database) InsertUser(user ipc.User) error {
 	return err
 }
 
-func (database Database) Report(userId uint, imageId uint, description *string) (ReportRes, error) {
+func (database Database) Report(userId int64, imageId int64, description *string) (ReportRes, error) {
 	var res ReportRes
 	err := database.Db.QueryRow("INSERT INTO Reported_images (author_id,description,image_id) VALUES ($1,$2,$3) ON CONFLICT(image_id) DO UPDATE SET author_id=excluded.author_id RETURNING author_id,description,image_id, (xmax!=0) as existed", userId, description, imageId).Scan(&res.AuthorId, &res.Description, &res.ImageId, &res.Existed)
 	return res, err
@@ -198,7 +203,7 @@ func (database Database) GetTags() ([]models.Tag, error) {
 	return tagRows, err
 }
 
-func (database Database) IsValidCredentials(userId uint, secret string) (bool, error) {
+func (database Database) IsValidCredentials(userId int64, secret string) (bool, error) {
 	var isBlacklisted bool
 	if err := database.Db.QueryRow(`SELECT is_blacklisted FROM Registered_user WHERE id=$1 and secret=$2`, userId, secret).Scan(&isBlacklisted); err != nil {
 		if err == sql.ErrNoRows {
@@ -217,7 +222,7 @@ func (database Database) IsValidCredentials(userId uint, secret string) (bool, e
 // Some might argue that performing a query for each permission might not be a good idea ,however fetching permissions
 // position before might be a bit of a hassle and conduct to more query for the most command case : /fav , that only needs one permission.
 // feel free to share your opinion if you have a better idea.
-func (database Database) GetMissingPermissions(userId uint, targetUserId uint, permissions []string) ([]string, error) {
+func (database Database) GetMissingPermissions(userId int64, targetUserId int64, permissions []string) ([]string, error) {
 	var missing []string
 	query := "SELECT user_permissions.user_id, user_permissions.target_id, permissions.position, permissions.name FROM user_permissions " +
 		"JOIN permissions ON permissions.name=user_permissions.permission " +
@@ -246,8 +251,16 @@ func (database Database) GetMissingPermissions(userId uint, targetUserId uint, p
 	return missing, nil
 }
 
-func (database Database) LogRequest(ip string, url string, userAgent string, userId uint, version string) {
-	if _, err := database.Db.Exec("INSERT INTO api_logs(remote_address,url,user_agent,user_id,version) VALUES($1,$2,$3,$4,$5)", ip, url, CreateNullString(userAgent), CreateNullUInt(userId), CreateNullString(version)); err != nil {
+func (database Database) LogRequest(ip string, url string, userAgent string, userId int64, version string, execTime int64) {
+	if _, err := database.Db.Exec(
+		"INSERT INTO api_logs(remote_address,url,user_agent,user_id,version, query_exec_time) VALUES($1,$2,$3,$4,$5,$6)",
+		ip,
+		url,
+		CreateNullString(userAgent),
+		CreateNullInt64(userId),
+		CreateNullString(version),
+		CreateNullInt64(execTime),
+	); err != nil {
 		fmt.Println(err)
 	}
 }
@@ -261,12 +274,12 @@ func CreateNullString(s string) sql.NullString {
 		Valid:  true,
 	}
 }
-func CreateNullUInt(i uint) sql.NullInt64 {
+func CreateNullInt64(i int64) sql.NullInt64 {
 	if i == 0 {
 		return sql.NullInt64{}
 	}
 	return sql.NullInt64{
-		Int64: int64(i),
+		Int64: i,
 		Valid: true,
 	}
 }

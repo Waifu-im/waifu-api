@@ -55,8 +55,12 @@ func main() {
 		LogHeaders:   []string{"Version"},
 		LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
 			if v.Status == http.StatusOK || v.Status == http.StatusNoContent {
-				var userId uint
+				var execTime int64
+				var userId int64
 				var version string
+				if execTimeInterface := c.Get("search_query_exec_time"); execTimeInterface != nil {
+					execTime = execTimeInterface.(int64)
+				}
 				if claims := middlewares.GetUserClaims(c); claims != nil {
 					userId = claims.UserId
 				}
@@ -68,14 +72,14 @@ func main() {
 					}
 					version = v.Headers["Version"][0][0:max]
 				}
-				go globals.Database.LogRequest(v.RemoteIP, "https://"+v.Host+v.URI, v.UserAgent, userId, version)
+				go globals.Database.LogRequest(v.RemoteIP, "https://"+v.Host+v.URI, v.UserAgent, userId, version, execTime)
 			}
 			return nil
 		},
 	}))
 	//jwtRoutes := e.Group("", echojwt.WithConfig(globals.JWTConfig), middlewares.TokenVerification(globals))
 	// The bug regarding group will probably be fixed in the next echo versions (fix has been merged https://github.com/labstack/echo/issues/1981)
-	//
+
 	_ = routes.AddImageRouter(globals, e)
 	_ = routes.AddFavManagementRouter(globals, e)
 	_ = routes.AddReportRouter(globals, e)

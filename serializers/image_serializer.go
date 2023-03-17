@@ -7,7 +7,7 @@ import (
 )
 
 func JsonLike(rows database.ImageRows) ImagesJsonResponse {
-	var processedIds []uint
+	var processedIds []int64
 	var imageRes ImagesJsonResponse
 
 	for _, im := range rows.Rows {

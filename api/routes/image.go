@@ -26,7 +26,7 @@ func AddImageRouter(globals utils.Globals, app *echo.Echo) error {
 		controller.RouteSelector(true),
 		echojwt.WithConfig(globals.JWTConfig),
 		middlewares.TokenVerification(globals),
-		middlewares.PermissionsVerification(globals, []string{"view_favorites"}, middlewares.UIntParamsSkipper("user_id", "target_user_id", true)),
+		middlewares.PermissionsVerification(globals, []string{"view_favorites"}, middlewares.Int64ParamsSkipper("user_id", "target_user_id", true)),
 	)
 	return nil
 }

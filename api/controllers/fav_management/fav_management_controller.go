@@ -17,7 +17,7 @@ type Controller struct {
 
 func (controller Controller) Insert(c echo.Context) error {
 	var image Image
-	var userId uint
+	var userId int64
 	if err := c.Bind(&image); err != nil {
 		return err
 	}
@@ -29,7 +29,7 @@ func (controller Controller) Insert(c echo.Context) error {
 		claims := middlewares.GetUserClaims(c)
 		userId = claims.UserId
 	} else {
-		userId = userIdInterface.(uint)
+		userId = userIdInterface.(int64)
 		user, status, err := controller.Globals.Ipc.GetUser(userId)
 		if err != nil {
 			return err
@@ -66,7 +66,7 @@ func (controller Controller) Insert(c echo.Context) error {
 
 func (controller Controller) Delete(c echo.Context) error {
 	var image Image
-	var userId uint
+	var userId int64
 	if err := c.Bind(&image); err != nil {
 		return err
 	}
@@ -78,7 +78,7 @@ func (controller Controller) Delete(c echo.Context) error {
 		claims := middlewares.GetUserClaims(c)
 		userId = claims.UserId
 	} else {
-		userId = userIdInterface.(uint)
+		userId = userIdInterface.(int64)
 	}
 	if err := controller.Globals.Database.DeleteImageFromFav(userId, image.Id); err != nil {
 		if err == sql.ErrNoRows {
@@ -96,7 +96,7 @@ func (controller Controller) Delete(c echo.Context) error {
 
 func (controller Controller) Toggle(c echo.Context) error {
 	var image Image
-	var userId uint
+	var userId int64
 	if err := c.Bind(&image); err != nil {
 		return err
 	}
@@ -108,7 +108,7 @@ func (controller Controller) Toggle(c echo.Context) error {
 		claims := middlewares.GetUserClaims(c)
 		userId = claims.UserId
 	} else {
-		userId = userIdInterface.(uint)
+		userId = userIdInterface.(int64)
 		user, status, err := controller.Globals.Ipc.GetUser(userId)
 		if err != nil {
 			return err

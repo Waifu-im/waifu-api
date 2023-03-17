@@ -1,5 +1,5 @@
 package fav_management
 
 type Image struct {
-	Id uint `json:"image_id"`
+	Id int64 `json:"image_id"`
 }

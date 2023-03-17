@@ -50,12 +50,12 @@ func PermissionsVerification(globals utils.Globals, permissions []string, skippe
 			if skip {
 				return next(c)
 			}
-			var targetUserId uint = 0
+			var targetUserId int64 = 0
 			targetUserIdInterface := c.Get("target_user_id")
 			if targetUserIdInterface == nil {
 				targetUserId = 0
 			} else {
-				targetUserId = targetUserIdInterface.(uint)
+				targetUserId = targetUserIdInterface.(int64)
 			}
 			claims := GetUserClaims(c)
 			missing, err := globals.Database.GetMissingPermissions(claims.UserId, targetUserId, permissions)

@@ -7,6 +7,7 @@ import (
 	"github.com/Waifu-im/waifu-api/serializers"
 	"github.com/labstack/echo/v4"
 	"net/http"
+	"time"
 )
 
 type Controller struct {
@@ -30,7 +31,7 @@ func (controller Controller) RouteSelector(favRoute bool) echo.HandlerFunc {
 		var many = false
 		var full = false
 		var warning string
-		var userId uint
+		var userId int64
 		// We check if the user provided user_id
 		userIdInterface := c.Get("target_user_id")
 		if userIdInterface == nil || !favRoute {
@@ -44,7 +45,7 @@ func (controller Controller) RouteSelector(favRoute bool) echo.HandlerFunc {
 			}
 		} else {
 			// user_id was provided
-			userId = userIdInterface.(uint)
+			userId = userIdInterface.(int64)
 		}
 		if favRoute {
 			orderBy = constants.LikedAt
@@ -67,7 +68,7 @@ func (controller Controller) RouteSelector(favRoute bool) echo.HandlerFunc {
 		); err != nil {
 			return err
 		}
-		rows, err := controller.Globals.Database.FetchImages(
+		rows, execTime, err := controller.Globals.Database.FetchImages(
 			isNsfw,
 			includedTags,
 			excludedTags,
@@ -80,6 +81,7 @@ func (controller Controller) RouteSelector(favRoute bool) echo.HandlerFunc {
 			full,
 			userId,
 		)
+		(c).Set("search_query_exec_time", int64(execTime/time.Millisecond))
 		if err != nil {
 			return err
 		}
