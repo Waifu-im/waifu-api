@@ -2,7 +2,6 @@ package fav_management
 
 import (
 	"database/sql"
-	"github.com/Waifu-im/waifu-api/api/middlewares"
 	"github.com/Waifu-im/waifu-api/api/utils"
 	"github.com/Waifu-im/waifu-api/constants"
 	"github.com/Waifu-im/waifu-api/serializers"
@@ -17,18 +16,15 @@ type Controller struct {
 
 func (controller Controller) Insert(c echo.Context) error {
 	var image Image
-	var userId int64
 	if err := c.Bind(&image); err != nil {
 		return err
 	}
 	if image.Id == 0 {
 		return c.JSON(http.StatusBadRequest, serializers.JSONError{Detail: constants.ImageIdMissing})
 	}
+	userId := utils.GetUser(c).Id
 	userIdInterface := c.Get("target_user_id")
-	if userIdInterface == nil {
-		claims := middlewares.GetUserClaims(c)
-		userId = claims.UserId
-	} else {
+	if userIdInterface != nil {
 		userId = userIdInterface.(int64)
 		user, status, err := controller.Globals.Ipc.GetUser(userId)
 		if err != nil {
@@ -66,18 +62,15 @@ func (controller Controller) Insert(c echo.Context) error {
 
 func (controller Controller) Delete(c echo.Context) error {
 	var image Image
-	var userId int64
 	if err := c.Bind(&image); err != nil {
 		return err
 	}
 	if image.Id == 0 {
 		return c.JSON(http.StatusBadRequest, serializers.JSONError{Detail: constants.ImageIdMissing})
 	}
+	userId := utils.GetUser(c).Id
 	userIdInterface := c.Get("target_user_id")
-	if userIdInterface == nil {
-		claims := middlewares.GetUserClaims(c)
-		userId = claims.UserId
-	} else {
+	if userIdInterface != nil {
 		userId = userIdInterface.(int64)
 	}
 	if err := controller.Globals.Database.DeleteImageFromFav(userId, image.Id); err != nil {
@@ -96,18 +89,15 @@ func (controller Controller) Delete(c echo.Context) error {
 
 func (controller Controller) Toggle(c echo.Context) error {
 	var image Image
-	var userId int64
 	if err := c.Bind(&image); err != nil {
 		return err
 	}
 	if image.Id == 0 {
 		return c.JSON(http.StatusBadRequest, serializers.JSONError{Detail: constants.ImageIdMissing})
 	}
+	userId := utils.GetUser(c).Id
 	userIdInterface := c.Get("target_user_id")
-	if userIdInterface == nil {
-		claims := middlewares.GetUserClaims(c)
-		userId = claims.UserId
-	} else {
+	if userIdInterface != nil {
 		userId = userIdInterface.(int64)
 		user, status, err := controller.Globals.Ipc.GetUser(userId)
 		if err != nil {

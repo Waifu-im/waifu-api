@@ -203,18 +203,19 @@ func (database Database) GetTags() ([]models.Tag, error) {
 	return tagRows, err
 }
 
-func (database Database) IsValidCredentials(userId int64, secret string) (bool, error) {
+func (database Database) GetUserInformation(token string) (models.User, error) {
+	user := models.User{}
 	var isBlacklisted bool
-	if err := database.Db.QueryRow(`SELECT is_blacklisted FROM Registered_user WHERE id=$1 and secret=$2`, userId, secret).Scan(&isBlacklisted); err != nil {
+	if err := database.Db.QueryRow(`SELECT id, name, token, is_blacklisted  FROM Registered_user WHERE token=$1`, token).Scan(&user.Id, &user.Name, &user.Token, &user.IsBlacklisted); err != nil {
 		if err == sql.ErrNoRows {
-			return false, nil
+			return user, nil
 		}
-		return false, err
+		return user, err
 	}
 	if isBlacklisted {
-		return false, constants.BlacklistedError
+		return user, constants.BlacklistedError
 	}
-	return true, nil
+	return user, nil
 }
 
 // GetMissingPermissions Provide a user id, an optional target user id, and permissions
@@ -230,7 +231,7 @@ func (database Database) GetMissingPermissions(userId int64, targetUserId int64,
 		"WHERE registered_user.id=$1 " +
 		"and (permissions.name=$2 or permissions.position > (SELECT position from permissions where name=$2))" +
 		"and (user_permissions.target_id=$3 or user_permissions.target_id is NULL)"
-	if targetUserId == userId {
+	if targetUserId == userId && userId != 0 {
 		return missing, nil
 	}
 	userPermissions := PermissionsInformation{}

@@ -43,23 +43,31 @@ func (ir ImageRows) GetImage(ImageId int64) models.Image {
 		if im.ImageId == ImageId {
 			if image.ImageId == 0 {
 				image = models.Image{
-					im.Signature,
-					im.Extension,
-					im.ImageId,
-					im.Favorites,
-					im.DominantColor,
-					im.Source,
-					im.UploadedAt,
-					im.LikedAt,
-					im.IsNsfw,
-					im.Width,
-					im.Height,
-					ir.Configuration.CDNUrl + "/" + fmt.Sprintf("%v%v", im.ImageId, im.Extension),
-					ir.Configuration.WebSiteUrl + "/preview/" + fmt.Sprintf("%v", im.ImageId) + "/",
-					[]models.Tag{},
+					Signature:     im.Signature,
+					Extension:     im.Extension,
+					ImageId:       im.ImageId,
+					Favorites:     im.Favorites,
+					DominantColor: im.DominantColor,
+					Source:        im.Source,
+					UploadedAt:    im.UploadedAt,
+					LikedAt:       im.LikedAt,
+					IsNsfw:        im.IsNsfw,
+					Width:         im.Width,
+					Height:        im.Height,
+					Url:           ir.Configuration.CDNUrl + "/" + fmt.Sprintf("%v%v", im.ImageId, im.Extension),
+					PreviewUrl:    ir.Configuration.WebSiteUrl + "/preview/" + fmt.Sprintf("%v", im.ImageId) + "/",
+					Tags:          []models.Tag{},
 				}
 			}
-			image.Tags = append(image.Tags, models.Tag{im.TagId, im.Name, im.Description, im.TagIsNsfw})
+			image.Tags = append(
+				image.Tags,
+				models.Tag{
+					TagId:       im.TagId,
+					Name:        im.Name,
+					Description: im.Description,
+					IsNsfw:      im.TagIsNsfw,
+				},
+			)
 		}
 	}
 	return image

@@ -1,7 +1,6 @@
 package image
 
 import (
-	"github.com/Waifu-im/waifu-api/api/middlewares"
 	"github.com/Waifu-im/waifu-api/api/utils"
 	"github.com/Waifu-im/waifu-api/constants"
 	"github.com/Waifu-im/waifu-api/serializers"
@@ -32,24 +31,15 @@ func (controller Controller) RouteSelector(favRoute bool) echo.HandlerFunc {
 		var full = false
 		var warning string
 		var userId int64
-		// We check if the user provided user_id
-		userIdInterface := c.Get("target_user_id")
-		if userIdInterface == nil || !favRoute {
-			// if the user_id was not provided, or it is not a favorite route
-			if favRoute {
-				// if it's a favorites route it means user_id was not provided, so we set the user_id as the token's owner
-				claims := middlewares.GetUserClaims(c)
-				userId = claims.UserId
-			} else {
-				userId = 0
-			}
-		} else {
-			// user_id was provided
-			userId = userIdInterface.(int64)
-		}
+
 		if favRoute {
 			orderBy = constants.LikedAt
 			isNsfw = constants.Null
+			userId = utils.GetUser(c).Id
+			userIdInterface := c.Get("target_user_id")
+			if userIdInterface != nil {
+				userId = userIdInterface.(int64)
+			}
 		}
 
 		if err := QueryParamsBinder(

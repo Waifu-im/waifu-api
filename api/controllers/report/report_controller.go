@@ -1,7 +1,6 @@
 package report
 
 import (
-	"github.com/Waifu-im/waifu-api/api/middlewares"
 	"github.com/Waifu-im/waifu-api/api/utils"
 	"github.com/Waifu-im/waifu-api/serializers"
 	"github.com/labstack/echo/v4"
@@ -18,18 +17,16 @@ func (controller Controller) Report(c echo.Context) error {
 		Id          int64   `json:"image_id"`
 		Description *string `json:"description"`
 	}
-	var userId int64
+
 	if err := c.Bind(&image); err != nil {
 		return err
 	}
 	if image.Id == 0 {
 		return c.JSON(http.StatusBadRequest, serializers.JSONError{Detail: "Bad Request, image_id is a required parameter, please format it in a json like format inside the request body."})
 	}
+	userId := utils.GetUser(c).Id
 	userIdInterface := c.Get("target_user_id")
-	if userIdInterface == nil {
-		claims := middlewares.GetUserClaims(c)
-		userId = claims.UserId
-	} else {
+	if userIdInterface != nil {
 		userId = userIdInterface.(int64)
 		user, status, err := controller.Globals.Ipc.GetUser(userId)
 		if err != nil {

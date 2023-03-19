@@ -5,7 +5,6 @@ import (
 	"github.com/Waifu-im/waifu-api/constants"
 	"github.com/Waifu-im/waifu-api/serializers"
 	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
 	"github.com/lib/pq"
 	"net/http"
 )
@@ -15,16 +14,8 @@ func CustomHTTPErrorHandler(err error, c echo.Context) {
 		_ = c.JSON(http.StatusForbidden, serializers.JSONError{Detail: fmt.Sprintf("%v", err)})
 		return
 	}
-	if err == middleware.ErrJWTMissing {
-		_ = c.JSON(http.StatusUnauthorized, serializers.JSONError{Detail: "Missing or malformed token"})
-		return
-	}
 	if httpError, ok := err.(*echo.HTTPError); ok {
 		// echo JWT middleware package doesn't directly return the error they defined so the error cannot be directly compared
-		if httpError.Message == middleware.ErrJWTInvalid.Message {
-			_ = c.JSON(http.StatusUnauthorized, serializers.JSONError{Detail: "Invalid token (note that if you are using a token generated before the golang version of the api, the token encryption has changed, please check your new token at https://waifu.im/dashboard/"})
-			return
-		}
 		_ = c.JSON(httpError.Code, serializers.JSONError{Detail: fmt.Sprintf("%v", httpError.Message)})
 		return
 	}

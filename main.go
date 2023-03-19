@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/Waifu-im/waifu-api/api/middlewares"
 	"github.com/Waifu-im/waifu-api/api/routes"
 	"github.com/Waifu-im/waifu-api/api/utils"
 	"github.com/joho/godotenv"
@@ -56,13 +55,10 @@ func main() {
 		LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
 			if v.Status == http.StatusOK || v.Status == http.StatusNoContent {
 				var execTime int64
-				var userId int64
 				var version string
+				userId := utils.GetUser(c).Id
 				if execTimeInterface := c.Get("search_query_exec_time"); execTimeInterface != nil {
 					execTime = execTimeInterface.(int64)
-				}
-				if claims := middlewares.GetUserClaims(c); claims != nil {
-					userId = claims.UserId
 				}
 				if len(v.Headers["Version"]) > 0 {
 					max := len(v.Headers["Version"][0])
@@ -77,7 +73,7 @@ func main() {
 			return nil
 		},
 	}))
-	//jwtRoutes := e.Group("", echojwt.WithConfig(globals.JWTConfig), middlewares.TokenVerification(globals))
+	//jwtRoutes := e.Group("", middlewares.TokenVerification(globals, theSkipper))
 	// The bug regarding group will probably be fixed in the next echo versions (fix has been merged https://github.com/labstack/echo/issues/1981)
 
 	_ = routes.AddImageRouter(globals, e)

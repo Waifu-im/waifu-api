@@ -4,7 +4,6 @@ import (
 	"github.com/Waifu-im/waifu-api/api/controllers/image"
 	"github.com/Waifu-im/waifu-api/api/middlewares"
 	"github.com/Waifu-im/waifu-api/api/utils"
-	echojwt "github.com/labstack/echo-jwt/v4"
 	"github.com/labstack/echo/v4"
 )
 
@@ -16,16 +15,22 @@ func AddImageRouter(globals utils.Globals, app *echo.Echo) error {
 	app.GET(
 		"/search",
 		controller.RouteSelector(false),
-		echojwt.WithConfig(globals.JWTConfig),
-		middlewares.TokenVerification(globals),
+		middlewares.TokenVerification(
+			globals,
+			func(c echo.Context) (bool, error) {
+				var full bool
+				_ = echo.QueryParamsBinder(c).Bool("full", &full)
+				// when new release will be out this middleware will be on the whole group with that condition in addition
+				// c.Request().URL.Path == "/search"
+				return !full, nil
+			}),
 		middlewares.PermissionsVerification(globals, []string{"admin"}, middlewares.BoolParamsSkipper("full", "", true)),
 	)
 
 	app.GET(
 		"/fav",
 		controller.RouteSelector(true),
-		echojwt.WithConfig(globals.JWTConfig),
-		middlewares.TokenVerification(globals),
+		middlewares.TokenVerification(globals, nil),
 		middlewares.PermissionsVerification(globals, []string{"view_favorites"}, middlewares.Int64ParamsSkipper("user_id", "target_user_id", true)),
 	)
 	return nil
