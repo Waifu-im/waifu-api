@@ -13,6 +13,7 @@ type Image struct {
 	IsNsfw        bool    `json:"is_nsfw"`
 	Width         int64   `json:"width"`
 	Height        int64   `json:"height"`
+	ByteSize      int64   `json:"byte_size"`
 	Url           string  `json:"url"`
 	PreviewUrl    string  `json:"preview_url"`
 	Tags          []Tag   `json:"tags"`

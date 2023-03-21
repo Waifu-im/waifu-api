@@ -29,6 +29,9 @@ func (controller Controller) RouteSelector(favRoute bool) echo.HandlerFunc {
 		var orientation = constants.Random
 		var many = false
 		var full = false
+		var width string
+		var height string
+		var byteSize string
 		var warning string
 		var userId int64
 
@@ -55,6 +58,9 @@ func (controller Controller) RouteSelector(favRoute bool) echo.HandlerFunc {
 			&orientation,
 			&many,
 			&full,
+			&width,
+			&height,
+			&byteSize,
 		); err != nil {
 			return err
 		}
@@ -69,6 +75,9 @@ func (controller Controller) RouteSelector(favRoute bool) echo.HandlerFunc {
 			orientation,
 			many,
 			full,
+			width,
+			height,
+			byteSize,
 			userId,
 		)
 		(c).Set("search_query_exec_time", int64(execTime/time.Millisecond))

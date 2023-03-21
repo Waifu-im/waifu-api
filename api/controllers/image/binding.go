@@ -10,6 +10,7 @@ import (
 )
 
 const RegexRule = `^[a-zA-Z0-9-]+$`
+const ComparatorRegexRule = `^(>=|<=|=|!=|>|<)[0-9]+$`
 
 func getThreeState() []string {
 	return []string{constants.Null, constants.True, constants.False}
@@ -27,8 +28,8 @@ func getOrientation() []string {
 	return []string{constants.Portrait, constants.Landscape, constants.Random}
 }
 
-func isSafeString(value string) bool {
-	reg := regexp.MustCompile(RegexRule).MatchString(value)
+func matchRegex(value string, rule string) bool {
+	reg := regexp.MustCompile(rule).MatchString(value)
 	return reg
 }
 
@@ -44,6 +45,10 @@ func isOrientation(value string) bool {
 	return slices.Contains(getOrientation(), strings.ToUpper(value))
 }
 
+func regexError(rule string) string {
+	return "field value must match regex : " + rule
+}
+
 func QueryParamsBinder(
 	favRoute bool,
 	c echo.Context,
@@ -57,9 +62,11 @@ func QueryParamsBinder(
 	orientation *string,
 	many *bool,
 	full *bool,
+	width *string,
+	height *string,
+	byteSize *string,
 ) error {
 	threeStateError := fmt.Sprintf("field value must be one of %v", strings.Join(getThreeState(), ", "))
-	regexError := "field value must match regex : " + RegexRule
 	orderByError := fmt.Sprintf("field value must be one of %v", strings.Join(getOrderBy(false), ", "))
 	orientationError := fmt.Sprintf("field value must be one of %v", strings.Join(getOrientation(), ", "))
 
@@ -76,49 +83,49 @@ func QueryParamsBinder(
 		}).
 		CustomFunc("included_tags", func(values []string) []error {
 			for _, val := range values {
-				if isSafeString(val) {
+				if matchRegex(val, RegexRule) {
 					if !slices.Contains(*includedTags, val) {
 						*includedTags = append(*includedTags, val)
 					}
 					continue
 				}
-				return []error{echo.NewBindingError("included_tags", []string{val}, regexError, nil)}
+				return []error{echo.NewBindingError("included_tags", []string{val}, regexError(RegexRule), nil)}
 			}
 			return nil
 		}).
 		CustomFunc("excluded_tags", func(values []string) []error {
 			for _, val := range values {
-				if isSafeString(val) {
+				if matchRegex(val, RegexRule) {
 					if !slices.Contains(*excludedTags, val) {
 						*excludedTags = append(*excludedTags, val)
 					}
 					continue
 				}
-				return []error{echo.NewBindingError("excluded_tags", []string{val}, regexError, nil)}
+				return []error{echo.NewBindingError("excluded_tags", []string{val}, regexError(RegexRule), nil)}
 			}
 			return nil
 		}).
 		CustomFunc("included_files", func(values []string) []error {
 			for _, val := range values {
-				if isSafeString(val) {
+				if matchRegex(val, RegexRule) {
 					if !slices.Contains(*includedFiles, val) {
 						*includedFiles = append(*includedFiles, val)
 					}
 					continue
 				}
-				return []error{echo.NewBindingError("included_files", []string{val}, regexError, nil)}
+				return []error{echo.NewBindingError("included_files", []string{val}, regexError(RegexRule), nil)}
 			}
 			return nil
 		}).
 		CustomFunc("excluded_files", func(values []string) []error {
 			for _, val := range values {
-				if isSafeString(val) {
+				if matchRegex(val, RegexRule) {
 					if !slices.Contains(*excludedFiles, val) {
 						*excludedFiles = append(*excludedFiles, val)
 					}
 					continue
 				}
-				return []error{echo.NewBindingError("excluded_files", []string{val}, regexError, nil)}
+				return []error{echo.NewBindingError("excluded_files", []string{val}, regexError(RegexRule), nil)}
 			}
 			return nil
 		}).
@@ -151,6 +158,36 @@ func QueryParamsBinder(
 				return nil
 			}
 			return []error{echo.NewBindingError("orientation", values[0:1], orientationError, nil)}
+		}).
+		CustomFunc("width", func(values []string) []error {
+			if len(values) == 0 {
+				return nil
+			}
+			if matchRegex(values[0], ComparatorRegexRule) {
+				*width = values[0]
+				return nil
+			}
+			return []error{echo.NewBindingError("width", values[0:1], regexError(ComparatorRegexRule), nil)}
+		}).
+		CustomFunc("height", func(values []string) []error {
+			if len(values) == 0 {
+				return nil
+			}
+			if matchRegex(values[0], ComparatorRegexRule) {
+				*height = values[0]
+				return nil
+			}
+			return []error{echo.NewBindingError("height", values[0:1], regexError(ComparatorRegexRule), nil)}
+		}).
+		CustomFunc("byte_size", func(values []string) []error {
+			if len(values) == 0 {
+				return nil
+			}
+			if matchRegex(values[0], ComparatorRegexRule) {
+				*byteSize = values[0]
+				return nil
+			}
+			return []error{echo.NewBindingError("byte_size", values[0:1], regexError(ComparatorRegexRule), nil)}
 		}).
 		Bool("many", many).
 		Bool("full", full).

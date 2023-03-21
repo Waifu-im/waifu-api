@@ -25,6 +25,7 @@ type ImageRow struct {
 	IsNsfw        bool    `field:"is_nsfw" json:"is_nsfw"`
 	Width         int64   `field:"width" json:"width"`
 	Height        int64   `field:"height" json:"height"`
+	ByteSize      int64   `field:"byte_size" json:"byte_size"`
 	TagId         int64   `field:"tag_id" json:"tag_id"`
 	Name          string  `field:"name" json:"name"`
 	Description   string  `field:"description" json:"description"`
@@ -54,6 +55,7 @@ func (ir ImageRows) GetImage(ImageId int64) models.Image {
 					IsNsfw:        im.IsNsfw,
 					Width:         im.Width,
 					Height:        im.Height,
+					ByteSize:      im.ByteSize,
 					Url:           ir.Configuration.CDNUrl + "/" + fmt.Sprintf("%v%v", im.ImageId, im.Extension),
 					PreviewUrl:    ir.Configuration.WebSiteUrl + "/preview/" + fmt.Sprintf("%v", im.ImageId) + "/",
 					Tags:          []models.Tag{},

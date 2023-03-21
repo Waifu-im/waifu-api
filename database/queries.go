@@ -26,18 +26,21 @@ func (database Database) FetchImages(
 	orientation string,
 	many bool,
 	full bool,
+	width string,
+	height string,
+	byteSize string,
 	userId int64,
 ) (ImageRows, time.Duration, error) {
 	var parameters []any
 
-	query := "SELECT DISTINCT Q.signature,Q.extension,Q.image_id,Q.favorites,Q.dominant_color,Q.source,Q.uploaded_at,Q.is_nsfw,Q.width,Q.height,"
+	query := "SELECT DISTINCT Q.signature,Q.extension,Q.image_id,Q.favorites,Q.dominant_color,Q.source,Q.uploaded_at,Q.is_nsfw,Q.width,Q.height,Q.byte_size,"
 	if userId != 0 {
 		query += "Q.liked_at,"
 	}
 	query += "Tags.id as tag_id,Tags.name,Tags.description,Tags.is_nsfw as tag_is_nsfw " +
 		"FROM (" +
 		"SELECT Images.signature,Images.extension,Images.image_id,Images.dominant_color,Images.source," +
-		"Images.uploaded_at,Images.is_nsfw,Images.width,Images.height,"
+		"Images.uploaded_at,Images.is_nsfw,Images.width,Images.height,Images.byte_size,"
 	if userId != 0 {
 		query += "FavImages.liked_at,"
 	}
@@ -50,6 +53,9 @@ func (database Database) FetchImages(
 	query += "WHERE not Images.under_review and not Images.hidden " + FormatNsfwTags(isNsfw, includedTags, &parameters)
 	query += FormatGif(gif)
 	query += FormatOrientation(orientation)
+	query += FormatComparator("width", width)
+	query += FormatComparator("height", height)
+	query += FormatComparator("byte_size", byteSize)
 	if len(includedFiles) > 0 {
 		query += fmt.Sprintf("and (Images.image_id::text ILIKE ANY($%v) or Images.signature ILIKE ANY($%v))", len(parameters)+1, len(parameters)+1)
 		parameters = append(parameters, pq.Array(includedFiles))
@@ -106,6 +112,7 @@ func (database Database) FetchImages(
 				&imageRow.IsNsfw,
 				&imageRow.Width,
 				&imageRow.Height,
+				&imageRow.ByteSize,
 				&imageRow.TagId,
 				&imageRow.Name,
 				&imageRow.Description,
@@ -123,6 +130,7 @@ func (database Database) FetchImages(
 				&imageRow.IsNsfw,
 				&imageRow.Width,
 				&imageRow.Height,
+				&imageRow.ByteSize,
 				&imageRow.LikedAt,
 				&imageRow.TagId,
 				&imageRow.Name,
@@ -140,7 +148,12 @@ func (database Database) FetchImages(
 	}
 	if orderBy == constants.Random && (full || many || len(includedFiles) > 0 || userId != 0) {
 		rand.Seed(time.Now().UnixNano())
-		rand.Shuffle(len(imageRows.Rows), func(i, j int) { imageRows.Rows[i], imageRows.Rows[j] = imageRows.Rows[j], imageRows.Rows[i] })
+		rand.Shuffle(
+			len(imageRows.Rows),
+			func(i, j int) {
+				imageRows.Rows[i], imageRows.Rows[j] = imageRows.Rows[j], imageRows.Rows[i]
+			},
+		)
 	}
 	return imageRows, time.Since(start), nil
 }

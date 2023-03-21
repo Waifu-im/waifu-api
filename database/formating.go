@@ -9,6 +9,13 @@ import (
 
 // Some useful func to generate the search/fav query inside queries.go.
 
+func FormatComparator(field string, value string) string {
+	if value == "" {
+		return ""
+	}
+	return "and Images." + field + value + " "
+}
+
 func FormatNsfw(isNfw string) string {
 	s := "Images.is_nsfw "
 	if isNfw == constants.True || isNfw == constants.Null {
