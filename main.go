@@ -39,7 +39,7 @@ func main() {
 				http.MethodDelete,
 				http.MethodOptions,
 			},
-			AllowHeaders: []string{"Accept-Version", "Authorization"},
+			AllowHeaders: []string{"Accept-Version", "Authorization", "Content-Type"},
 		}))
 	*/
 	// Using default logger
