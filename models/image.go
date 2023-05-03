@@ -8,6 +8,7 @@ type Image struct {
 	Favorites     int64   `json:"favorites"`
 	DominantColor string  `json:"dominant_color"`
 	Source        *string `json:"source"`
+	Artist        *Artist `json:"artist"`
 	UploadedAt    string  `json:"uploaded_at"`
 	LikedAt       *string `json:"liked_at"`
 	IsNsfw        bool    `json:"is_nsfw"`

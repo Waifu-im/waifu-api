@@ -33,14 +33,18 @@ func (database Database) FetchImages(
 ) (ImageRows, time.Duration, error) {
 	var parameters []any
 
+	// Select some information about the images
 	query := "SELECT DISTINCT Q.signature,Q.extension,Q.image_id,Q.favorites,Q.dominant_color,Q.source,Q.uploaded_at,Q.is_nsfw,Q.width,Q.height,Q.byte_size,"
 	if userId != 0 {
 		query += "Q.liked_at,"
 	}
-	query += "Tags.id as tag_id,Tags.name,Tags.description,Tags.is_nsfw as tag_is_nsfw " +
-		"FROM (" +
+	// Select the tags and artist information from the "final"
+	query += "Tags.id as tag_id,Tags.name as tag_name,Tags.description as tag_description,Tags.is_nsfw as tag_is_nsfw, " +
+		"Artists.id as artist_id, Artists.name as artist_name, Artists.patreon as artist_patreon, Artists.pixiv as artist_pixiv, Artists.twitter as artist_twitter, Artists.deviant_art as artist_deviant_art  "
+	// The sub query that will filter the images
+	query += "FROM (" +
 		"SELECT Images.signature,Images.extension,Images.image_id,Images.dominant_color,Images.source," +
-		"Images.uploaded_at,Images.is_nsfw,Images.width,Images.height,Images.byte_size,"
+		"Images.uploaded_at,Images.is_nsfw,Images.width,Images.height,Images.byte_size,Images.artist_id,"
 	if userId != 0 {
 		query += "FavImages.liked_at,"
 	}
@@ -86,7 +90,7 @@ func (database Database) FetchImages(
 	} else if !(full || len(includedFiles) > 0) && userId == 0 {
 		query += "LIMIT  1 "
 	}
-	query += ") AS Q JOIN LinkedTags ON LinkedTags.image_id=Q.image_id JOIN Tags ON Tags.id=LinkedTags.tag_id "
+	query += ") AS Q JOIN LinkedTags ON LinkedTags.image_id=Q.image_id JOIN Tags ON Tags.id=LinkedTags.tag_id LEFT JOIN Artists ON Artists.id = Q.artist_id "
 	query += FormatOrderBy(orderBy, "Q.", false)
 
 	imageRows := ImageRows{database.configuration, []ImageRow{}}
@@ -114,9 +118,15 @@ func (database Database) FetchImages(
 				&imageRow.Height,
 				&imageRow.ByteSize,
 				&imageRow.TagId,
-				&imageRow.Name,
-				&imageRow.Description,
+				&imageRow.TagName,
+				&imageRow.TagDescription,
 				&imageRow.TagIsNsfw,
+				&imageRow.ArtistId,
+				&imageRow.ArtistName,
+				&imageRow.ArtistPatreon,
+				&imageRow.ArtistPixiv,
+				&imageRow.ArtistTwitter,
+				&imageRow.ArtistDeviantArt,
 			)
 		} else {
 			err = rows.Scan(
@@ -133,9 +143,15 @@ func (database Database) FetchImages(
 				&imageRow.ByteSize,
 				&imageRow.LikedAt,
 				&imageRow.TagId,
-				&imageRow.Name,
-				&imageRow.Description,
+				&imageRow.TagName,
+				&imageRow.TagDescription,
 				&imageRow.TagIsNsfw,
+				&imageRow.ArtistId,
+				&imageRow.ArtistName,
+				&imageRow.ArtistPatreon,
+				&imageRow.ArtistPixiv,
+				&imageRow.ArtistTwitter,
+				&imageRow.ArtistDeviantArt,
 			)
 		}
 		if err != nil {

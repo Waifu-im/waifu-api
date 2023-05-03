@@ -14,22 +14,28 @@ type Database struct {
 
 // ImageRow Represent a row when retrieving images (likedAt may not be present)
 type ImageRow struct {
-	Signature     string  `field:"signature" json:"signature"`
-	Extension     string  `field:"extension" json:"extension"`
-	ImageId       int64   `field:"image_id" json:"image_id"`
-	Favorites     int64   `field:"favorites" json:"favorites"`
-	DominantColor string  `field:"dominant_color" json:"dominant_color"`
-	Source        *string `field:"source" json:"source"`
-	UploadedAt    string  `field:"uploaded_at" json:"uploaded_at"`
-	LikedAt       *string `field:"liked_at" json:"liked_at"`
-	IsNsfw        bool    `field:"is_nsfw" json:"is_nsfw"`
-	Width         int64   `field:"width" json:"width"`
-	Height        int64   `field:"height" json:"height"`
-	ByteSize      int64   `field:"byte_size" json:"byte_size"`
-	TagId         int64   `field:"tag_id" json:"tag_id"`
-	Name          string  `field:"name" json:"name"`
-	Description   string  `field:"description" json:"description"`
-	TagIsNsfw     bool    `field:"tag_is_nsfw" json:"tag_is_nsfw"`
+	Signature        string  `field:"signature" json:"signature"`
+	Extension        string  `field:"extension" json:"extension"`
+	ImageId          int64   `field:"image_id" json:"image_id"`
+	Favorites        int64   `field:"favorites" json:"favorites"`
+	DominantColor    string  `field:"dominant_color" json:"dominant_color"`
+	Source           *string `field:"source" json:"source"`
+	UploadedAt       string  `field:"uploaded_at" json:"uploaded_at"`
+	LikedAt          *string `field:"liked_at" json:"liked_at"`
+	IsNsfw           bool    `field:"is_nsfw" json:"is_nsfw"`
+	Width            int64   `field:"width" json:"width"`
+	Height           int64   `field:"height" json:"height"`
+	ByteSize         int64   `field:"byte_size" json:"byte_size"`
+	TagId            int64   `field:"tag_id" json:"tag_id"`
+	TagName          string  `field:"tag_name" json:"tag_name"`
+	TagDescription   string  `field:"tag_description" json:"tag_description"`
+	TagIsNsfw        bool    `field:"tag_is_nsfw" json:"tag_is_nsfw"`
+	ArtistId         *int64  `field:"artist_id" json:"artist_id"`
+	ArtistName       *string `field:"artist_name" json:"artist_name"`
+	ArtistPatreon    *string `field:"artist_patreon" json:"artist_patreon"`
+	ArtistTwitter    *string `field:"artist_twitter" json:"artist_twitter"`
+	ArtistDeviantArt *string `field:"artist_deviant_art" json:"artist_deviant_art"`
+	ArtistPixiv      *string `field:"artist_pixiv" json:"artist_pixiv"`
 }
 
 // ImageRows Represent multiple rows
@@ -61,12 +67,22 @@ func (ir ImageRows) GetImage(ImageId int64) models.Image {
 					Tags:          []models.Tag{},
 				}
 			}
+			if im.ArtistId != nil {
+				image.Artist = &models.Artist{
+					ArtistId:   *im.ArtistId,
+					Name:       *im.ArtistName,
+					Patreon:    im.ArtistPatreon,
+					Twitter:    im.ArtistTwitter,
+					DeviantArt: im.ArtistDeviantArt,
+					Pixiv:      im.ArtistPixiv,
+				}
+			}
 			image.Tags = append(
 				image.Tags,
 				models.Tag{
 					TagId:       im.TagId,
-					Name:        im.Name,
-					Description: im.Description,
+					Name:        im.TagName,
+					Description: im.TagDescription,
 					IsNsfw:      im.TagIsNsfw,
 				},
 			)
