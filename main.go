@@ -19,7 +19,7 @@ import (
 const shutdownTimeout = 10 * time.Second
 
 // @title                 Waifu.im
-// @version               5.2.2
+// @version               5.2.3
 // @description.markdown
 // @termsOfService        https://www.waifu.im/terms-of-service
 
