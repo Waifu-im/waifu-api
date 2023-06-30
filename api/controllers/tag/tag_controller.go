@@ -11,6 +11,16 @@ type Controller struct {
 	Globals utils.Globals
 }
 
+// Tags godoc
+// @Summary      Get tags
+// @Description  Get a list of tags
+// @Tags         Tags
+// @Accept       json
+// @Produce      json
+// @Param        full     query     boolean  false  "Returns more information about the tags, such as a description."  default(false)  example(true)
+// @Success      200      {object}  serializers.TagsJsonResponse
+// @Failure      default  {object}  serializers.JSONError
+// @Router       /tags [get]
 func (controller Controller) Tags(c echo.Context) error {
 	var full bool
 	mapping := make(map[bool][]interface{})

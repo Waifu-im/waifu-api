@@ -12,11 +12,19 @@ type Controller struct {
 	Globals utils.Globals
 }
 
+// Report
+// @Summary      Report an image
+// @Description  Report an image with a given image ID and description
+// @Tags         Report
+// @Accept       json
+// @Produce      json
+// @Param        image    body      serializers.ReportImage  true  "Image Data"
+// @Security     ApiKeyAuth
+// @Success      200      {object}  database.ReportRes       "Returns the report information"
+// @Failure      default  {object}  serializers.JSONError
+// @Router       /report [post]
 func (controller Controller) Report(c echo.Context) error {
-	var image struct {
-		Id          int64   `json:"image_id"`
-		Description *string `json:"description"`
-	}
+	var image serializers.ReportImage
 
 	if err := c.Bind(&image); err != nil {
 		return err

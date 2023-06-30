@@ -14,7 +14,7 @@ func AddImageRouter(globals utils.Globals, app *echo.Echo) error {
 
 	app.GET(
 		"/search",
-		controller.RouteSelector(false),
+		controller.Search(),
 		middlewares.TokenVerification(
 			globals,
 			func(c echo.Context) (bool, error) {
@@ -29,7 +29,7 @@ func AddImageRouter(globals utils.Globals, app *echo.Echo) error {
 
 	app.GET(
 		"/fav",
-		controller.RouteSelector(true),
+		controller.Fav(),
 		middlewares.TokenVerification(globals, nil),
 		middlewares.PermissionsVerification(globals, []string{"view_favorites"}, middlewares.Int64ParamsSkipper("user_id", "target_user_id", true)),
 	)

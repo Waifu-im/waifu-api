@@ -23,3 +23,12 @@ func JsonLike(rows database.ImageRows) ImagesJsonResponse {
 type ImagesJsonResponse struct {
 	Images []models.Image `json:"images"`
 }
+
+type Image struct {
+	Id int64 `json:"image_id"`
+}
+
+type ReportImage struct {
+	Id          int64   `json:"image_id"`
+	Description *string `json:"description" maxLength:"200" example:"Here is a less than 200 characters and optional description"`
+}

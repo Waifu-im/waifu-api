@@ -14,8 +14,22 @@ type Controller struct {
 	Globals utils.Globals
 }
 
+// Insert inserts an image to the user's favorites.
+// It expects the image data in the request body.
+// Returns a JSON response indicating the state of the operation.
+// @Summary      Insert an image to favorites
+// @Description  Inserts an image to the user's favorites.
+// @Tags         Favorites
+// @Accept       json
+// @Produce      json
+// @Param        image    body  serializers.Image  true   "Image data"
+// @Param        user_id  body  serializers.User   false  "User ID"
+// @Security     ApiKeyAuth
+// @Success      200  {object}  serializers.FavState   "INSERTED"
+// @Failure      default  {object}  serializers.JSONError
+// @Router       /fav/insert [post]
 func (controller Controller) Insert(c echo.Context) error {
-	var image Image
+	var image serializers.Image
 	if err := c.Bind(&image); err != nil {
 		return err
 	}
@@ -54,14 +68,26 @@ func (controller Controller) Insert(c echo.Context) error {
 	}
 	return c.JSON(
 		200,
-		struct {
-			State string `json:"state"`
-		}{"INSERTED"},
+		serializers.FavState{State: "INSERTED"},
 	)
 }
 
+// Delete removes an image from the user's favorites.
+// It expects the image data in the request body.
+// Returns a JSON response indicating the state of the operation.
+// @Summary      Delete an image from favorites
+// @Description  Removes an image from the user's favorites.
+// @Tags         Favorites
+// @Accept       json
+// @Produce      json
+// @Param        image    body  serializers.Image  true   "Image data"
+// @Param        user_id  body  serializers.User   false  "User ID"
+// @Security     ApiKeyAuth
+// @Success      200  {object}  serializers.FavState   "DELETED"
+// @Failure      default  {object}  serializers.JSONError
+// @Router       /fav/delete [delete]
 func (controller Controller) Delete(c echo.Context) error {
-	var image Image
+	var image serializers.Image
 	if err := c.Bind(&image); err != nil {
 		return err
 	}
@@ -81,14 +107,26 @@ func (controller Controller) Delete(c echo.Context) error {
 	}
 	return c.JSON(
 		200,
-		struct {
-			State string `json:"state"`
-		}{"DELETED"},
+		serializers.FavState{State: "DELETED"},
 	)
 }
 
+// Toggle toggles an image in the user's favorites.
+// It expects the image data in the request body.
+// Returns a JSON response indicating the state of the operation.
+// @Summary      Toggle an image in favorites
+// @Description  Toggles an image in the user's favorites.
+// @Tags         Favorites
+// @Accept       json
+// @Produce      json
+// @Param        image    body  serializers.Image  true   "Image data"
+// @Param        user_id  body  serializers.User   false  "User ID"
+// @Security     ApiKeyAuth
+// @Success      200      {object}  serializers.FavState
+// @Failure      default  {object}  serializers.JSONError
+// @Router       /fav/toggle [post]
 func (controller Controller) Toggle(c echo.Context) error {
-	var image Image
+	var image serializers.Image
 	if err := c.Bind(&image); err != nil {
 		return err
 	}
@@ -124,8 +162,6 @@ func (controller Controller) Toggle(c echo.Context) error {
 	}
 	return c.JSON(
 		200,
-		struct {
-			State string `json:"state"`
-		}{state},
+		serializers.FavState{State: state},
 	)
 }

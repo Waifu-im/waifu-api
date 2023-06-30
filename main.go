@@ -3,9 +3,11 @@ package main
 import (
 	"github.com/Waifu-im/waifu-api/api/routes"
 	"github.com/Waifu-im/waifu-api/api/utils"
+	_ "github.com/Waifu-im/waifu-api/docs"
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	echoSwagger "github.com/swaggo/echo-swagger"
 	"golang.org/x/net/context"
 	"log"
 	"net/http"
@@ -16,6 +18,25 @@ import (
 
 const shutdownTimeout = 10 * time.Second
 
+// @title                 Waifu.im
+// @version               5.2.2
+// @description.markdown
+// @termsOfService        https://www.waifu.im/terms-of-service
+
+// @contact.name   Contact
+// @contact.url    http://www.waifu.im/contact
+// @contact.email  contact@waifu.im
+
+// @license.name  MPL 2.0
+// @license.url   https://www.mozilla.org/en-US/MPL/2.0/
+
+// @host      api.waifu.im
+// @BasePath  /
+
+// @securityDefinitions.apikey  ApiKeyAuth
+// @in                          header
+// @name                        Authorization
+// @tokenUrl                    https://www.waifu.im/dashboard
 func main() {
 	if err := godotenv.Load(); err != nil {
 		log.Fatal("Error loading .env file")
@@ -75,7 +96,7 @@ func main() {
 	}))
 	//jwtRoutes := e.Group("", middlewares.TokenVerification(globals, theSkipper))
 	// The bug regarding group will probably be fixed in the next echo versions (fix has been merged https://github.com/labstack/echo/issues/1981)
-
+	e.GET("/swagger/*", echoSwagger.WrapHandler)
 	_ = routes.AddImageRouter(globals, e)
 	_ = routes.AddFavManagementRouter(globals, e)
 	_ = routes.AddReportRouter(globals, e)
