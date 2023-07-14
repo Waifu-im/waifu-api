@@ -7,7 +7,6 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	echoSwagger "github.com/swaggo/echo-swagger"
 	"golang.org/x/net/context"
 	"log"
 	"net/http"
@@ -18,10 +17,10 @@ import (
 
 const shutdownTimeout = 10 * time.Second
 
-// @title                 Waifu.im
-// @version               5.2.3
+// @title    Waifu.im
+// @version  5.2.3
 // @description.markdown
-// @termsOfService        https://www.waifu.im/terms-of-service
+// @termsOfService  https://www.waifu.im/terms-of-service
 
 // @contact.name   Contact
 // @contact.url    http://www.waifu.im/contact
@@ -96,7 +95,6 @@ func main() {
 	}))
 	//jwtRoutes := e.Group("", middlewares.TokenVerification(globals, theSkipper))
 	// The bug regarding group will probably be fixed in the next echo versions (fix has been merged https://github.com/labstack/echo/issues/1981)
-	e.GET("/swagger/*", echoSwagger.WrapHandler)
 	_ = routes.AddImageRouter(globals, e)
 	_ = routes.AddFavManagementRouter(globals, e)
 	_ = routes.AddReportRouter(globals, e)

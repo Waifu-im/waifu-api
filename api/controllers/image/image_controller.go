@@ -22,22 +22,22 @@ type Controller struct {
 // @Tags         Get Images
 // @Accept       json
 // @Produce      json
-// @Param        included_tags   query     []string  false  "Force the API to return images with at least all the provided tags"
-// @Param        excluded_tags   query     []string  false  "Force the API to return images without any of the provided tags"
-// @Param        included_files  query     []string  false  "Force the API to provide only the specified file IDs or signatures"                                          example(58e6f0372364abda)
-// @Param        excluded_files  query     []string  false  "Force the API to not list the specified file IDs or signatures"                                              example(8108)
-// @Param        is_nsfw         query     string    false  "Force or exclude lewd files (only works if included_tags only contain versatile tags and no nsfw only tag).  You  can  provide  'null'  to  make  it  be  random." Enums(null, true, false)  default(false)
-// @Param        gif             query     bool      false  "Force or prevent the API to return .gif files"
-// @Param        order_by        query     string    false  "Ordering criteria"                    Enums(FAVORITES, UPLOADED_AT, LIKED_AT, RANDOM)  default(RANDOM)
-// @Param        orientation     query     string    false  "Image orientation"                    Enums(LANDSCAPE, PORTRAIT, RANDOM)               default(RANDOM)
-// @Param        many            query     bool      false  "Return an array of 30 files if true"  default(false)
-// @Param        full            query     bool      false  "Returns the full result without any limit (admins only)" default(false)
-// @Param        width           query     string    false  "Filter images by width (in pixels).                                   Accepted  operators:  <=,  >=,  >,  <,  !=,  =" example(>=2000)
-// @Param        height          query     string    false  "Filter images by height (in pixels).                                  Accepted  operators:  <=,  >=,  >,  <,  !=,  =" example(>=2000)
-// @Param        byte_size       query     string    false  "Filter images by byte size. Accepted operators: <=, >=, >, <, !=, ="  example(>=2000)
+// @Param        included_tags   query  []string  false  "Force the API to return images with at least all the provided tags"
+// @Param        excluded_tags   query  []string  false  "Force the API to return images without any of the provided tags"
+// @Param        included_files  query  []string  false  "Force the API to provide only the specified file IDs or signatures"                                          example(58e6f0372364abda)
+// @Param        excluded_files  query  []string  false  "Force the API to not list the specified file IDs or signatures"                                              example(8108)
+// @Param        is_nsfw         query  string    false  "Force or exclude lewd files (only works if included_tags only contain versatile tags and no nsfw only tag).  You  can  provide  'null'  to  make  it  be  random." Enums(null, true, false)  default(false)
+// @Param        gif             query  bool      false  "Force or prevent the API to return .gif files"
+// @Param        order_by        query  string    false  "Ordering criteria"                    Enums(FAVORITES, UPLOADED_AT, LIKED_AT, RANDOM)  default(RANDOM)
+// @Param        orientation     query  string    false  "Image orientation"                    Enums(LANDSCAPE, PORTRAIT, RANDOM)               default(RANDOM)
+// @Param        many            query  bool      false  "Return an array of 30 files if true"  default(false)
+// @Param        full            query  bool      false  "Returns the full result without any limit (admins only)" default(false)
+// @Param        width           query  string    false  "Filter images by width (in pixels).                                   Accepted  operators:  <=,  >=,  >,  <,  !=,  =" example(>=2000)
+// @Param        height          query  string    false  "Filter images by height (in pixels).                                  Accepted  operators:  <=,  >=,  >,  <,  !=,  =" example(>=2000)
+// @Param        byte_size       query  string    false  "Filter images by byte size. Accepted operators: <=, >=, >, <, !=, ="  example(>=2000)
 // @Security     ApiKeyAuth
-// @Success      200             {object}  serializers.ImagesJsonResponse
-// @Failure      default         {object}  serializers.JSONError
+// @Success      200      {object}  serializers.ImagesJsonResponse
+// @Failure      default  {object}  serializers.JSONError
 // @Router       /search [get]
 func (controller Controller) Search() echo.HandlerFunc {
 	return controller.RouteSelector(false)
@@ -51,23 +51,23 @@ func (controller Controller) Search() echo.HandlerFunc {
 // @Tags         Favorites
 // @Accept       json
 // @Produce      json
-// @Param        included_tags   query     []string  false  "Force the API to return images with at least all the provided tags"
-// @Param        excluded_tags   query     []string  false  "Force the API to return images without any of the provided tags"
-// @Param        included_files  query     []string  false  "Force the API to provide only the specified file IDs or signatures"                                          example(58e6f0372364abda)
-// @Param        excluded_files  query     []string  false  "Force the API to not list the specified file IDs or signatures"                                              example(8108)
-// @Param        is_nsfw         query     string    false  "Force or exclude lewd files (only works if included_tags only contain versatile tags and no nsfw only tag).  You  can  provide  'null'  to  make  it  be  random." Enums(null, true, false)  default(false)
-// @Param        gif             query     bool      false  "Force or prevent the API to return .gif files"
-// @Param        order_by        query     string    false  "Ordering criteria"                    Enums(FAVORITES, UPLOADED_AT, LIKED_AT, RANDOM)  default(RANDOM)
-// @Param        orientation     query     string    false  "Image orientation"                    Enums(LANDSCAPE, PORTRAIT, RANDOM)               default(RANDOM)
-// @Param        many            query     bool      false  "Return an array of 30 files if true"  default(false)
-// @Param        full            query     bool      false  "Returns the full result without any limit (admins only)" default(false)
-// @Param        width           query     string    false  "Filter images by width (in pixels).                                   Accepted  operators:  <=,  >=,  >,  <,  !=,  =" example(>=2000)
-// @Param        height          query     string    false  "Filter images by height (in pixels).                                  Accepted  operators:  <=,  >=,  >,  <,  !=,  =" example(>=2000)
-// @Param        byte_size       query     string    false  "Filter images by byte size. Accepted operators: <=, >=, >, <, !=, ="  example(>=2000)
-// @Param        user_id         query     int64     false  "User ID"
+// @Param        included_tags   query  []string  false  "Force the API to return images with at least all the provided tags"
+// @Param        excluded_tags   query  []string  false  "Force the API to return images without any of the provided tags"
+// @Param        included_files  query  []string  false  "Force the API to provide only the specified file IDs or signatures"                                          example(58e6f0372364abda)
+// @Param        excluded_files  query  []string  false  "Force the API to not list the specified file IDs or signatures"                                              example(8108)
+// @Param        is_nsfw         query  string    false  "Force or exclude lewd files (only works if included_tags only contain versatile tags and no nsfw only tag).  You  can  provide  'null'  to  make  it  be  random." Enums(null, true, false)  default(false)
+// @Param        gif             query  bool      false  "Force or prevent the API to return .gif files"
+// @Param        order_by        query  string    false  "Ordering criteria"                    Enums(FAVORITES, UPLOADED_AT, LIKED_AT, RANDOM)  default(RANDOM)
+// @Param        orientation     query  string    false  "Image orientation"                    Enums(LANDSCAPE, PORTRAIT, RANDOM)               default(RANDOM)
+// @Param        many            query  bool      false  "Return an array of 30 files if true"  default(false)
+// @Param        full            query  bool      false  "Returns the full result without any limit (admins only)" default(false)
+// @Param        width           query  string    false  "Filter images by width (in pixels).                                   Accepted  operators:  <=,  >=,  >,  <,  !=,  =" example(>=2000)
+// @Param        height          query  string    false  "Filter images by height (in pixels).                                  Accepted  operators:  <=,  >=,  >,  <,  !=,  =" example(>=2000)
+// @Param        byte_size       query  string    false  "Filter images by byte size. Accepted operators: <=, >=, >, <, !=, ="  example(>=2000)
+// @Param        user_id         query  int64     false  "User ID"
 // @Security     ApiKeyAuth
-// @Success      200             {object}  serializers.ImagesJsonResponse
-// @Failure      default         {object}  serializers.JSONError
+// @Success      200      {object}  serializers.ImagesJsonResponse
+// @Failure      default  {object}  serializers.JSONError
 // @Router       /fav [get]
 func (controller Controller) Fav() echo.HandlerFunc {
 	return controller.RouteSelector(true)

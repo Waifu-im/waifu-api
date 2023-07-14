@@ -236,7 +236,7 @@ info:
     url: https://www.mozilla.org/en-US/MPL/2.0/
   termsOfService: https://www.waifu.im/terms-of-service
   title: Waifu.im
-  version: 5.2.2
+  version: 5.2.3
 paths:
   /fav:
     get:
