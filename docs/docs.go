@@ -796,7 +796,7 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "5.2.2",
+	Version:          "5.2.3",
 	Host:             "api.waifu.im",
 	BasePath:         "/",
 	Schemes:          []string{},

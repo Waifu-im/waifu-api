@@ -25,7 +25,7 @@ type Controller struct {
 // @Param        image    body  serializers.Image  true   "Image data"
 // @Param        user_id  body  serializers.User   false  "User ID"
 // @Security     ApiKeyAuth
-// @Success      200  {object}  serializers.FavState   "INSERTED"
+// @Success      200      {object}  serializers.FavState  "INSERTED"
 // @Failure      default  {object}  serializers.JSONError
 // @Router       /fav/insert [post]
 func (controller Controller) Insert(c echo.Context) error {
@@ -83,7 +83,7 @@ func (controller Controller) Insert(c echo.Context) error {
 // @Param        image    body  serializers.Image  true   "Image data"
 // @Param        user_id  body  serializers.User   false  "User ID"
 // @Security     ApiKeyAuth
-// @Success      200  {object}  serializers.FavState   "DELETED"
+// @Success      200      {object}  serializers.FavState  "DELETED"
 // @Failure      default  {object}  serializers.JSONError
 // @Router       /fav/delete [delete]
 func (controller Controller) Delete(c echo.Context) error {

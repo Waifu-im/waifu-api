@@ -18,9 +18,9 @@ type Controller struct {
 // @Tags         Report
 // @Accept       json
 // @Produce      json
-// @Param        image    body      serializers.ReportImage  true  "Image Data"
+// @Param        image  body  serializers.ReportImage  true  "Image Data"
 // @Security     ApiKeyAuth
-// @Success      200      {object}  database.ReportRes       "Returns the report information"
+// @Success      200      {object}  database.ReportRes  "Returns the report information"
 // @Failure      default  {object}  serializers.JSONError
 // @Router       /report [post]
 func (controller Controller) Report(c echo.Context) error {
