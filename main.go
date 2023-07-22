@@ -92,13 +92,14 @@ func main() {
 			if execTimeInterface := c.Get("search_query_exec_time"); execTimeInterface != nil {
 				execTime = execTimeInterface.(int64)
 			}
-			if len(c.Request().Header["Version"]) > 0 {
-				max := len(c.Request().Header["Version"][0])
+			rawVersion := c.Request().Header.Get("Version")
+			if rawVersion != "" {
+				max := len(rawVersion)
 				// Check if string length is > than 20 if yes we set 20 to the max
-				if len(c.Request().Header["Version"][0]) > 20 {
+				if len(rawVersion) > 20 {
 					max = 20
 				}
-				version = c.Request().Header["Version"][0][0:max]
+				version = rawVersion[0:max]
 			}
 			if hub := sentryecho.GetHubFromContext(c); hub != nil {
 				hub.WithScope(func(scope *sentry.Scope) {
@@ -106,7 +107,8 @@ func main() {
 					scope.SetTag("level", string(sentry.LevelInfo))
 					scope.SetTag("version", version)
 					scope.SetTag("status_code", strconv.Itoa(c.Response().Status))
-					scope.SetRequest(c.Request())
+					scope.SetTag("ip_address", c.RealIP())
+					scope.SetTag("request_id", c.Request().Header.Get("X-Request-Id"))
 					if execTime != 0 {
 						scope.SetContext("Database", map[string]interface{}{
 							"Query Execution Time": strconv.FormatInt(execTime, 10) + "ms",

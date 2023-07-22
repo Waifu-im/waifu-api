@@ -3,7 +3,7 @@ module github.com/Waifu-im/waifu-api
 go 1.19
 
 require (
-	github.com/getsentry/sentry-go v0.22.0
+	github.com/getsentry/sentry-go v0.13.0
 	github.com/joho/godotenv v1.5.1
 	github.com/labstack/echo/v4 v4.11.1
 	github.com/lib/pq v1.10.9
