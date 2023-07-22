@@ -103,6 +103,7 @@ func main() {
 			}
 			if hub := sentryecho.GetHubFromContext(c); hub != nil {
 				hub.WithScope(func(scope *sentry.Scope) {
+					scope.SetFingerprint([]string{c.Request().Header.Get("X-Request-Id")})
 					scope.SetLevel(sentry.LevelInfo)
 					scope.SetTag("level", string(sentry.LevelInfo))
 					scope.SetTag("version", version)
@@ -117,14 +118,15 @@ func main() {
 					rawJson, _ := json.Marshal(string(resBody))
 
 					cleanJson := strings.Replace(string(rawJson), `\n`, ``, -1)
-					cleanJson = strings.Replace(string(cleanJson), `\`, ``, -1)
+					cleanJson = strings.Replace(cleanJson, `\`, ``, -1)
 					cleanJson = strings.Replace(cleanJson, `"`, `'`, -1)
 
 					scope.SetContext("Response", map[string]interface{}{
 						"Status code":   c.Response().Status,
 						"Json Response": cleanJson,
 					})
-					hub.CaptureMessage("New Request Incoming")
+					fmt.Println(c.Request().URL.Path)
+					hub.CaptureMessage("REQ - " + c.Request().URL.Path)
 				})
 			}
 		}}))
