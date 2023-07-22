@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/Waifu-im/waifu-api/constants"
 	"github.com/Waifu-im/waifu-api/serializers"
+	"github.com/getsentry/sentry-go"
 	sentryecho "github.com/getsentry/sentry-go/echo"
 	"github.com/labstack/echo/v4"
 	"github.com/lib/pq"
@@ -31,7 +32,11 @@ func DefaultHTTPErrorHandler(err error, c echo.Context) {
 		return
 	}
 	if hub := sentryecho.GetHubFromContext(c); hub != nil {
-		hub.CaptureException(err)
+		hub.WithScope(func(scope *sentry.Scope) {
+			scope.SetLevel(sentry.LevelError)
+			scope.SetTag("level", string(sentry.LevelError))
+			hub.CaptureException(err)
+		})
 	}
 	var pqe *pq.Error
 	if errors.As(err, &pqe) && (pqe.Code == "53300" || pqe.Code == "53400") {
