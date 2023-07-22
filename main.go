@@ -1,9 +1,13 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/Waifu-im/waifu-api/api/routes"
 	"github.com/Waifu-im/waifu-api/api/utils"
 	_ "github.com/Waifu-im/waifu-api/docs"
+	"github.com/getsentry/sentry-go"
+	sentryecho "github.com/getsentry/sentry-go/echo"
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -12,6 +16,8 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -41,8 +47,13 @@ func main() {
 		log.Fatal("Error loading .env file")
 	}
 	globals := utils.InitGlobals()
+	if err := sentry.Init(sentry.ClientOptions{
+		Dsn: globals.Config.Dsn,
+	}); err != nil {
+		fmt.Printf("Sentry initialization failed: %v\n", err)
+	}
 	e := echo.New()
-	e.HTTPErrorHandler = utils.CustomHTTPErrorHandler
+	e.HTTPErrorHandler = utils.DefaultHTTPErrorHandler
 	e.Pre(middleware.RemoveTrailingSlash())
 	/*
 		Already set with nginx
@@ -63,38 +74,53 @@ func main() {
 		}))
 	*/
 	// Using default logger
+	e.Use(sentryecho.New(sentryecho.Options{}))
 	e.Use(middleware.Logger())
-	// Adding a custom one for the database
-	e.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
-		LogStatus:    true,
-		LogHost:      true,
-		LogURI:       true,
-		LogUserAgent: true,
-		LogRemoteIP:  true,
-		LogHeaders:   []string{"Version"},
-		LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
-			if v.Status == http.StatusOK || v.Status == http.StatusNoContent {
-				var execTime int64
-				var version string
-				userId := utils.GetUser(c).Id
-				if execTimeInterface := c.Get("search_query_exec_time"); execTimeInterface != nil {
-					execTime = execTimeInterface.(int64)
-				}
-				if len(v.Headers["Version"]) > 0 {
-					max := len(v.Headers["Version"][0])
-					// Check if string length is > than 20 if yes we set 20 to the max
-					if len(v.Headers["Version"][0]) > 20 {
-						max = 20
-					}
-					version = v.Headers["Version"][0][0:max]
-				}
-				go globals.Database.LogRequest(v.RemoteIP, "https://"+v.Host+v.URI, v.UserAgent, userId, version, execTime)
+	e.Use(middleware.BodyDumpWithConfig(middleware.BodyDumpConfig{
+		Handler: func(c echo.Context, reqBody, resBody []byte) {
+			var execTime int64
+			var version string
+			if execTimeInterface := c.Get("search_query_exec_time"); execTimeInterface != nil {
+				execTime = execTimeInterface.(int64)
 			}
-			return nil
-		},
-	}))
+			if len(c.Request().Header["Version"]) > 0 {
+				max := len(c.Request().Header["Version"][0])
+				// Check if string length is > than 20 if yes we set 20 to the max
+				if len(c.Request().Header["Version"][0]) > 20 {
+					max = 20
+				}
+				version = c.Request().Header["Version"][0][0:max]
+			}
+			if hub := sentryecho.GetHubFromContext(c); hub != nil {
+				hub.WithScope(func(scope *sentry.Scope) {
+					scope.SetLevel(sentry.LevelInfo)
+					scope.SetTag("level", string(sentry.LevelInfo))
+					scope.SetTag("version", version)
+					scope.SetTag("status_code", strconv.Itoa(c.Response().Status))
+					scope.SetRequest(c.Request())
+					if execTime != 0 {
+						scope.SetContext("Database", map[string]interface{}{
+							"Query Execution Time": strconv.FormatInt(execTime, 10) + "ms",
+						})
+					}
+					rawJson, _ := json.Marshal(string(resBody))
+
+					cleanJson := strings.Replace(string(rawJson), `\n`, ``, -1)
+					cleanJson = strings.Replace(string(cleanJson), `\`, ``, -1)
+					cleanJson = strings.Replace(cleanJson, `"`, `'`, -1)
+
+					scope.SetContext("Response", map[string]interface{}{
+						"Status code":   c.Response().Status,
+						"Json Response": cleanJson,
+					})
+					hub.CaptureMessage("New Request Incoming")
+				})
+			}
+		}}))
 	//jwtRoutes := e.Group("", middlewares.TokenVerification(globals, theSkipper))
 	// The bug regarding group will probably be fixed in the next echo versions (fix has been merged https://github.com/labstack/echo/issues/1981)
+	// edit: well the new version has been released, but it's still not working.
+	// It also creates new bugs on the tags route if you use the wrong method so this will stay as is for now
 	_ = routes.AddImageRouter(globals, e)
 	_ = routes.AddFavManagementRouter(globals, e)
 	_ = routes.AddReportRouter(globals, e)
