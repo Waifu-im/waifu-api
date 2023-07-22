@@ -22,6 +22,7 @@ type Configuration struct {
 	IPCUrl     string
 	CDNUrl     string
 	SecretKey  string
+	Dsn        string
 }
 
 func getEnvironmentVariable(key string) string {
@@ -47,5 +48,6 @@ func Load() Configuration {
 		IPCUrl:     getEnvironmentVariable("IPC_URL"),
 		CDNUrl:     getEnvironmentVariable("CDN_URL"),
 		SecretKey:  getEnvironmentVariable("SECRET_KEY"),
+		Dsn:        getEnvironmentVariable("DSN"),
 	}
 }
