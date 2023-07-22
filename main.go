@@ -89,10 +89,13 @@ func main() {
 		Handler: func(c echo.Context, reqBody, resBody []byte) {
 			var execTime int64
 			var version string
+
 			if execTimeInterface := c.Get("search_query_exec_time"); execTimeInterface != nil {
 				execTime = execTimeInterface.(int64)
 			}
+
 			rawVersion := c.Request().Header.Get("Version")
+
 			if rawVersion != "" {
 				max := len(rawVersion)
 				// Check if string length is > than 20 if yes we set 20 to the max
@@ -101,8 +104,19 @@ func main() {
 				}
 				version = rawVersion[0:max]
 			}
+
+			rawBody, err := json.Marshal(string(resBody))
+			cleanBody := string(rawBody)
+
+			if err == nil {
+				cleanBody = strings.Replace(string(rawBody), `\n`, ``, -1)
+				cleanBody = strings.Replace(cleanBody, `\`, ``, -1)
+				cleanBody = strings.Replace(cleanBody, `"`, `'`, -1)
+			}
+
 			if hub := sentryecho.GetHubFromContext(c); hub != nil {
 				hub.WithScope(func(scope *sentry.Scope) {
+					scope.SetRequest(c.Request())
 					scope.SetFingerprint([]string{c.Request().Header.Get("X-Request-Id")})
 					scope.SetLevel(sentry.LevelInfo)
 					scope.SetTag("level", string(sentry.LevelInfo))
@@ -110,22 +124,18 @@ func main() {
 					scope.SetTag("status_code", strconv.Itoa(c.Response().Status))
 					scope.SetTag("ip_address", c.RealIP())
 					scope.SetTag("request_id", c.Request().Header.Get("X-Request-Id"))
-					if execTime != 0 {
-						scope.SetContext("Database", map[string]interface{}{
-							"Query Execution Time": strconv.FormatInt(execTime, 10) + "ms",
-						})
-					}
-					rawJson, _ := json.Marshal(string(resBody))
-
-					cleanJson := strings.Replace(string(rawJson), `\n`, ``, -1)
-					cleanJson = strings.Replace(cleanJson, `\`, ``, -1)
-					cleanJson = strings.Replace(cleanJson, `"`, `'`, -1)
 
 					scope.SetContext("Response", map[string]interface{}{
-						"Status code":   c.Response().Status,
-						"Json Response": cleanJson,
+						"status_code": c.Response().Status,
+						"body":        cleanBody,
 					})
-					fmt.Println(c.Request().URL.Path)
+
+					if execTime != 0 {
+						scope.SetContext("Database", map[string]interface{}{
+							"query_execution_time": strconv.FormatInt(execTime, 10) + "ms",
+						})
+					}
+
 					hub.CaptureMessage("REQ - " + c.Request().URL.Path)
 				})
 			}
