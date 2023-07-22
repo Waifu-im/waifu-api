@@ -13,6 +13,7 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 	"golang.org/x/net/context"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -54,6 +55,14 @@ func main() {
 	}
 	e := echo.New()
 	e.HTTPErrorHandler = utils.DefaultHTTPErrorHandler
+	e.IPExtractor = echo.ExtractIPFromXFFHeader(
+		echo.TrustIPRange(
+			&net.IPNet{
+				IP:   net.IP(globals.Config.TrustedIP),
+				Mask: net.IPMask(globals.Config.TrustedIPMask),
+			},
+		),
+	)
 	e.Pre(middleware.RemoveTrailingSlash())
 	/*
 		Already set with nginx

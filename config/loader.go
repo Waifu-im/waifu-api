@@ -15,14 +15,16 @@ type DatabaseConfiguration struct {
 }
 
 type Configuration struct {
-	Port       string
-	Database   DatabaseConfiguration
-	Domain     string
-	WebSiteUrl string
-	IPCUrl     string
-	CDNUrl     string
-	SecretKey  string
-	Dsn        string
+	Port          string
+	Database      DatabaseConfiguration
+	Domain        string
+	WebSiteUrl    string
+	IPCUrl        string
+	CDNUrl        string
+	SecretKey     string
+	Dsn           string
+	TrustedIP     string
+	TrustedIPMask string
 }
 
 func getEnvironmentVariable(key string) string {
@@ -43,11 +45,13 @@ func Load() Configuration {
 			Password: getEnvironmentVariable("DATABASE_PASSWORD"),
 			Name:     getEnvironmentVariable("DATABASE_NAME"),
 		},
-		Domain:     getEnvironmentVariable("DOMAIN"),
-		WebSiteUrl: getEnvironmentVariable("WEBSITE_URL"),
-		IPCUrl:     getEnvironmentVariable("IPC_URL"),
-		CDNUrl:     getEnvironmentVariable("CDN_URL"),
-		SecretKey:  getEnvironmentVariable("SECRET_KEY"),
-		Dsn:        getEnvironmentVariable("DSN"),
+		Domain:        getEnvironmentVariable("DOMAIN"),
+		WebSiteUrl:    getEnvironmentVariable("WEBSITE_URL"),
+		IPCUrl:        getEnvironmentVariable("IPC_URL"),
+		CDNUrl:        getEnvironmentVariable("CDN_URL"),
+		SecretKey:     getEnvironmentVariable("SECRET_KEY"),
+		Dsn:           getEnvironmentVariable("DSN"),
+		TrustedIP:     getEnvironmentVariable("TRUSTED_IP"),
+		TrustedIPMask: getEnvironmentVariable("TRUSTED_IP_MASK"),
 	}
 }
