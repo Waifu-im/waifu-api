@@ -281,15 +281,18 @@ func (database Database) GetMissingPermissions(userId int64, targetUserId int64,
 	return missing, nil
 }
 
-func (database Database) LogRequest(ip string, url string, userAgent string, userId int64, version string, execTime int64) {
+func (database Database) LogRequest(ip string, url string, userAgent string, userId int64, version string, execTime int64, headers string, responseBody string, statusCode int) {
 	if _, err := database.Db.Exec(
-		"INSERT INTO api_logs(remote_address,url,user_agent,user_id,version, query_exec_time) VALUES($1,$2,$3,$4,$5,$6)",
+		"INSERT INTO api_logs(remote_address,url,user_agent,user_id,version, query_exec_time, headers, response_body, status_code) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)",
 		ip,
 		url,
 		CreateNullString(userAgent),
 		CreateNullInt64(userId),
 		CreateNullString(version),
 		CreateNullInt64(execTime),
+		headers,
+		responseBody,
+		statusCode,
 	); err != nil {
 		fmt.Println(err)
 	}

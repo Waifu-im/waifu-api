@@ -65,7 +65,7 @@ func main() {
 		),
 	)
 
-	middlewares.Init(e)
+	middlewares.Init(globals, e)
 
 	//jwtRoutes := e.Group("", middlewares.TokenVerification(globals, theSkipper))
 	// The bug regarding group will probably be fixed in the next echo versions (fix has been merged https://github.com/labstack/echo/issues/1981)
