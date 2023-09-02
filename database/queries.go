@@ -2,6 +2,7 @@ package database
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"github.com/Waifu-im/waifu-api/constants"
 	"github.com/Waifu-im/waifu-api/ipc"
@@ -177,7 +178,7 @@ func (database Database) FetchImages(
 func (database Database) ToggleImageInFav(userId int64, imageId int64) (string, error) {
 	var empty int64
 	if err := database.Db.QueryRow("SELECT image_id FROM FavImages WHERE user_id = $1 and image_id = $2", userId, imageId).Scan(&empty); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			if err = database.InsertImageToFav(userId, imageId); err != nil {
 				return "", err
 			}
@@ -232,11 +233,26 @@ func (database Database) GetTags() ([]models.Tag, error) {
 	return tagRows, err
 }
 
-func (database Database) GetUserInformation(token string) (models.User, error) {
+func (database Database) GetUserInformationFromToken(token string) (models.User, error) {
 	user := models.User{}
 	var isBlacklisted bool
 	if err := database.Db.QueryRow(`SELECT id, name, token, is_blacklisted  FROM Registered_user WHERE token=$1`, token).Scan(&user.Id, &user.Name, &user.Token, &user.IsBlacklisted); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
+			return user, nil
+		}
+		return user, err
+	}
+	if isBlacklisted {
+		return user, constants.BlacklistedError
+	}
+	return user, nil
+}
+
+func (database Database) GetUserInformationFromId(userId int64) (models.User, error) {
+	user := models.User{}
+	var isBlacklisted bool
+	if err := database.Db.QueryRow(`SELECT id, name, token, is_blacklisted  FROM Registered_user WHERE id=$1`, userId).Scan(&user.Id, &user.Name, &user.Token, &user.IsBlacklisted); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
 			return user, nil
 		}
 		return user, err
@@ -271,7 +287,7 @@ func (database Database) GetMissingPermissions(userId int64, targetUserId int64,
 			&userPermissions.Position,
 			&userPermissions.Name,
 		); err != nil {
-			if err == sql.ErrNoRows {
+			if errors.Is(err, sql.ErrNoRows) {
 				missing = append(missing, perm)
 				continue
 			}
