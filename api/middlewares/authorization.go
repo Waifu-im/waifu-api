@@ -1,9 +1,11 @@
 package middlewares
 
 import (
+	"errors"
 	"fmt"
 	"github.com/Waifu-im/waifu-api/api/utils"
 	"github.com/labstack/echo/v4"
+	"github.com/redis/go-redis/v9"
 	"net/http"
 	"strings"
 )
@@ -32,15 +34,35 @@ func TokenVerification(globals utils.Globals, skipper func(c echo.Context) (bool
 					Message: "Missing or malformed token",
 				}
 			}
-			user, err := globals.Database.GetUserInformation(splitToken[1])
+			token := splitToken[1]
+
+			//check if token is associated to a user in database (permanent token)
+			user, err := globals.Database.GetUserInformationFromToken(token)
+
 			if err != nil {
 				return err
 			}
 			if user.Id == 0 {
-				return &echo.HTTPError{
-					Code:     http.StatusUnauthorized,
-					Message:  fmt.Sprintf("Your token is incorrect or has expired, please check your current token at %v", globals.Config.WebSiteUrl+"/dashboard/"),
-					Internal: err,
+				// if it is not check if it is a temporary one created on login in the website
+				userId, err := globals.Redis.GetUserIdFromToken(token)
+				if err == nil {
+					// if there is no error, then the key exist,
+					// so we extract the user information from the user id associated to the token
+					user, err = globals.Database.GetUserInformationFromId(userId)
+					if err != nil {
+						return err
+					}
+				} else if !errors.Is(err, redis.Nil) {
+					// if there was an error, and it is not the error that means no key were found
+					return err
+				}
+				// finally check if the user information were found, if no it means the token was incorrect
+				if user.Id == 0 {
+					return &echo.HTTPError{
+						Code:     http.StatusUnauthorized,
+						Message:  fmt.Sprintf("Your token is incorrect or has expired, please check your current token at %v", globals.Config.WebSiteUrl+"/dashboard/"),
+						Internal: err,
+					}
 				}
 			}
 			c.Set("user", user)
