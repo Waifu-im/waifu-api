@@ -15,7 +15,7 @@ func AddFavManagementRouter(globals utils.Globals, app *echo.Echo) error {
 		middlewares.TokenVerification(globals, nil),
 		middlewares.PermissionsVerification(globals, []string{"manage_favorites"}, middlewares.SkipOrSetUser(true)),
 	)
-	app.DELETE(
+	app.POST(
 		"/fav/delete",
 		controller.Delete,
 		middlewares.TokenVerification(globals, nil),
