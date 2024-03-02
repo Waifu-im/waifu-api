@@ -34,3 +34,5 @@ Don't hesitate to [contact us](https://waifu.im/contact/) if you need any help!
 
 Here is the list of people that massively contributed to expending the API tags and pictures, thank you!
 
+- [Ruhannn](https://github.com/Ruhannn) - Added the pictures for the `kamisato-ayaka` tag.
+
