@@ -10,6 +10,7 @@ type Image struct {
 	Source        *string `json:"source" example:"https://www.patreon.com/posts/persephone-78224476"`
 	Artist        *Artist `json:"artist"`
 	UploadedAt    string  `json:"uploaded_at" example:"2023-05-03T18:40:04.381354+02:00"`
+	Uploader      *int64  `json:"uploader" example:"953746972518275160"`
 	LikedAt       *string `json:"liked_at"`
 	IsNsfw        bool    `json:"is_nsfw" example:"false"`
 	Width         int64   `json:"width" example:"1536"`

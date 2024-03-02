@@ -35,7 +35,7 @@ func (database Database) FetchImages(
 	var parameters []any
 
 	// Select some information about the images
-	query := "SELECT DISTINCT Q.signature,Q.extension,Q.image_id,Q.favorites,Q.dominant_color,Q.source,Q.uploaded_at,Q.is_nsfw,Q.width,Q.height,Q.byte_size,"
+	query := "SELECT DISTINCT Q.signature,Q.extension,Q.image_id,Q.favorites,Q.dominant_color,Q.source,Q.uploaded_at, CASE Q.display_uploader WHEN true THEN Q.uploader END \"uploader\", Q.is_nsfw,Q.width,Q.height,Q.byte_size,"
 	if userId != 0 {
 		query += "Q.liked_at,"
 	}
@@ -45,7 +45,7 @@ func (database Database) FetchImages(
 	// The sub query that will filter the images
 	query += "FROM (" +
 		"SELECT Images.signature,Images.extension,Images.image_id,Images.dominant_color,Images.source," +
-		"Images.uploaded_at,Images.is_nsfw,Images.width,Images.height,Images.byte_size,Images.artist_id,"
+		"Images.uploaded_at, Images.uploader, Images.display_uploader, Images.is_nsfw,Images.width,Images.height,Images.byte_size,Images.artist_id,"
 	if userId != 0 {
 		query += "FavImages.liked_at,"
 	}
@@ -114,6 +114,7 @@ func (database Database) FetchImages(
 				&imageRow.DominantColor,
 				&imageRow.Source,
 				&imageRow.UploadedAt,
+				&imageRow.Uploader,
 				&imageRow.IsNsfw,
 				&imageRow.Width,
 				&imageRow.Height,
@@ -138,6 +139,7 @@ func (database Database) FetchImages(
 				&imageRow.DominantColor,
 				&imageRow.Source,
 				&imageRow.UploadedAt,
+				&imageRow.Uploader,
 				&imageRow.IsNsfw,
 				&imageRow.Width,
 				&imageRow.Height,
