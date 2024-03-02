@@ -21,7 +21,6 @@ type ImageRow struct {
 	DominantColor    string  `field:"dominant_color" json:"dominant_color"`
 	Source           *string `field:"source" json:"source"`
 	UploadedAt       string  `field:"uploaded_at" json:"uploaded_at"`
-	Uploader         *int64  `field:"uploader" json:"uploader"`
 	LikedAt          *string `field:"liked_at" json:"liked_at"`
 	IsNsfw           bool    `field:"is_nsfw" json:"is_nsfw"`
 	Width            int64   `field:"width" json:"width"`
@@ -58,7 +57,6 @@ func (ir ImageRows) GetImage(ImageId int64) models.Image {
 					DominantColor: im.DominantColor,
 					Source:        im.Source,
 					UploadedAt:    im.UploadedAt,
-					Uploader:      im.Uploader,
 					LikedAt:       im.LikedAt,
 					IsNsfw:        im.IsNsfw,
 					Width:         im.Width,
