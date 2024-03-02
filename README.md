@@ -18,11 +18,8 @@
 
 ## Top Images
 
-As mentioned above you can link some images to your account (discord based authentication) so that you can consult them using the discord [bot](https://ayane.fr/invite), the [website](https://www.waifu.im) or even the API.
+As mentioned above you can link some images to your account (discord based authentication) so that you can consult them using the [website](https://www.waifu.im) or even the API.
 You can prompt users their permission to manage and view their favorites so that you can develop your own application including this feature.
-Here is the most liked picture on the day I write this.
-
-[<img src="https://cdn.waifu.im/1982.jpg" width="500">]("https://waifu.im/preview/1982/")
 
 ## Website
 You should visit the [website](https://www.waifu.im) to learn more about waifu.im and its functionalities.
@@ -32,4 +29,8 @@ You can [read the docs here](https://waifu.im/docs/).
 
 ## Contact us
 Don't hesitate to [contact us](https://waifu.im/contact/) if you need any help!
+
+## Content Contributor
+
+Here is the list of people that massively contributed to expending the API tags and pictures, thank you!
 
