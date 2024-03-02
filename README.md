@@ -25,7 +25,7 @@ You can prompt users their permission to manage and view their favorites so that
 You should visit the [website](https://www.waifu.im) to learn more about waifu.im and its functionalities.
 
 ## Documentation
-You can [read the docs here](https://waifu.im/docs/).
+You can [read the docs here](https://docs.waifu.im).
 
 ## Contact us
 Don't hesitate to [contact us](https://waifu.im/contact/) if you need any help!
