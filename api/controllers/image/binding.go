@@ -60,7 +60,7 @@ func QueryParamsBinder(
 	gif *string,
 	orderBy *string,
 	orientation *string,
-	many *bool,
+	limit *int,
 	full *bool,
 	width *string,
 	height *string,
@@ -189,7 +189,7 @@ func QueryParamsBinder(
 			}
 			return []error{echo.NewBindingError("byte_size", values[0:1], regexError(ComparatorRegexRule), nil)}
 		}).
-		Bool("many", many).
+		Int("limit", limit).
 		Bool("full", full).
 		BindError()
 }

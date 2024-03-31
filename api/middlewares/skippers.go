@@ -3,6 +3,7 @@ package middlewares
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/Waifu-im/waifu-api/constants"
 	"github.com/Waifu-im/waifu-api/serializers"
 	"github.com/labstack/echo/v4"
 	"io"
@@ -36,6 +37,24 @@ func Int64ParamsSkipper(sourceParam string, contextKey string, skipAfter bool) f
 			return false, err
 		}
 		if param == 0 && skipAfter {
+			return true, nil
+		}
+		if contextKey != "" {
+			(c).Set(contextKey, param)
+		}
+		return false, nil
+	}
+}
+
+// LimitParamsSkipper return true when skipAfter and the param provided is not superior to MaxLimit (only for int param).
+// If a param is provided it can assign it to a context 'variable' if contextKey is passed
+func LimitParamsSkipper(sourceParam string, contextKey string, skipAfter bool) func(echo.Context) (bool, error) {
+	return func(c echo.Context) (bool, error) {
+		var param int
+		if err := echo.QueryParamsBinder(c).Int(sourceParam, &param).BindError(); err != nil {
+			return false, err
+		}
+		if param <= constants.MaxLimit && skipAfter {
 			return true, nil
 		}
 		if contextKey != "" {
