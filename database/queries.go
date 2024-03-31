@@ -25,13 +25,14 @@ func (database Database) FetchImages(
 	gif string,
 	orderBy string,
 	orientation string,
-	many bool,
+	limit int,
 	full bool,
 	width string,
 	height string,
 	byteSize string,
 	userId int64,
 ) (ImageRows, time.Duration, error) {
+	limitString := strconv.Itoa(limit)
 	var parameters []any
 
 	// Select some information about the images
@@ -85,9 +86,10 @@ func (database Database) FetchImages(
 	if len(includedTags) > 0 {
 		query += "HAVING COUNT(*)=" + strconv.FormatInt(int64(len(includedTags)), 10) + " "
 	}
+	// If it's not in full mode or files has been provided, and it's not in fav mode and limit is provided then add the limit.
 	query += FormatOrderBy(orderBy, "", true)
-	if !(full || len(includedFiles) > 0) && userId == 0 && many {
-		query += "LIMIT " + constants.ManyLimit + " "
+	if !(full || len(includedFiles) > 0) && userId == 0 && limit > 0 {
+		query += "LIMIT " + limitString + " "
 	} else if !(full || len(includedFiles) > 0) && userId == 0 {
 		query += "LIMIT  1 "
 	}
@@ -163,7 +165,7 @@ func (database Database) FetchImages(
 	if err = rows.Err(); err != nil {
 		return imageRows, time.Since(start), err
 	}
-	if orderBy == constants.Random && (full || many || len(includedFiles) > 0 || userId != 0) {
+	if orderBy == constants.Random && len(imageRows.Rows) > 1 {
 		rand.Seed(time.Now().UnixNano())
 		rand.Shuffle(
 			len(imageRows.Rows),
