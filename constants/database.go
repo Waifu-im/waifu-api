@@ -21,4 +21,4 @@ const (
 	Portrait  = "PORTRAIT"
 )
 
-const ManyLimit = "30"
+const MaxLimit = 30

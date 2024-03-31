@@ -86,7 +86,7 @@ func (controller Controller) RouteSelector(favRoute bool) echo.HandlerFunc {
 		var gif = constants.Null
 		var orderBy = constants.Random
 		var orientation = constants.Random
-		var many = false
+		var limit = 0
 		var full = false
 		var width string
 		var height string
@@ -115,13 +115,20 @@ func (controller Controller) RouteSelector(favRoute bool) echo.HandlerFunc {
 			&gif,
 			&orderBy,
 			&orientation,
-			&many,
+			&limit,
 			&full,
 			&width,
 			&height,
 			&byteSize,
 		); err != nil {
 			return err
+		}
+		if limit != 0 && limit < 2 {
+			return &echo.HTTPError{
+				Code:     http.StatusBadRequest,
+				Message:  "If provided limit should be greater than 1",
+				Internal: nil,
+			}
 		}
 		rows, execTime, err := controller.Globals.Database.FetchImages(
 			isNsfw,
@@ -132,7 +139,7 @@ func (controller Controller) RouteSelector(favRoute bool) echo.HandlerFunc {
 			gif,
 			orderBy,
 			orientation,
-			many,
+			limit,
 			full,
 			width,
 			height,
