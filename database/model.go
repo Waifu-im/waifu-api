@@ -101,7 +101,7 @@ type PermissionsInformation struct {
 
 type ReportRes struct {
 	ImageId     int64   `json:"image_id" field:"image_id" `
-	AuthorId    int64   `json:"author_id" field:"author_id"`
+	AuthorId    string  `json:"author_id" field:"author_id"`
 	Description *string `json:"description" field:"description"`
 	Existed     bool    `json:"existed" field:"existed"`
 }
