@@ -1,3 +1,6 @@
 ﻿# IDEs
 .vs
 .idea
+
+# Secrets
+.env
