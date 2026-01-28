@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using Mediator;
@@ -15,7 +16,7 @@ using WaifuApi.Domain.Enums;
 
 namespace WaifuApi.Application.Features.GetImages;
 
-public class GetImagesQuery : IQuery<List<ImageDto>>
+public class GetImagesQuery : IQuery<PaginatedList<ImageDto>>
 {
     public NsfwMode IsNsfw { get; set; } = NsfwMode.Safe;
     public List<string> IncludedTags { get; set; } = new();
@@ -25,59 +26,48 @@ public class GetImagesQuery : IQuery<List<ImageDto>>
     public bool? IsAnimated { get; set; }
     public string OrderBy { get; set; } = string.Empty;
     public string Orientation { get; set; } = string.Empty;
-    public string Limit { get; set; } = "1";
+    
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; }
+    
     public string Width { get; set; } = string.Empty;
     public string Height { get; set; } = string.Empty;
     public string ByteSize { get; set; } = string.Empty;
+    
+    [JsonIgnore]
     public long UserId { get; set; }
+    
+    [JsonIgnore]
+    public long? AlbumId { get; set; }
 }
 
-public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, List<ImageDto>>
+public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList<ImageDto>>
 {
     private readonly IWaifuDbContext _context;
     private readonly string _cdnBaseUrl;
-    private readonly int _maxLimit;
+    private readonly int _defaultPageSize;
+    private readonly int _maxPageSize;
     private readonly ICurrentUserService _currentUserService;
 
     public GetImagesQueryHandler(IWaifuDbContext context, IConfiguration configuration, ICurrentUserService currentUserService)
     {
         _context = context;
         _cdnBaseUrl = configuration["Cdn:BaseUrl"] ?? throw new InvalidOperationException("Cdn:BaseUrl is required.");
-        _maxLimit = int.Parse(configuration["Image:MaxLimit"] ?? throw new InvalidOperationException("Image:MaxLimit is required."));
+        
+        // Use new config keys
+        _defaultPageSize = int.Parse(configuration["Image:DefaultPageSize"] ?? throw new InvalidOperationException("Image:DefaultPageSize is required."));
+        _maxPageSize = int.Parse(configuration["Image:MaxPageSize"] ?? throw new InvalidOperationException("Image:MaxPageSize is required."));
+        
         _currentUserService = currentUserService;
     }
 
-    public async ValueTask<List<ImageDto>> Handle(GetImagesQuery request, CancellationToken cancellationToken)
+    public async ValueTask<PaginatedList<ImageDto>> Handle(GetImagesQuery request, CancellationToken cancellationToken)
     {
-        // Parse Limit
-        int limit = 1;
-        if (request.Limit.Equals("all", StringComparison.OrdinalIgnoreCase))
+        var pageSize = request.PageSize == 0 ? _defaultPageSize : request.PageSize;
+        
+        if (_maxPageSize > 0 && pageSize > _maxPageSize)
         {
-            var userId = _currentUserService.UserId;
-            if (userId.HasValue)
-            {
-                var user = await _context.Users.FindAsync(new object[] { userId.Value }, cancellationToken);
-                if (user != null && user.Role == Role.Admin)
-                {
-                    limit = int.MaxValue;
-                }
-                else
-                {
-                    limit = _maxLimit;
-                }
-            }
-            else
-            {
-                limit = _maxLimit;
-            }
-        }
-        else if (int.TryParse(request.Limit, out var parsedLimit))
-        {
-            limit = parsedLimit;
-            if (limit > _maxLimit)
-            {
-                limit = _maxLimit;
-            }
+            pageSize = _maxPageSize;
         }
         
         var filters = new ImageFilters
@@ -90,25 +80,38 @@ public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, List<ImageDto
             IsAnimated = request.IsAnimated,
             OrderBy = request.OrderBy,
             Orientation = request.Orientation,
-            Limit = limit,
             Width = request.Width,
             Height = request.Height,
             ByteSize = request.ByteSize,
-            UserId = request.UserId
+            UserId = request.UserId,
+            AlbumId = request.AlbumId
         };
 
-        var query = _context.Images
-            .AsNoTracking()
-            .Include(i => i.Tags)
-            .Include(i => i.Artist)
-            .AsQueryable();
+        IQueryable<Image> query;
+
+        if (filters.AlbumId.HasValue)
+        {
+            query = _context.Images
+                .AsNoTracking()
+                .Include(i => i.Tags)
+                .Include(i => i.Artist)
+                .Where(i => _context.AlbumItems.Any(ai => ai.AlbumId == filters.AlbumId.Value && ai.ImageId == i.Id))
+                .AsQueryable();
+        }
+        else
+        {
+            query = _context.Images
+                .AsNoTracking()
+                .Include(i => i.Tags)
+                .Include(i => i.Artist)
+                .AsQueryable();
+        }
 
         query = query.ApplyFilters(filters);
 
-        if (limit < int.MaxValue)
-        {
-            query = query.Take(limit);
-        }
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        query = query.Skip((request.Page - 1) * pageSize).Take(pageSize);
 
         // Fetch data first, then map to DTO in memory
         var images = await query.ToListAsync(cancellationToken);
@@ -128,7 +131,7 @@ public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, List<ImageDto
                 .ToDictionaryAsync(x => x.ImageId, x => x.AddedAt, cancellationToken)
             : new Dictionary<long, DateTime>();
 
-        return images.Select(image => new ImageDto
+        var imageDtos = images.Select(image => new ImageDto
         {
             Id = image.Id,
             PerceptualHash = BitArrayToHex(image.PerceptualHash),
@@ -147,6 +150,8 @@ public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, List<ImageDto
             Favorites = favoritesCounts.TryGetValue(image.Id, out var count) ? count : 0,
             LikedAt = likedStatus.TryGetValue(image.Id, out var date) ? (DateTime?)date : null
         }).ToList();
+
+        return new PaginatedList<ImageDto>(imageDtos, totalCount, request.Page, pageSize);
     }
 
     private static string BitArrayToHex(BitArray bits)

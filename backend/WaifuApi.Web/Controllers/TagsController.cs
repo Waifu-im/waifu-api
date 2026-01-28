@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Mediator;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using WaifuApi.Application.Common.Models;
 using WaifuApi.Application.Features.GetTags;
 using WaifuApi.Application.Features.Tags.CreateTag;
 using WaifuApi.Application.Features.Tags.DeleteTag;
@@ -25,11 +26,11 @@ public class TagsController : ControllerBase
     /// <summary>
     /// Retrieves all available tags.
     /// </summary>
-    /// <returns>A list of tags.</returns>
+    /// <returns>A paginated list of tags.</returns>
     [HttpGet]
-    public async Task<ActionResult<List<Tag>>> Get()
+    public async Task<ActionResult<PaginatedList<Tag>>> Get([FromQuery] GetTagsQuery query)
     {
-        var tags = await _mediator.Send(new GetTagsQuery());
+        var tags = await _mediator.Send(query);
         return Ok(tags);
     }
 

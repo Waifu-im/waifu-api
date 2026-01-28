@@ -2,6 +2,7 @@
 using Mediator;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using WaifuApi.Application.Common.Models;
 using WaifuApi.Application.Features.Auth.CreateApiKey;
 using WaifuApi.Application.Features.Auth.GetApiKeys;
 using WaifuApi.Application.Features.Auth.LoginWithDiscord;
@@ -39,7 +40,7 @@ public class AuthController : ControllerBase
     /// <returns>A list of API keys.</returns>
     [Authorize]
     [HttpGet("api-keys")]
-    public async Task<ActionResult<List<ApiKey>>> GetApiKeys()
+    public async Task<ActionResult<List<ApiKeyDto>>> GetApiKeys()
     {
         var userId = long.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
         var keys = await _mediator.Send(new GetApiKeysQuery(userId));
@@ -53,7 +54,7 @@ public class AuthController : ControllerBase
     /// <returns>The created API key.</returns>
     [Authorize]
     [HttpPost("api-keys")]
-    public async Task<ActionResult<ApiKey>> CreateApiKey([FromBody] CreateApiKeyRequest request)
+    public async Task<ActionResult<ApiKeyDto>> CreateApiKey([FromBody] CreateApiKeyRequest request)
     {
         var userId = long.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
         var key = await _mediator.Send(new CreateApiKeyCommand(userId, request.Description));

@@ -2,43 +2,96 @@
 import { Heart, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useState } from "react";
+import api from "../services/api";
 
 interface ImageCardProps {
-  image: ImageDto;
-  onDelete?: (id: number) => void;
+    image: ImageDto;
+    onDelete?: (id: number) => void;
 }
 
 const ImageCard = ({ image, onDelete }: ImageCardProps) => {
-  const { user } = useAuth();
-  const isAdmin = user?.role === 3; // Assuming 3 is Admin role
+    const { user } = useAuth();
+    const isAdmin = user?.role === 3;
+    const [isLiked, setIsLiked] = useState(!!image.likedAt);
+    const [likesCount, setLikesCount] = useState(image.favorites);
+    const [isLikeLoading, setIsLikeLoading] = useState(false);
 
-  return (
-    <div className="relative group overflow-hidden rounded-lg mb-4 break-inside-avoid">
-      <Link to={`/images/${image.id}`}>
-        <img src={image.url} alt={`Image ${image.id}`} className="w-full h-auto object-cover" />
-      </Link>
-      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-4">
-        <div className="text-white text-sm">
-          <p>ID: {image.id}</p>
+    const toggleLike = async (e: React.MouseEvent) => {
+        e.preventDefault();
+        if (!user || isLikeLoading) return;
+
+        setIsLikeLoading(true);
+        // Optimistic Update
+        const prevLiked = isLiked;
+        setIsLiked(!prevLiked);
+        setLikesCount(prev => prevLiked ? prev - 1 : prev + 1);
+
+        try {
+            if (prevLiked) {
+                await api.delete(`/users/me/albums/favorites/images/${image.id}`);
+            } else {
+                await api.post(`/users/me/albums/favorites/images/${image.id}`);
+            }
+        } catch (error) {
+            // Revert if failed
+            setIsLiked(prevLiked);
+            setLikesCount(prev => prevLiked ? prev : prev - 1);
+            console.error("Like failed", error);
+        } finally {
+            setIsLikeLoading(false);
+        }
+    };
+
+    return (
+        <div className="relative group overflow-hidden rounded-xl bg-card border border-border shadow-sm hover:shadow-md transition-all">
+            <Link to={`/images/${image.id}`} className="block w-full">
+                <img
+                    src={image.url}
+                    alt={`Img ${image.id}`}
+                    loading="lazy"
+                    className="w-full h-auto object-cover transition-transform duration-700 group-hover:scale-105"
+                />
+            </Link>
+
+            {/* Overlay */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col justify-between p-3">
+
+                {/* Top Actions */}
+                <div className="flex justify-end">
+                    {isAdmin && onDelete && (
+                        <button
+                            onClick={(e) => { e.preventDefault(); onDelete(image.id); }}
+                            className="p-2 bg-red-500/90 text-white rounded-full hover:bg-red-600 shadow-sm transition-transform hover:scale-110"
+                            title="Delete Image"
+                        >
+                            <Trash2 size={14} />
+                        </button>
+                    )}
+                </div>
+
+                {/* Bottom Info */}
+                <div className="transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 text-white">
+                    <div className="flex items-center justify-between">
+                        <div className="min-w-0">
+                            <span className="text-xs font-mono opacity-75">#{image.id}</span>
+                        </div>
+
+                        <button
+                            onClick={toggleLike}
+                            className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md transition-colors"
+                        >
+                            <Heart
+                                size={14}
+                                className={`transition-colors ${isLiked ? "fill-rose-500 text-rose-500" : "text-white"}`}
+                            />
+                            <span className="text-xs font-bold">{likesCount}</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-white">
-            <Heart size={20} className={image.likedAt ? "text-red-500 fill-current" : ""} />
-            <span>{image.favorites}</span>
-          </div>
-          {isAdmin && onDelete && (
-            <button 
-              onClick={() => onDelete(image.id)}
-              className="p-2 rounded-full bg-red-500/80 hover:bg-red-500 text-white transition-colors"
-              aria-label="Delete Image"
-            >
-              <Trash2 size={18} />
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
+    );
 };
 
 export default ImageCard;

@@ -1,14 +1,15 @@
 ﻿using System.Threading;
 using System.Threading.Tasks;
 using Mediator;
+using WaifuApi.Application.Common.Models;
 using WaifuApi.Application.Interfaces;
 using WaifuApi.Domain.Entities;
 
 namespace WaifuApi.Application.Features.Albums.CreateAlbum;
 
-public record CreateAlbumCommand(long UserId, string Name, string Description) : ICommand<Album>;
+public record CreateAlbumCommand(long UserId, string Name, string Description) : ICommand<AlbumDto>;
 
-public class CreateAlbumCommandHandler : ICommandHandler<CreateAlbumCommand, Album>
+public class CreateAlbumCommandHandler : ICommandHandler<CreateAlbumCommand, AlbumDto>
 {
     private readonly IWaifuDbContext _context;
 
@@ -17,7 +18,7 @@ public class CreateAlbumCommandHandler : ICommandHandler<CreateAlbumCommand, Alb
         _context = context;
     }
 
-    public async ValueTask<Album> Handle(CreateAlbumCommand request, CancellationToken cancellationToken)
+    public async ValueTask<AlbumDto> Handle(CreateAlbumCommand request, CancellationToken cancellationToken)
     {
         var album = new Album
         {
@@ -30,6 +31,13 @@ public class CreateAlbumCommandHandler : ICommandHandler<CreateAlbumCommand, Alb
         _context.Albums.Add(album);
         await _context.SaveChangesAsync(cancellationToken);
 
-        return album;
+        return new AlbumDto
+        {
+            Id = album.Id,
+            Name = album.Name,
+            Description = album.Description,
+            IsDefault = album.IsDefault,
+            UserId = album.UserId
+        };
     }
 }

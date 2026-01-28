@@ -13,9 +13,9 @@ public class ImageFilters
     public bool? IsAnimated { get; set; }
     public string OrderBy { get; set; } = string.Empty;
     public string Orientation { get; set; } = string.Empty;
-    public int Limit { get; set; }
     public string Width { get; set; } = string.Empty;
     public string Height { get; set; } = string.Empty;
     public string ByteSize { get; set; } = string.Empty;
     public long UserId { get; set; }
+    public long? AlbumId { get; set; }
 }

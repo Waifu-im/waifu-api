@@ -2,12 +2,15 @@
 using Mediator;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using WaifuApi.Application.Common.Models;
 using WaifuApi.Application.Features.Albums.AddImageToAlbum;
 using WaifuApi.Application.Features.Albums.CreateAlbum;
 using WaifuApi.Application.Features.Albums.DeleteAlbum;
+using WaifuApi.Application.Features.Albums.GetAlbumById;
 using WaifuApi.Application.Features.Albums.GetAlbums;
 using WaifuApi.Application.Features.Albums.RemoveImageFromAlbum;
 using WaifuApi.Application.Features.Albums.UpdateAlbum;
+using WaifuApi.Application.Features.GetImages;
 using WaifuApi.Application.Interfaces;
 using WaifuApi.Domain.Entities;
 
@@ -30,13 +33,38 @@ public class AlbumsController : ControllerBase
     /// Retrieves albums for a specific user.
     /// </summary>
     /// <param name="userId">The user ID or "me" for the current user.</param>
+    /// <param name="page">Page number (default 1).</param>
+    /// <param name="pageSize">Page size (default 0, uses server default).</param>
     /// <returns>A list of albums.</returns>
     [HttpGet]
-    public async Task<ActionResult<List<Album>>> GetAlbums([FromRoute] string userId)
+    public async Task<ActionResult<PaginatedList<AlbumDto>>> GetAlbums([FromRoute] string userId, [FromQuery] int page = 1, [FromQuery] int pageSize = 0)
     {
         var resolvedUserId = await _currentUserService.ResolveUserIdAsync(userId);
-        var albums = await _mediator.Send(new GetAlbumsQuery(resolvedUserId));
+        var query = new GetAlbumsQuery(resolvedUserId)
+        {
+            Page = page,
+            PageSize = pageSize
+        };
+        var albums = await _mediator.Send(query);
         return Ok(albums);
+    }
+
+    /// <summary>
+    /// Retrieves a specific album by ID.
+    /// </summary>
+    /// <param name="userId">The user ID or "me".</param>
+    /// <param name="albumId">The album ID or "favorites".</param>
+    /// <returns>The album details.</returns>
+    [HttpGet("{albumId}")]
+    public async Task<ActionResult<AlbumDto>> GetAlbum([FromRoute] string userId, [FromRoute] string albumId)
+    {
+        var resolvedUserId = await _currentUserService.ResolveUserIdAsync(userId);
+        var resolvedAlbumId = await _currentUserService.ResolveAlbumIdAsync(resolvedUserId, albumId);
+
+        if (resolvedAlbumId == null) return NotFound();
+
+        var album = await _mediator.Send(new GetAlbumByIdQuery(resolvedAlbumId.Value));
+        return Ok(album);
     }
 
     /// <summary>
@@ -47,13 +75,13 @@ public class AlbumsController : ControllerBase
     /// <returns>The created album.</returns>
     [Authorize]
     [HttpPost]
-    public async Task<ActionResult<Album>> CreateAlbum([FromRoute] string userId, [FromBody] CreateAlbumRequest request)
+    public async Task<ActionResult<AlbumDto>> CreateAlbum([FromRoute] string userId, [FromBody] CreateAlbumRequest request)
     {
         var resolvedUserId = await _currentUserService.ResolveUserIdAsync(userId);
         if (!CanAccess(resolvedUserId)) return Forbid();
 
         var album = await _mediator.Send(new CreateAlbumCommand(resolvedUserId, request.Name, request.Description));
-        return CreatedAtAction(nameof(GetAlbums), new { userId = resolvedUserId }, album);
+        return CreatedAtAction(nameof(GetAlbum), new { userId = resolvedUserId, albumId = album.Id }, album);
     }
 
     /// <summary>
@@ -65,7 +93,7 @@ public class AlbumsController : ControllerBase
     /// <returns>The updated album.</returns>
     [Authorize]
     [HttpPut("{albumId}")]
-    public async Task<ActionResult<Album>> UpdateAlbum([FromRoute] string userId, [FromRoute] string albumId, [FromBody] UpdateAlbumRequest request)
+    public async Task<ActionResult<AlbumDto>> UpdateAlbum([FromRoute] string userId, [FromRoute] string albumId, [FromBody] UpdateAlbumRequest request)
     {
         var resolvedUserId = await _currentUserService.ResolveUserIdAsync(userId);
         var resolvedAlbumId = await _currentUserService.ResolveAlbumIdAsync(resolvedUserId, albumId);
@@ -92,6 +120,33 @@ public class AlbumsController : ControllerBase
 
         await _mediator.Send(new DeleteAlbumCommand(resolvedUserId, resolvedAlbumId!.Value));
         return NoContent();
+    }
+
+    /// <summary>
+    /// Retrieves images in a specific album with filtering options.
+    /// </summary>
+    /// <param name="userId">The user ID or "me".</param>
+    /// <param name="albumId">The album ID or "favorites".</param>
+    /// <param name="query">The search filters.</param>
+    /// <returns>A list of images in the album matching the criteria.</returns>
+    [HttpGet("{albumId}/images")]
+    public async Task<ActionResult<PaginatedList<ImageDto>>> GetAlbumImages([FromRoute] string userId, [FromRoute] string albumId, [FromQuery] GetImagesQuery query)
+    {
+        var resolvedUserId = await _currentUserService.ResolveUserIdAsync(userId);
+        var resolvedAlbumId = await _currentUserService.ResolveAlbumIdAsync(resolvedUserId, albumId);
+
+        if (resolvedAlbumId == null) return NotFound();
+
+        query.AlbumId = resolvedAlbumId;
+        
+        var currentUserId = _currentUserService.UserId;
+        if (currentUserId.HasValue)
+        {
+            query.UserId = currentUserId.Value;
+        }
+
+        var images = await _mediator.Send(query);
+        return Ok(images);
     }
 
     /// <summary>

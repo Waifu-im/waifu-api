@@ -15,8 +15,6 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
-  
-  console.log('AuthContext Token:', token);
 
   // Use React Query to fetch user
   const { data: user, isLoading, isError } = useUser(!!token);
@@ -38,27 +36,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, [isError]);
 
   const login = (newToken: string) => {
-    console.log('Logging in with token:', newToken);
     setToken(newToken);
   };
 
   const logout = () => {
-    console.log('Logging out');
     setToken(null);
     localStorage.removeItem('token');
+    // Clear React Query cache if possible or rely on page reload in UI component
   };
 
   return (
-    <AuthContext.Provider value={{ 
-      token, 
-      user: user || null, 
-      login, 
-      logout, 
-      isAuthenticated: !!user, 
-      isLoading 
-    }}>
-      {children}
-    </AuthContext.Provider>
+      <AuthContext.Provider value={{
+        token,
+        user: user || null,
+        login,
+        logout,
+        isAuthenticated: !!user,
+        isLoading
+      }}>
+        {children}
+      </AuthContext.Provider>
   );
 };
 

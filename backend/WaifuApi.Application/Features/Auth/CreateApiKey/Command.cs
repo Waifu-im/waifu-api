@@ -3,14 +3,15 @@ using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using Mediator;
+using WaifuApi.Application.Common.Models;
 using WaifuApi.Application.Interfaces;
 using WaifuApi.Domain.Entities;
 
 namespace WaifuApi.Application.Features.Auth.CreateApiKey;
 
-public record CreateApiKeyCommand(long UserId, string Description) : ICommand<ApiKey>;
+public record CreateApiKeyCommand(long UserId, string Description) : ICommand<ApiKeyDto>;
 
-public class CreateApiKeyCommandHandler : ICommandHandler<CreateApiKeyCommand, ApiKey>
+public class CreateApiKeyCommandHandler : ICommandHandler<CreateApiKeyCommand, ApiKeyDto>
 {
     private readonly IWaifuDbContext _context;
 
@@ -19,7 +20,7 @@ public class CreateApiKeyCommandHandler : ICommandHandler<CreateApiKeyCommand, A
         _context = context;
     }
 
-    public async ValueTask<ApiKey> Handle(CreateApiKeyCommand request, CancellationToken cancellationToken)
+    public async ValueTask<ApiKeyDto> Handle(CreateApiKeyCommand request, CancellationToken cancellationToken)
     {
         var key = GenerateApiKey();
         var apiKey = new ApiKey
@@ -33,7 +34,16 @@ public class CreateApiKeyCommandHandler : ICommandHandler<CreateApiKeyCommand, A
         _context.ApiKeys.Add(apiKey);
         await _context.SaveChangesAsync(cancellationToken);
 
-        return apiKey;
+        return new ApiKeyDto
+        {
+            Id = apiKey.Id,
+            Key = apiKey.Key,
+            Description = apiKey.Description,
+            CreatedAt = apiKey.CreatedAt,
+            LastUsedAt = apiKey.LastUsedAt,
+            ExpirationDate = apiKey.ExpirationDate,
+            UserId = apiKey.UserId
+        };
     }
 
     private string GenerateApiKey()

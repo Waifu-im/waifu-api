@@ -1,4 +1,7 @@
-﻿namespace WaifuApi.Domain.Entities;
+﻿using System;
+using System.Text.Json.Serialization;
+
+namespace WaifuApi.Domain.Entities;
 
 public class ApiKey
 {
@@ -9,5 +12,7 @@ public class ApiKey
     public DateTime? LastUsedAt { get; set; }
     public DateTime? ExpirationDate { get; set; }
     public long UserId { get; set; }
+    
+    [JsonIgnore]
     public User User { get; set; } = null!;
 }

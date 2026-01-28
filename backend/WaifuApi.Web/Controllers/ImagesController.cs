@@ -36,14 +36,10 @@ public class ImagesController : ControllerBase
     /// - Safe (0): Returns only Safe images (Default).
     /// - Nsfw (1): Returns only NSFW images.
     /// - All (2): Returns both Safe and NSFW images.
-    /// 
-    /// **Limit**:
-    /// - Number (e.g., "30"): Returns up to that many images (Default 1).
-    /// - "all": Returns all images (Admin only).
     /// </remarks>
-    /// <returns>A list of images matching the criteria.</returns>
+    /// <returns>A paginated list of images matching the criteria.</returns>
     [HttpGet]
-    public async Task<ActionResult<List<ImageDto>>> Get([FromQuery] GetImagesQuery query)
+    public async Task<ActionResult<PaginatedList<ImageDto>>> Get([FromQuery] GetImagesQuery query)
     {
         var images = await _mediator.Send(query);
         return Ok(images);

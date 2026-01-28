@@ -1,246 +1,218 @@
 ﻿import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useImages } from '../hooks/useImages';
-import { Filter, X, AlertTriangle } from 'lucide-react';
+import { X, SlidersHorizontal, RefreshCw, Trash2, Search } from 'lucide-react';
 import ImageCard from '../components/ImageCard';
 import api from '../services/api';
-import { useAuth } from '../context/AuthContext';
+import SearchableSelect from '../components/SearchableSelect';
+import Modal from '../components/Modal';
+import { PaginatedList, Tag } from '../types';
 
 const Gallery = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const [showFilters, setShowFilters] = useState(false);
   const [showNsfwWarning, setShowNsfwWarning] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const { user } = useAuth();
 
-  // Filters state
+  // Delete State
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [imageToDelete, setImageToDelete] = useState<number | null>(null);
+
   const isNsfw = searchParams.get('isNsfw') || 'false';
   const orderBy = searchParams.get('orderBy') || 'UPLOADED_AT';
   const includedTags = searchParams.getAll('includedTags');
 
-  // Check NSFW consent
-  useEffect(() => {
-    if (isNsfw === 'true') {
-      const hasConsented = localStorage.getItem('nsfw-consent');
-      if (!hasConsented) {
-        setShowNsfwWarning(true);
-      }
-    }
-  }, [isNsfw]);
-
-  const handleNsfwConsent = () => {
-    localStorage.setItem('nsfw-consent', 'true');
-    setShowNsfwWarning(false);
-  };
-
-  const handleNsfwReject = () => {
-    setSearchParams(prev => {
-      prev.set('isNsfw', 'false');
-      return prev;
-    });
-    setShowNsfwWarning(false);
-  };
-
-  const { data: images, isLoading, error, refetch } = useImages({
+  // Updated hook usage with pageSize
+  const { data: paginatedImages, isLoading, error, refetch } = useImages({
     isNsfw: isNsfw === 'true' ? 1 : isNsfw === 'null' ? 2 : 0,
     orderBy,
     includedTags,
-    limit: 30
+    page: 1,      // Defaulting to page 1 for now (infinite scroll/pagination UI can be added later)
+    pageSize: 50  // Replaced limit with pageSize
   });
+
+  const images = paginatedImages?.items || [];
+
+  useEffect(() => {
+    if (isNsfw === 'true' && !localStorage.getItem('nsfw-consent')) {
+      setShowNsfwWarning(true);
+    }
+  }, [isNsfw]);
 
   const updateFilter = (key: string, value: string) => {
     setSearchParams(prev => {
-      if (value) prev.set(key, value);
-      else prev.delete(key);
+      if (value) prev.set(key, value); else prev.delete(key);
       return prev;
     });
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this image?')) return;
-    try {
-      await api.delete(`/images/${id}`);
-      refetch();
-    } catch (err) {
-      console.error('Failed to delete image', err);
-      alert('Failed to delete image');
+  const handleTagInput = (name: string) => {
+    if(!includedTags.includes(name)) {
+      setSearchParams(prev => { prev.append('includedTags', name); return prev; });
     }
   };
 
+  const confirmDelete = (id: number) => {
+    setImageToDelete(id);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleRealDelete = async () => {
+    if (!imageToDelete) return;
+    try {
+      await api.delete(`/images/${imageToDelete}`);
+      refetch();
+      setIsDeleteModalOpen(false);
+      setImageToDelete(null);
+    } catch(e) { alert("Failed to delete."); }
+  };
+
+  const sortOptions = [
+    { id: 'UPLOADED_AT', name: 'Newest First' },
+    { id: 'FAVORITES', name: 'Most Popular' },
+    { id: 'RANDOM', name: 'Random Shuffle' }
+  ];
+
+  const ratingOptions = [
+    { id: 'false', name: 'Safe' },
+    { id: 'true', name: 'NSFW (18+)' },
+    { id: 'null', name: 'All Content' }
+  ];
+
+  const [allTags, setAllTags] = useState<{id: number, name: string}[]>([]);
+
+  useEffect(() => {
+    // Fetch tags with high pageSize to get list for dropdown
+    api.get<PaginatedList<Tag>>('/tags', { params: { pageSize: 1000 } })
+        .then(res => setAllTags(res.data.items))
+        .catch(console.error);
+  }, []);
+
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex flex-col md:flex-row gap-6">
-        {/* Mobile Filter Button */}
-        <div className="md:hidden flex justify-end mb-4">
-          <button 
-            onClick={() => setIsSidebarOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg shadow-sm hover:bg-accent transition-colors"
-          >
-            <Filter size={20} /> Filters
-          </button>
+      <div className="flex h-full relative overflow-hidden">
+
+        {/* CONTENT GRID */}
+        <div className="flex-1 overflow-y-auto h-full p-4">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-black tracking-tight text-foreground">Gallery</h2>
+            <button onClick={() => setShowFilters(!showFilters)} className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg text-sm font-medium shadow-sm hover:bg-secondary transition-colors">
+              <SlidersHorizontal size={16} /> <span className="hidden sm:inline">{showFilters ? 'Hide' : 'Filters'}</span>
+            </button>
+          </div>
+
+          {isLoading ? (
+              <div className="columns-2 sm:columns-3 md:columns-4 gap-4 space-y-4">
+                {[...Array(12)].map((_,i) => <div key={i} className="bg-muted h-64 rounded-xl animate-pulse break-inside-avoid"></div>)}
+              </div>
+          ) : error ? (
+              <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+                <p className="mb-4">Unable to load images.</p>
+                <button onClick={() => refetch()} className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg"><RefreshCw size={16}/> Retry</button>
+              </div>
+          ) : images && images.length > 0 ? (
+              <div className="columns-2 sm:columns-3 md:columns-4 xl:columns-5 gap-4 space-y-4 pb-10">
+                {images.map(img => (
+                    <div key={img.id} className="break-inside-avoid">
+                      <ImageCard image={img} onDelete={confirmDelete} />
+                    </div>
+                ))}
+              </div>
+          ) : (
+              <div className="flex flex-col items-center justify-center h-[50vh] text-muted-foreground">
+                <Search size={48} className="mb-4 opacity-20" />
+                <p className="text-lg font-medium">No images found.</p>
+                <p className="text-sm">Try adjusting your filters.</p>
+                <button
+                    onClick={() => { setSearchParams({}); refetch(); }}
+                    className="mt-6 px-6 py-2 bg-secondary text-foreground rounded-lg font-bold hover:bg-secondary/80"
+                >
+                  Clear All Filters
+                </button>
+              </div>
+          )}
         </div>
 
-        {/* Sidebar Filters */}
+        {/* FILTER SIDEBAR - SAME AS BEFORE */}
         <aside className={`
-          fixed inset-y-0 left-0 z-40 w-72 bg-card border-r border-border shadow-lg transform transition-transform duration-300 ease-in-out
-          md:relative md:translate-x-0 md:shadow-none md:bg-transparent md:w-64 md:block md:border-none
-          ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-        `}>
-          <div className="p-6 h-full overflow-y-auto md:p-0">
-            <div className="flex justify-between items-center mb-6 md:hidden">
-              <h2 className="text-xl font-bold">Filters</h2>
-              <button onClick={() => setIsSidebarOpen(false)} className="p-2 hover:bg-accent rounded-full"><X size={24} /></button>
-            </div>
+        fixed inset-y-0 right-0 z-40 w-80 max-w-[85vw] bg-card border-l border-border shadow-2xl 
+        transform transition-transform duration-300 ease-in-out h-full flex flex-col
+        ${showFilters ? 'translate-x-0' : 'translate-x-full'}
+        md:relative md:shadow-none md:translate-x-0
+        ${!showFilters && 'hidden md:block md:w-0 md:border-none md:overflow-hidden'} 
+      `}>
+          <div className="p-5 border-b border-border flex justify-between items-center bg-card/95 backdrop-blur">
+            <h3 className="font-bold">Filters</h3>
+            <button onClick={() => setShowFilters(false)} className="md:hidden"><X size={20}/></button>
+          </div>
 
-            <div className="space-y-6 sticky top-24">
-              {/* NSFW Toggle */}
-              <div>
-                <label className="block text-sm font-medium mb-2">Content Rating</label>
-                <select 
-                  value={isNsfw} 
-                  onChange={(e) => updateFilter('isNsfw', e.target.value)}
-                  className="w-full p-2 border border-input rounded-md bg-background focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-                >
-                  <option value="false">Safe</option>
-                  <option value="true">NSFW (18+)</option>
-                  <option value="null">All</option>
-                </select>
-              </div>
+          <div className="flex-1 p-5 overflow-y-auto space-y-6 w-80">
+            <SearchableSelect
+                label="Sort By"
+                options={sortOptions}
+                selectedOptions={sortOptions.filter(o => o.id === orderBy)}
+                onSelect={(o) => updateFilter('orderBy', o.id as string)}
+                onRemove={() => {}}
+                isMulti={false}
+                clearable={false}
+            />
 
-              {/* Order By */}
-              <div>
-                <label className="block text-sm font-medium mb-2">Sort By</label>
-                <select 
-                  value={orderBy} 
-                  onChange={(e) => updateFilter('orderBy', e.target.value)}
-                  className="w-full p-2 border border-input rounded-md bg-background focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-                >
-                  <option value="UPLOADED_AT">Recent</option>
-                  <option value="FAVORITES">Top Favorites</option>
-                  <option value="RANDOM">Random</option>
-                </select>
-              </div>
+            <SearchableSelect
+                label="Content Rating"
+                options={ratingOptions}
+                selectedOptions={ratingOptions.filter(o => o.id === isNsfw)}
+                onSelect={(o) => updateFilter('isNsfw', o.id as string)}
+                onRemove={() => {}}
+                isMulti={false}
+                clearable={false}
+            />
 
-              {/* Tags (Simple Input for now - will be improved later) */}
-              <div>
-                <label className="block text-sm font-medium mb-2">Tags</label>
-                <div className="flex flex-wrap gap-2 mb-2">
-                  {includedTags.map(tag => (
-                    <span key={tag} className="bg-secondary text-secondary-foreground px-2 py-1 rounded-full text-xs flex items-center gap-1">
-                      {tag}
-                      <button onClick={() => {
-                        const newTags = includedTags.filter(t => t !== tag);
-                        setSearchParams(prev => {
-                          prev.delete('includedTags');
-                          newTags.forEach(t => prev.append('includedTags', t));
-                          return prev;
-                        });
-                      }} className="hover:text-destructive"><X size={12} /></button>
-                    </span>
-                  ))}
-                </div>
-                <input 
-                  type="text" 
-                  placeholder="Add tag..." 
-                  className="w-full p-2 border border-input rounded-md bg-background focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      const val = e.currentTarget.value.trim();
-                      if (val && !includedTags.includes(val)) {
-                        setSearchParams(prev => {
-                          prev.append('includedTags', val);
-                          return prev;
-                        });
-                        e.currentTarget.value = '';
-                      }
-                    }
-                  }}
-                />
-              </div>
-              
-              <button 
-                onClick={() => refetch()}
-                className="w-full bg-primary text-primary-foreground py-2 rounded-md hover:bg-primary/90 transition shadow-sm"
-              >
-                Apply Filters
-              </button>
-            </div>
+            <SearchableSelect
+                label="Filter by Tags"
+                placeholder="Search tags..."
+                options={allTags}
+                selectedOptions={includedTags.map(t => ({ id: t, name: t }))}
+                onSelect={(o) => handleTagInput(o.name)}
+                onRemove={(o) => {
+                  const newTags = includedTags.filter(t => t !== o.name);
+                  setSearchParams(prev => { prev.delete('includedTags'); newTags.forEach(t => prev.append('includedTags', t)); return prev; });
+                }}
+                isMulti={true}
+                clearable={true}
+            />
+          </div>
+
+          <div className="p-4 border-t border-border md:hidden">
+            <button onClick={() => setShowFilters(false)} className="w-full py-3 bg-primary text-primary-foreground rounded-xl font-bold">Done</button>
           </div>
         </aside>
 
-        {/* Overlay for mobile sidebar */}
-        {isSidebarOpen && (
-          <div 
-            className="fixed inset-0 bg-background/80 backdrop-blur-sm z-30 md:hidden"
-            onClick={() => setIsSidebarOpen(false)}
-          />
-        )}
-
-        {/* Image Grid */}
-        <div className="flex-1">
-          {isLoading ? (
-            <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-4 space-y-4">
-              {[...Array(8)].map((_, i) => (
-                <div key={i} className="bg-muted h-64 rounded-lg animate-pulse break-inside-avoid"></div>
-              ))}
+        {/* Admin Delete Modal (Same as before) */}
+        <Modal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} title="Delete Image">
+          <div className="text-center space-y-4">
+            <div className="w-16 h-16 bg-destructive/10 text-destructive rounded-full flex items-center justify-center mx-auto">
+              <Trash2 size={32} />
             </div>
-          ) : error ? (
-            <div className="text-center py-20 text-destructive bg-destructive/10 rounded-lg border border-destructive/20">
-              <p className="font-medium">Failed to load images.</p>
-              <button onClick={() => refetch()} className="mt-4 text-sm underline hover:text-destructive/80">Try Again</button>
-            </div>
-          ) : images && images.length > 0 ? (
-            <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-4 space-y-4">
-              {images.map((image) => (
-                <ImageCard key={image.id} image={image} onDelete={handleDelete} />
-              ))}
-            </div>
-          ) : (
-             <div className="text-center py-20 text-muted-foreground bg-card rounded-lg border border-border">
-              <p className="text-lg">No images found matching your criteria.</p>
-              <button 
-                onClick={() => {
-                  setSearchParams({});
-                  refetch();
-                }} 
-                className="mt-4 text-primary hover:underline"
-              >
-                Clear Filters
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* NSFW Warning Modal */}
-      {showNsfwWarning && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
-          <div className="bg-card p-8 rounded-2xl max-w-md w-full shadow-2xl border border-destructive/20 text-center">
-            <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center text-destructive mx-auto mb-6">
-              <AlertTriangle size={32} />
-            </div>
-            <h2 className="text-2xl font-bold mb-4">Age Verification</h2>
-            <p className="text-muted-foreground mb-8">
-              This page contains NSFW (Not Safe For Work) content. 
-              You must be 18 years or older to view this content.
-            </p>
-            <div className="flex flex-col gap-3">
-              <button 
-                onClick={handleNsfwConsent}
-                className="w-full bg-destructive hover:bg-destructive/90 text-destructive-foreground py-3 rounded-lg font-bold transition-colors"
-              >
-                I am 18 or older - Enter
-              </button>
-              <button 
-                onClick={handleNsfwReject}
-                className="w-full bg-secondary hover:bg-secondary/80 text-secondary-foreground py-3 rounded-lg font-medium transition-colors"
-              >
-                Go Back to Safe Mode
-              </button>
+            <p className="text-muted-foreground">Are you sure you want to permanently delete this image?</p>
+            <div className="flex gap-3 mt-6">
+              <button onClick={() => setIsDeleteModalOpen(false)} className="flex-1 py-3 bg-secondary rounded-lg font-bold">Cancel</button>
+              <button onClick={handleRealDelete} className="flex-1 py-3 bg-destructive text-destructive-foreground rounded-lg font-bold">Delete</button>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        </Modal>
+
+        {/* NSFW Modal (Same as before) */}
+        {showNsfwWarning && (
+            <div className="fixed inset-0 z-[60] bg-black/90 flex items-center justify-center p-4 backdrop-blur-md">
+              <div className="bg-card p-8 rounded-2xl max-w-sm w-full text-center border border-border shadow-2xl">
+                <h2 className="text-2xl font-black mb-2">Age Restricted</h2>
+                <p className="text-muted-foreground mb-6">This content is intended for adults only.</p>
+                <div className="grid gap-3">
+                  <button onClick={() => { localStorage.setItem('nsfw-consent', 'true'); setShowNsfwWarning(false); }} className="w-full py-3 bg-primary text-primary-foreground rounded-xl font-bold">I am 18+</button>
+                  <button onClick={() => { updateFilter('isNsfw', 'false'); setShowNsfwWarning(false); }} className="w-full py-3 bg-secondary rounded-xl font-bold">Go Back</button>
+                </div>
+              </div>
+            </div>
+        )}
+      </div>
   );
 };
 

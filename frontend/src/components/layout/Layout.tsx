@@ -1,163 +1,222 @@
-﻿import { Outlet, Link, useLocation } from 'react-router-dom'
-import { useTheme } from '../../context/ThemeContext'
-import { useAuth } from '../../context/AuthContext'
-import { Sun, Moon, Menu, X, LogOut } from 'lucide-react'
-import { useState } from 'react'
+﻿import { Outlet, Link, useLocation } from 'react-router-dom';
+import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
+import {
+    Sun, Moon, Menu, X, LogIn, LogOut, Upload as UploadIcon,
+    Home, Image as ImageIcon, Tag as TagIcon, ChevronRight, PanelLeft,
+    User as UserIcon, Library, ChevronDown
+} from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
 
 const Layout = () => {
-  const { theme, toggleTheme } = useTheme();
-  const { user, logout } = useAuth();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const location = useLocation();
+    const { theme, toggleTheme } = useTheme();
+    const { user, logout } = useAuth();
+    const location = useLocation();
 
-  const isActive = (path: string) => location.pathname === path;
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+    const userMenuRef = useRef<HTMLDivElement>(null);
 
-  const navLinks = [
-    { name: 'Home', path: '/' },
-    { name: 'Gallery', path: '/gallery' },
-    { name: 'Tags', path: '/tags' },
-  ];
+    const isActive = (path: string) => location.pathname === path;
 
-  return (
-    <div className="min-h-screen bg-background text-foreground transition-colors duration-200">
-      <nav className="border-b border-border bg-card sticky top-0 z-50">
-        <div className="container mx-auto px-4">
-          <div className="flex justify-between items-center h-16">
-            {/* Logo */}
-            <Link to="/" className="text-2xl font-bold flex items-center gap-2">
-              <span>WAIFU.IM</span>
-            </Link>
+    // Close user menu on click outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+                setIsUserMenuOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
-            {/* Desktop Nav */}
-            <div className="hidden md:flex items-center space-x-8">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.path}
-                  to={link.path}
-                  className={`text-sm font-medium transition-colors hover:text-primary ${
-                    isActive(link.path) ? 'text-primary' : 'text-muted-foreground'
-                  }`}
-                >
-                  {link.name}
-                </Link>
-              ))}
-            </div>
+    const handleLogout = () => {
+        logout();
+        // Force reload to clear states
+        window.location.href = "/";
+    };
 
-            {/* Right Side Actions */}
-            <div className="hidden md:flex items-center space-x-4">
-              <button
-                onClick={toggleTheme}
-                className="p-2 rounded-full hover:bg-accent transition-colors"
-                aria-label="Toggle Theme"
-              >
-                {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
-              </button>
+    const navItems = [
+        { name: 'Home', path: '/', icon: Home },
+        { name: 'Gallery', path: '/gallery', icon: ImageIcon },
+        { name: 'Albums', path: '/albums', icon: Library },
+        { name: 'Tags', path: '/tags', icon: TagIcon },
+    ];
 
-              {user ? (
+    return (
+        <div className="min-h-screen bg-background text-foreground flex flex-col">
+
+            {/* 1. TOP NAVBAR */}
+            {/* Correction: bg-card/95 pour matcher la sidebar en dark mode */}
+            <header className="sticky top-0 z-50 w-full h-16 border-b border-border bg-card/95 backdrop-blur flex items-center justify-between px-4 lg:px-6 shadow-sm">
                 <div className="flex items-center gap-4">
-                  <Link to="/upload" className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md text-sm font-medium transition-colors">
-                    Upload
-                  </Link>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">{user.name}</span>
-                    <button onClick={logout} className="text-muted-foreground hover:text-destructive" title="Logout">
-                      <LogOut size={20} />
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <Link
-                  to="/login"
-                  className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md text-sm font-medium transition-colors"
-                >
-                  Login
-                </Link>
-              )}
-            </div>
-
-            {/* Mobile Menu Button */}
-            <div className="md:hidden flex items-center">
-              <button
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="p-2 rounded-md text-muted-foreground hover:bg-accent"
-              >
-                {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Mobile Menu */}
-        {isMenuOpen && (
-          <div className="md:hidden bg-card border-t border-border">
-            <div className="px-2 pt-2 pb-3 space-y-1">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.path}
-                  to={link.path}
-                  onClick={() => setIsMenuOpen(false)}
-                  className={`block px-3 py-2 rounded-md text-base font-medium ${
-                    isActive(link.path)
-                      ? 'bg-accent text-accent-foreground'
-                      : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                  }`}
-                >
-                  {link.name}
-                </Link>
-              ))}
-              <div className="border-t border-border my-2 pt-2">
-                 <button
-                  onClick={() => { toggleTheme(); setIsMenuOpen(false); }}
-                  className="w-full text-left px-3 py-2 rounded-md text-base font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground flex items-center gap-2"
-                >
-                  {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
-                  <span>Toggle Theme</span>
-                </button>
-                {user ? (
-                  <>
-                    <Link
-                      to="/upload"
-                      onClick={() => setIsMenuOpen(false)}
-                      className="block px-3 py-2 rounded-md text-base font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                    >
-                      Upload Image
-                    </Link>
                     <button
-                      onClick={() => { logout(); setIsMenuOpen(false); }}
-                      className="w-full text-left px-3 py-2 rounded-md text-base font-medium text-destructive hover:bg-destructive/10"
+                        className="lg:hidden p-2 rounded-md hover:bg-secondary"
+                        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                     >
-                      Logout
+                        <Menu size={24} />
                     </button>
-                  </>
-                ) : (
-                  <Link
-                    to="/login"
-                    onClick={() => setIsMenuOpen(false)}
-                    className="block px-3 py-2 rounded-md text-base font-medium text-primary hover:bg-primary/10"
-                  >
-                    Login
-                  </Link>
+
+                    <Link to="/" className="flex items-center gap-2 group">
+                        <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-black text-lg shadow-lg group-hover:scale-105 transition-transform">W</div>
+                        <span className="text-xl font-bold tracking-tight hidden sm:block">WAIFU.IM</span>
+                    </Link>
+                </div>
+
+                <div className="flex items-center gap-2 sm:gap-4">
+                    {/* Theme Toggle */}
+                    <button
+                        onClick={toggleTheme}
+                        className="p-2.5 rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                        {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
+                    </button>
+
+                    {/* User Dropdown */}
+                    {user ? (
+                        <div className="relative" ref={userMenuRef}>
+                            <button
+                                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                                className="flex items-center gap-3 pl-2 pr-3 py-1.5 rounded-full hover:bg-secondary transition-colors border border-transparent hover:border-border max-w-[200px]"
+                            >
+                                <div className="w-8 h-8 shrink-0 rounded-full bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
+                                    <UserIcon size={16} />
+                                </div>
+                                <div className="text-right hidden md:block overflow-hidden">
+                                    {/* Correction: Truncate pour les longs noms */}
+                                    <p className="text-xs font-bold leading-none truncate max-w-[100px]">{user.name}</p>
+                                    <p className="text-[10px] text-muted-foreground mt-0.5 uppercase tracking-wide font-semibold">
+                                        {user.role === 3 ? 'Admin' : user.role === 2 ? 'Mod' : 'User'}
+                                    </p>
+                                </div>
+                                <ChevronDown size={14} className={`text-muted-foreground shrink-0 transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`} />
+                            </button>
+
+                            {/* Dropdown Menu */}
+                            {isUserMenuOpen && (
+                                <div className="absolute right-0 mt-2 w-56 bg-card border border-border rounded-xl shadow-xl py-2 animate-in fade-in zoom-in-95 duration-200">
+                                    <div className="px-4 py-2 border-b border-border mb-2 md:hidden">
+                                        <p className="font-bold truncate">{user.name}</p>
+                                        <p className="text-xs text-muted-foreground">{user.role === 3 ? 'Administrator' : 'Member'}</p>
+                                    </div>
+
+                                    <Link to="/upload" onClick={() => setIsUserMenuOpen(false)} className="flex items-center gap-3 px-4 py-2.5 hover:bg-secondary text-sm font-medium">
+                                        <UploadIcon size={16} /> Upload Image
+                                    </Link>
+                                    <Link to="/albums" onClick={() => setIsUserMenuOpen(false)} className="flex items-center gap-3 px-4 py-2.5 hover:bg-secondary text-sm font-medium">
+                                        <Library size={16} /> My Albums
+                                    </Link>
+                                    <div className="my-1 border-t border-border"></div>
+                                    <button onClick={handleLogout} className="flex w-full items-center gap-3 px-4 py-2.5 hover:bg-destructive/10 text-destructive text-sm font-medium">
+                                        <LogOut size={16} /> Log out
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <Link
+                            to="/login"
+                            className="px-5 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 transition-all shadow-sm"
+                        >
+                            Login
+                        </Link>
+                    )}
+                </div>
+            </header>
+
+            {/* 2. MAIN LAYOUT */}
+            <div className="flex flex-1 overflow-hidden relative">
+
+                {/* DESKTOP SIDEBAR */}
+                <aside
+                    className={`hidden lg:flex flex-col border-r border-border bg-card transition-all duration-300 ease-in-out ${
+                        isSidebarCollapsed ? 'w-20' : 'w-64'
+                    }`}
+                >
+                    <nav className="flex-1 p-4 space-y-2">
+                        {navItems.map((item) => (
+                            <Link
+                                key={item.path}
+                                to={item.path}
+                                className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all group relative overflow-hidden ${
+                                    isActive(item.path)
+                                        ? 'bg-primary text-primary-foreground font-bold shadow-md'
+                                        : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+                                } ${isSidebarCollapsed ? 'justify-center' : ''}`}
+                                title={isSidebarCollapsed ? item.name : ''}
+                            >
+                                <item.icon size={22} className="relative z-10 shrink-0" />
+                                {!isSidebarCollapsed && <span className="relative z-10 whitespace-nowrap">{item.name}</span>}
+                            </Link>
+                        ))}
+
+                        <div className="my-4 border-t border-border mx-2 opacity-50"></div>
+
+                        <Link
+                            to="/upload"
+                            className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all ${
+                                isActive('/upload')
+                                    ? 'bg-secondary text-foreground font-bold'
+                                    : 'bg-secondary/30 text-foreground hover:bg-secondary font-medium'
+                            } ${isSidebarCollapsed ? 'justify-center' : ''}`}
+                        >
+                            <UploadIcon size={22} className="shrink-0" />
+                            {!isSidebarCollapsed && <span>Upload</span>}
+                        </Link>
+                    </nav>
+
+                    <div className="p-4 border-t border-border mt-auto">
+                        <button
+                            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                            className="w-full flex items-center justify-center p-2 rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                        >
+                            {isSidebarCollapsed ? <ChevronRight size={20} /> : <PanelLeft size={20} />}
+                        </button>
+                    </div>
+                </aside>
+
+                {/* MOBILE DRAWER */}
+                {isMobileMenuOpen && (
+                    <div className="fixed inset-0 z-50 lg:hidden">
+                        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)} />
+                        <div className="absolute inset-y-0 left-0 w-64 bg-background border-r border-border shadow-2xl flex flex-col p-4 animate-in slide-in-from-left">
+                            <div className="flex justify-between items-center mb-8">
+                                <span className="font-bold text-xl">Menu</span>
+                                <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 hover:bg-secondary rounded-lg"><X size={24} /></button>
+                            </div>
+                            <nav className="space-y-2 flex-1">
+                                {navItems.map((item) => (
+                                    <Link
+                                        key={item.path}
+                                        to={item.path}
+                                        onClick={() => setIsMobileMenuOpen(false)}
+                                        className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium ${
+                                            isActive(item.path) ? 'bg-secondary text-foreground' : 'text-muted-foreground'
+                                        }`}
+                                    >
+                                        <item.icon size={20} /> {item.name}
+                                    </Link>
+                                ))}
+                                <Link
+                                    to="/upload"
+                                    onClick={() => setIsMobileMenuOpen(false)}
+                                    className="flex items-center gap-3 px-4 py-3 rounded-xl bg-primary text-primary-foreground font-bold mt-4"
+                                >
+                                    <UploadIcon size={20} /> Upload
+                                </Link>
+                            </nav>
+                        </div>
+                    </div>
                 )}
-              </div>
+
+                {/* CONTENT AREA */}
+                <main className="flex-1 overflow-x-hidden overflow-y-auto bg-muted/20 h-[calc(100vh-4rem)] relative">
+                    <Outlet />
+                </main>
             </div>
-          </div>
-        )}
-      </nav>
-
-      <main>
-        <Outlet />
-      </main>
-
-      <footer className="bg-card border-t border-border mt-12 py-8">
-        <div className="container mx-auto px-4 text-center text-muted-foreground text-sm">
-          <p>&copy; {new Date().getFullYear()} WAIFU.IM. All rights reserved.</p>
-          <p className="mt-2">
-            waifu.im DOES NOT own any picture, therefore, we return a source link to credit the artist.
-          </p>
         </div>
-      </footer>
-    </div>
-  )
-}
+    );
+};
 
-export default Layout
+export default Layout;

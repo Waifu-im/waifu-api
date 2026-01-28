@@ -4,14 +4,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
+using WaifuApi.Application.Common.Models;
 using WaifuApi.Application.Interfaces;
-using WaifuApi.Domain.Entities;
 
 namespace WaifuApi.Application.Features.Auth.GetApiKeys;
 
-public record GetApiKeysQuery(long UserId) : IQuery<List<ApiKey>>;
+public record GetApiKeysQuery(long UserId) : IQuery<List<ApiKeyDto>>;
 
-public class GetApiKeysQueryHandler : IQueryHandler<GetApiKeysQuery, List<ApiKey>>
+public class GetApiKeysQueryHandler : IQueryHandler<GetApiKeysQuery, List<ApiKeyDto>>
 {
     private readonly IWaifuDbContext _context;
 
@@ -20,11 +20,21 @@ public class GetApiKeysQueryHandler : IQueryHandler<GetApiKeysQuery, List<ApiKey
         _context = context;
     }
 
-    public async ValueTask<List<ApiKey>> Handle(GetApiKeysQuery request, CancellationToken cancellationToken)
+    public async ValueTask<List<ApiKeyDto>> Handle(GetApiKeysQuery request, CancellationToken cancellationToken)
     {
         return await _context.ApiKeys
             .Where(k => k.UserId == request.UserId)
             .OrderByDescending(k => k.CreatedAt)
+            .Select(k => new ApiKeyDto
+            {
+                Id = k.Id,
+                Key = k.Key,
+                Description = k.Description,
+                CreatedAt = k.CreatedAt,
+                LastUsedAt = k.LastUsedAt,
+                ExpirationDate = k.ExpirationDate,
+                UserId = k.UserId
+            })
             .ToListAsync(cancellationToken);
     }
 }

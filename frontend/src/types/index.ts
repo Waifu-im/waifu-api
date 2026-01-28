@@ -40,6 +40,23 @@ export interface User {
   role: Role;
 }
 
+export interface AlbumDto {
+  id: number;
+  name: string;
+  description: string;
+  isDefault: boolean;
+  // No nested User object as per your change
+}
+
+export interface ApiKeyDto {
+  id: number;
+  keyPrefix: string;
+  label: string;
+  createdAt: string;
+  lastUsedAt?: string;
+  expiresAt?: string;
+}
+
 export enum Role {
   User = 0,
   TrustedUser = 1,

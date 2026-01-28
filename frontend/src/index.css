@@ -27,33 +27,61 @@
   }
 
   .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
+    /* Soft Dark Theme (Zinc Palette) */
+    --background: 240 10% 4%; /* Zinc 950 - Soft Black */
+    --foreground: 240 5% 96%; /* Zinc 100 */
+
+    --card: 240 6% 10%;       /* Zinc 900 */
+    --card-foreground: 240 5% 96%;
+
+    --popover: 240 6% 10%;
+    --popover-foreground: 240 5% 96%;
+
+    --primary: 240 5% 96%;
     --primary-foreground: 240 5.9% 10%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
+
+    --secondary: 240 4% 16%;  /* Zinc 800 */
+    --secondary-foreground: 240 5% 96%;
+
+    --muted: 240 4% 16%;
+    --muted-foreground: 240 5% 65%; /* Softer text */
+
+    --accent: 240 4% 16%;
+    --accent-foreground: 240 5% 96%;
+
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 240 4.9% 83.9%;
+    --destructive-foreground: 240 5% 96%;
+
+    --border: 240 6% 16%; /* Low contrast borders */
+    --input: 240 6% 16%;
+    --ring: 240 5% 84%;
   }
 }
 
 @layer base {
   * {
-    border-color: hsl(var(--border));
+    @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased selection:bg-primary/20;
+  }
+}
+
+@layer utilities {
+  .static-rainbow {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-violet-400 via-fuchsia-400 to-rose-400 font-black;
+  }
+
+  .text-info {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-sky-400 to-teal-300 font-black;
+  }
+
+  /* Improved Masonry */
+  .masonry-grid {
+    column-gap: 1rem;
+  }
+  .masonry-item {
+    break-inside: avoid;
+    margin-bottom: 1rem;
   }
 }

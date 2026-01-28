@@ -67,11 +67,18 @@ void ValidateConfiguration(IConfiguration configuration)
         "Moderation:RequireImageReview",
         "Moderation:RequireArtistReview",
         "Moderation:RequireTagReview",
-        "Image:MaxLimit",
+        "Image:DefaultPageSize",
+        "Image:MaxPageSize",
         "Image:MinWidth",
         "Image:MinHeight",
         "Image:MaxWidth",
-        "Image:MaxHeight"
+        "Image:MaxHeight",
+        "Tag:DefaultPageSize",
+        "Tag:MaxPageSize",
+        "Artist:DefaultPageSize",
+        "Artist:MaxPageSize",
+        "Album:DefaultPageSize",
+        "Album:MaxPageSize"
     };
 
     var missingKeys = new List<string>();

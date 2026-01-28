@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using FluentValidation;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using WaifuApi.Application.Common.Exceptions;
 
 namespace WaifuApi.Web.Middleware;
@@ -13,10 +14,12 @@ namespace WaifuApi.Web.Middleware;
 public class ExceptionHandlingMiddleware
 {
     private readonly RequestDelegate _next;
+    private readonly ILogger<ExceptionHandlingMiddleware> _logger;
 
-    public ExceptionHandlingMiddleware(RequestDelegate next)
+    public ExceptionHandlingMiddleware(RequestDelegate next, ILogger<ExceptionHandlingMiddleware> logger)
     {
         _next = next;
+        _logger = logger;
     }
 
     public async Task Invoke(HttpContext context)
@@ -27,12 +30,18 @@ public class ExceptionHandlingMiddleware
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "An unhandled exception occurred while processing the request.");
             await HandleExceptionAsync(context, ex);
         }
     }
 
     private static Task HandleExceptionAsync(HttpContext context, Exception exception)
     {
+        if (context.Response.HasStarted)
+        {
+            return Task.CompletedTask;
+        }
+
         var statusCode = HttpStatusCode.InternalServerError;
         var problemDetails = new ProblemDetails
         {
