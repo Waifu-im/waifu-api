@@ -26,20 +26,25 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   return (
-    <NotificationContext.Provider value={{ showNotification }}>
-      {children}
-      <div className="fixed bottom-4 right-4 z-50 flex flex-col items-end">
-        {notifications.map(notification => (
-          <Notification
-            key={notification.id}
-            id={notification.id}
-            type={notification.type}
-            message={notification.message}
-            onClose={removeNotification}
-          />
-        ))}
-      </div>
-    </NotificationContext.Provider>
+      <NotificationContext.Provider value={{ showNotification }}>
+        {children}
+        {/* Correction: z-[100] pour être au-dessus des Modals (z-50/z-60).
+          Ajout de pointer-events-none sur le conteneur pour ne pas bloquer les clics en dessous,
+          et pointer-events-auto sur les notifications elles-mêmes.
+      */}
+        <div className="fixed bottom-4 right-4 z-[100] flex flex-col items-end space-y-2 pointer-events-none">
+          {notifications.map(notification => (
+              <div key={notification.id} className="pointer-events-auto">
+                <Notification
+                    id={notification.id}
+                    type={notification.type}
+                    message={notification.message}
+                    onClose={removeNotification}
+                />
+              </div>
+          ))}
+        </div>
+      </NotificationContext.Provider>
   );
 };
 

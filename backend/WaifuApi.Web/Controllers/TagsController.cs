@@ -7,6 +7,7 @@ using WaifuApi.Application.Common.Models;
 using WaifuApi.Application.Features.GetTags;
 using WaifuApi.Application.Features.Tags.CreateTag;
 using WaifuApi.Application.Features.Tags.DeleteTag;
+using WaifuApi.Application.Features.Tags.GetTagByName;
 using WaifuApi.Application.Features.Tags.UpdateTag;
 using WaifuApi.Domain.Entities;
 
@@ -32,6 +33,18 @@ public class TagsController : ControllerBase
     {
         var tags = await _mediator.Send(query);
         return Ok(tags);
+    }
+
+    /// <summary>
+    /// Retrieves a tag by its name.
+    /// </summary>
+    /// <param name="name">The name of the tag.</param>
+    /// <returns>The tag details.</returns>
+    [HttpGet("by-name/{name}")]
+    public async Task<ActionResult<Tag>> GetByName([FromRoute] string name)
+    {
+        var tag = await _mediator.Send(new GetTagByNameQuery(name));
+        return Ok(tag);
     }
 
     /// <summary>

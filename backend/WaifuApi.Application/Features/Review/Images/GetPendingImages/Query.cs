@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using WaifuApi.Application.Common.Models;
 using WaifuApi.Application.Interfaces;
 using WaifuApi.Domain.Enums;
@@ -17,10 +18,12 @@ public record GetPendingImagesQuery : IQuery<List<ImageDto>>;
 public class GetPendingImagesQueryHandler : IQueryHandler<GetPendingImagesQuery, List<ImageDto>>
 {
     private readonly IWaifuDbContext _context;
+    private readonly string _cdnBaseUrl;
 
-    public GetPendingImagesQueryHandler(IWaifuDbContext context)
+    public GetPendingImagesQueryHandler(IWaifuDbContext context, IConfiguration configuration)
     {
         _context = context;
+        _cdnBaseUrl = configuration["Cdn:BaseUrl"] ?? throw new InvalidOperationException("Cdn:BaseUrl is required.");
     }
 
     public async ValueTask<List<ImageDto>> Handle(GetPendingImagesQuery request, CancellationToken cancellationToken)
@@ -41,13 +44,14 @@ public class GetPendingImagesQueryHandler : IQueryHandler<GetPendingImagesQuery,
             DominantColor = image.DominantColor,
             Source = image.Source,
             Artist = image.Artist,
+            UploaderId = image.UploaderId,
             UploadedAt = image.UploadedAt,
             IsNsfw = image.IsNsfw,
             IsAnimated = image.IsAnimated,
             Width = image.Width,
             Height = image.Height,
             ByteSize = image.ByteSize,
-            Url = "",
+            Url = $"{_cdnBaseUrl}/{image.Id}{image.Extension}",
             Tags = image.Tags
         }).ToList();
     }

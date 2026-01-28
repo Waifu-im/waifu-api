@@ -45,7 +45,6 @@ export interface AlbumDto {
   name: string;
   description: string;
   isDefault: boolean;
-  // No nested User object as per your change
 }
 
 export interface ApiKeyDto {
@@ -71,4 +70,13 @@ export interface PaginatedList<T> {
   totalCount: number;
   hasPreviousPage: boolean;
   hasNextPage: boolean;
+}
+
+// Added to resolve TS2322 and S2741 errors
+export interface ImageFormData {
+  source?: string;
+  isNsfw: boolean;
+  tagIds: number[];
+  artistId?: number | null;
+  userId?: number;
 }

@@ -30,9 +30,27 @@ public class ExceptionHandlingMiddleware
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "An unhandled exception occurred while processing the request.");
+            if (IsExpectedException(ex))
+            {
+                _logger.LogWarning("A request error occurred: {Message}", ex.Message);
+            }
+            else
+            {
+                _logger.LogError(ex, "An unhandled exception occurred while processing the request.");
+            }
+            
             await HandleExceptionAsync(context, ex);
         }
+    }
+
+    private static bool IsExpectedException(Exception ex)
+    {
+        return ex is ValidationException 
+            || ex is UnauthorizedAccessException 
+            || ex is KeyNotFoundException 
+            || ex is ConflictException 
+            || ex is ArgumentException 
+            || ex is InvalidOperationException;
     }
 
     private static Task HandleExceptionAsync(HttpContext context, Exception exception)

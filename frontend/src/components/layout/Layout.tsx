@@ -2,9 +2,9 @@
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import {
-    Sun, Moon, Menu, X, LogIn, LogOut, Upload as UploadIcon,
+    Sun, Moon, Menu, X, LogOut, Upload as UploadIcon,
     Home, Image as ImageIcon, Tag as TagIcon, ChevronRight, PanelLeft,
-    User as UserIcon, Library, ChevronDown
+    User as UserIcon, Library, ChevronDown, Palette, Key, FileCheck, Users as UsersIcon, Shield
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
@@ -20,7 +20,6 @@ const Layout = () => {
 
     const isActive = (path: string) => location.pathname === path;
 
-    // Close user menu on click outside
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
@@ -33,7 +32,6 @@ const Layout = () => {
 
     const handleLogout = () => {
         logout();
-        // Force reload to clear states
         window.location.href = "/";
     };
 
@@ -42,13 +40,16 @@ const Layout = () => {
         { name: 'Gallery', path: '/gallery', icon: ImageIcon },
         { name: 'Albums', path: '/albums', icon: Library },
         { name: 'Tags', path: '/tags', icon: TagIcon },
+        { name: 'Artists', path: '/artists', icon: Palette },
     ];
+
+    const isModOrAdmin = user && (user.role === 2 || user.role === 3);
+    const isAdmin = user && user.role === 3;
 
     return (
         <div className="min-h-screen bg-background text-foreground flex flex-col">
 
             {/* 1. TOP NAVBAR */}
-            {/* Correction: bg-card/95 pour matcher la sidebar en dark mode */}
             <header className="sticky top-0 z-50 w-full h-16 border-b border-border bg-card/95 backdrop-blur flex items-center justify-between px-4 lg:px-6 shadow-sm">
                 <div className="flex items-center gap-4">
                     <button
@@ -65,7 +66,6 @@ const Layout = () => {
                 </div>
 
                 <div className="flex items-center gap-2 sm:gap-4">
-                    {/* Theme Toggle */}
                     <button
                         onClick={toggleTheme}
                         className="p-2.5 rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
@@ -73,7 +73,6 @@ const Layout = () => {
                         {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
                     </button>
 
-                    {/* User Dropdown */}
                     {user ? (
                         <div className="relative" ref={userMenuRef}>
                             <button
@@ -84,7 +83,6 @@ const Layout = () => {
                                     <UserIcon size={16} />
                                 </div>
                                 <div className="text-right hidden md:block overflow-hidden">
-                                    {/* Correction: Truncate pour les longs noms */}
                                     <p className="text-xs font-bold leading-none truncate max-w-[100px]">{user.name}</p>
                                     <p className="text-[10px] text-muted-foreground mt-0.5 uppercase tracking-wide font-semibold">
                                         {user.role === 3 ? 'Admin' : user.role === 2 ? 'Mod' : 'User'}
@@ -93,24 +91,56 @@ const Layout = () => {
                                 <ChevronDown size={14} className={`text-muted-foreground shrink-0 transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`} />
                             </button>
 
-                            {/* Dropdown Menu */}
+                            {/* Enhanced Dropdown Menu */}
                             {isUserMenuOpen && (
-                                <div className="absolute right-0 mt-2 w-56 bg-card border border-border rounded-xl shadow-xl py-2 animate-in fade-in zoom-in-95 duration-200">
-                                    <div className="px-4 py-2 border-b border-border mb-2 md:hidden">
+                                <div className="absolute right-0 mt-2 w-64 bg-card border border-border rounded-xl shadow-xl py-2 animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
+
+                                    {/* Header Mobile */}
+                                    <div className="px-4 py-3 border-b border-border mb-1 md:hidden bg-secondary/30">
                                         <p className="font-bold truncate">{user.name}</p>
                                         <p className="text-xs text-muted-foreground">{user.role === 3 ? 'Administrator' : 'Member'}</p>
                                     </div>
 
-                                    <Link to="/upload" onClick={() => setIsUserMenuOpen(false)} className="flex items-center gap-3 px-4 py-2.5 hover:bg-secondary text-sm font-medium">
-                                        <UploadIcon size={16} /> Upload Image
-                                    </Link>
-                                    <Link to="/albums" onClick={() => setIsUserMenuOpen(false)} className="flex items-center gap-3 px-4 py-2.5 hover:bg-secondary text-sm font-medium">
-                                        <Library size={16} /> My Albums
-                                    </Link>
-                                    <div className="my-1 border-t border-border"></div>
-                                    <button onClick={handleLogout} className="flex w-full items-center gap-3 px-4 py-2.5 hover:bg-destructive/10 text-destructive text-sm font-medium">
-                                        <LogOut size={16} /> Log out
-                                    </button>
+                                    {/* User Section */}
+                                    <div className="px-2 py-1">
+                                        <p className="px-2 py-1 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Personal</p>
+                                        <Link to="/upload" onClick={() => setIsUserMenuOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-secondary text-sm font-medium transition-colors">
+                                            <UploadIcon size={16} className="text-muted-foreground" /> Upload Image
+                                        </Link>
+                                        <Link to="/albums" onClick={() => setIsUserMenuOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-secondary text-sm font-medium transition-colors">
+                                            <Library size={16} className="text-muted-foreground" /> My Albums
+                                        </Link>
+                                        <Link to="/api-keys" onClick={() => setIsUserMenuOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-secondary text-sm font-medium transition-colors">
+                                            <Key size={16} className="text-muted-foreground" /> API Keys
+                                        </Link>
+                                    </div>
+
+                                    {/* Admin/Mod Section */}
+                                    {(isModOrAdmin) && (
+                                        <>
+                                            <div className="my-1 border-t border-border mx-2"></div>
+                                            <div className="px-2 py-1">
+                                                <p className="px-2 py-1 text-[10px] font-bold uppercase text-muted-foreground tracking-wider flex items-center gap-1">
+                                                    <Shield size={10}/> Administration
+                                                </p>
+                                                <Link to="/review" onClick={() => setIsUserMenuOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-secondary text-sm font-medium transition-colors">
+                                                    <FileCheck size={16} className="text-orange-500" /> Moderation Queue
+                                                </Link>
+                                                {isAdmin && (
+                                                    <Link to="/users" onClick={() => setIsUserMenuOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-secondary text-sm font-medium transition-colors">
+                                                        <UsersIcon size={16} className="text-blue-500" /> User Management
+                                                    </Link>
+                                                )}
+                                            </div>
+                                        </>
+                                    )}
+
+                                    <div className="my-1 border-t border-border mx-2"></div>
+                                    <div className="px-2 pb-1">
+                                        <button onClick={handleLogout} className="flex w-full items-center gap-3 px-3 py-2 rounded-lg hover:bg-destructive/10 text-destructive text-sm font-medium transition-colors">
+                                            <LogOut size={16} /> Log out
+                                        </button>
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -128,13 +158,13 @@ const Layout = () => {
             {/* 2. MAIN LAYOUT */}
             <div className="flex flex-1 overflow-hidden relative">
 
-                {/* DESKTOP SIDEBAR */}
+                {/* DESKTOP SIDEBAR - Cleaned up */}
                 <aside
                     className={`hidden lg:flex flex-col border-r border-border bg-card transition-all duration-300 ease-in-out ${
                         isSidebarCollapsed ? 'w-20' : 'w-64'
                     }`}
                 >
-                    <nav className="flex-1 p-4 space-y-2">
+                    <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
                         {navItems.map((item) => (
                             <Link
                                 key={item.path}
@@ -185,7 +215,7 @@ const Layout = () => {
                                 <span className="font-bold text-xl">Menu</span>
                                 <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 hover:bg-secondary rounded-lg"><X size={24} /></button>
                             </div>
-                            <nav className="space-y-2 flex-1">
+                            <nav className="space-y-2 flex-1 overflow-y-auto">
                                 {navItems.map((item) => (
                                     <Link
                                         key={item.path}
@@ -198,13 +228,6 @@ const Layout = () => {
                                         <item.icon size={20} /> {item.name}
                                     </Link>
                                 ))}
-                                <Link
-                                    to="/upload"
-                                    onClick={() => setIsMobileMenuOpen(false)}
-                                    className="flex items-center gap-3 px-4 py-3 rounded-xl bg-primary text-primary-foreground font-bold mt-4"
-                                >
-                                    <UploadIcon size={20} /> Upload
-                                </Link>
                             </nav>
                         </div>
                     </div>

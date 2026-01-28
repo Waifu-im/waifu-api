@@ -22,8 +22,8 @@ public record UploadImageCommand(
     Stream FileStream,
     string FileName,
     string ContentType,
-    string? ArtistName,
-    List<string> Tags,
+    long? ArtistId,
+    List<long> TagIds,
     string? Source,
     bool IsNsfw
 ) : ICommand<ImageDto>;
@@ -68,37 +68,29 @@ public class UploadImageCommandHandler : ICommandHandler<UploadImageCommand, Ima
         }
 
         Artist? artist = null;
-        if (!string.IsNullOrEmpty(request.ArtistName))
+        if (request.ArtistId.HasValue)
         {
-            artist = await _context.Artists.FirstOrDefaultAsync(a => a.Name == request.ArtistName, cancellationToken);
+            artist = await _context.Artists.FindAsync(new object[] { request.ArtistId.Value }, cancellationToken);
             if (artist == null)
             {
-                var requireReview = bool.Parse(_configuration["Moderation:RequireArtistReview"] ?? throw new InvalidOperationException("Moderation:RequireArtistReview is required."));
-                artist = new Artist
-                {
-                    Name = request.ArtistName,
-                    ReviewStatus = requireReview ? ReviewStatus.Pending : ReviewStatus.Accepted
-                };
-                _context.Artists.Add(artist);
+                throw new KeyNotFoundException($"Artist with ID {request.ArtistId.Value} not found.");
             }
         }
 
         var tags = new List<Tag>();
-        var requireTagReview = bool.Parse(_configuration["Moderation:RequireTagReview"] ?? throw new InvalidOperationException("Moderation:RequireTagReview is required."));
-        foreach (var tagName in request.Tags)
+        if (request.TagIds.Any())
         {
-            var tag = await _context.Tags.FirstOrDefaultAsync(t => t.Name == tagName, cancellationToken);
-            if (tag == null)
+            var foundTags = await _context.Tags
+                .Where(t => request.TagIds.Contains(t.Id))
+                .ToListAsync(cancellationToken);
+
+            if (foundTags.Count != request.TagIds.Count)
             {
-                tag = new Tag
-                {
-                    Name = tagName,
-                    Description = "",
-                    ReviewStatus = requireTagReview ? ReviewStatus.Pending : ReviewStatus.Accepted
-                };
-                _context.Tags.Add(tag);
+                var foundIds = foundTags.Select(t => t.Id).ToList();
+                var missingIds = request.TagIds.Except(foundIds).ToList();
+                throw new KeyNotFoundException($"Tags with IDs {string.Join(", ", missingIds)} not found.");
             }
-            tags.Add(tag);
+            tags = foundTags;
         }
 
         var requireImageReview = bool.Parse(_configuration["Moderation:RequireImageReview"] ?? throw new InvalidOperationException("Moderation:RequireImageReview is required."));
@@ -144,6 +136,7 @@ public class UploadImageCommandHandler : ICommandHandler<UploadImageCommand, Ima
             DominantColor = image.DominantColor,
             Source = image.Source,
             Artist = image.Artist,
+            UploaderId = image.UploaderId,
             UploadedAt = image.UploadedAt,
             IsNsfw = image.IsNsfw,
             IsAnimated = image.IsAnimated,

@@ -12,6 +12,7 @@ public class ImageDto
     public string DominantColor { get; set; } = string.Empty;
     public string? Source { get; set; }
     public Artist? Artist { get; set; }
+    public long UploaderId { get; set; }
     public DateTime UploadedAt { get; set; }
     public bool IsNsfw { get; set; }
     public bool IsAnimated { get; set; }
@@ -24,4 +25,5 @@ public class ImageDto
     // Dynamic properties
     public long Favorites { get; set; }
     public DateTime? LikedAt { get; set; }
+    public DateTime? AddedToAlbumAt { get; set; }
 }

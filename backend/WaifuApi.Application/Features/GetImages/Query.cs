@@ -39,6 +39,8 @@ public class GetImagesQuery : IQuery<PaginatedList<ImageDto>>
     
     [JsonIgnore]
     public long? AlbumId { get; set; }
+    
+    public long? ArtistId { get; set; }
 }
 
 public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList<ImageDto>>
@@ -84,49 +86,85 @@ public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList
             Height = request.Height,
             ByteSize = request.ByteSize,
             UserId = request.UserId,
-            AlbumId = request.AlbumId
+            AlbumId = request.AlbumId,
+            ArtistId = request.ArtistId
         };
 
-        IQueryable<Image> query;
+        IQueryable<Image> query = _context.Images.AsNoTracking();
+        query = query.ApplyFilters(filters);
+
+        List<Image> images;
+        int totalCount;
+        Dictionary<long, DateTime> addedToAlbumMap = new();
 
         if (filters.AlbumId.HasValue)
         {
-            query = _context.Images
+            var joined = query.Join(_context.AlbumItems, i => i.Id, ai => ai.ImageId, (i, ai) => new { i, ai })
+                .Where(x => x.ai.AlbumId == filters.AlbumId.Value);
+
+            // Sorting
+            if (request.OrderBy == "ADDED_TO_ALBUM")
+            {
+                joined = joined.OrderByDescending(x => x.ai.AddedAt);
+            }
+            else if (request.OrderBy == "RANDOM")
+            {
+                joined = joined.OrderBy(x => EF.Functions.Random());
+            }
+            else
+            {
+                // Default sort by UploadedAt if not specified or unknown
+                joined = joined.OrderByDescending(x => x.i.UploadedAt);
+            }
+
+            totalCount = await joined.CountAsync(cancellationToken);
+            var pagedItems = await joined.Skip((request.Page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
+
+            var imageIds = pagedItems.Select(x => x.i.Id).ToList();
+            addedToAlbumMap = pagedItems.ToDictionary(x => x.i.Id, x => x.ai.AddedAt);
+
+            var fetchedImages = await _context.Images
                 .AsNoTracking()
                 .Include(i => i.Tags)
                 .Include(i => i.Artist)
-                .Where(i => _context.AlbumItems.Any(ai => ai.AlbumId == filters.AlbumId.Value && ai.ImageId == i.Id))
-                .AsQueryable();
+                .Where(i => imageIds.Contains(i.Id))
+                .ToListAsync(cancellationToken);
+
+            // Re-order in memory
+            images = imageIds.Select(id => fetchedImages.First(img => img.Id == id)).ToList();
         }
         else
         {
-            query = _context.Images
-                .AsNoTracking()
+            // Standard path
+            if (request.OrderBy == "RANDOM")
+            {
+                query = query.OrderBy(i => EF.Functions.Random());
+            }
+            else
+            {
+                query = query.OrderByDescending(i => i.UploadedAt);
+            }
+
+            totalCount = await query.CountAsync(cancellationToken);
+            images = await query
                 .Include(i => i.Tags)
                 .Include(i => i.Artist)
-                .AsQueryable();
+                .Skip((request.Page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync(cancellationToken);
         }
 
-        query = query.ApplyFilters(filters);
-
-        var totalCount = await query.CountAsync(cancellationToken);
-
-        query = query.Skip((request.Page - 1) * pageSize).Take(pageSize);
-
-        // Fetch data first, then map to DTO in memory
-        var images = await query.ToListAsync(cancellationToken);
-
-        var imageIds = images.Select(i => i.Id).ToList();
+        var imageIdsForStats = images.Select(i => i.Id).ToList();
         
         var favoritesCounts = await _context.AlbumItems
-            .Where(ai => imageIds.Contains(ai.ImageId) && ai.Album.IsDefault)
+            .Where(ai => imageIdsForStats.Contains(ai.ImageId) && ai.Album.IsDefault)
             .GroupBy(ai => ai.ImageId)
             .Select(g => new { ImageId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.ImageId, x => x.Count, cancellationToken);
 
         var likedStatus = request.UserId > 0
             ? await _context.AlbumItems
-                .Where(ai => imageIds.Contains(ai.ImageId) && ai.Album.UserId == request.UserId && ai.Album.IsDefault)
+                .Where(ai => imageIdsForStats.Contains(ai.ImageId) && ai.Album.UserId == request.UserId && ai.Album.IsDefault)
                 .Select(ai => new { ai.ImageId, ai.AddedAt })
                 .ToDictionaryAsync(x => x.ImageId, x => x.AddedAt, cancellationToken)
             : new Dictionary<long, DateTime>();
@@ -139,6 +177,7 @@ public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList
             DominantColor = image.DominantColor,
             Source = image.Source,
             Artist = (image.Artist != null && image.Artist.ReviewStatus == ReviewStatus.Accepted) ? image.Artist : null,
+            UploaderId = image.UploaderId,
             UploadedAt = image.UploadedAt,
             IsNsfw = image.IsNsfw,
             IsAnimated = image.IsAnimated,
@@ -148,7 +187,8 @@ public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList
             Url = $"{_cdnBaseUrl}/{image.Id}{image.Extension}",
             Tags = image.Tags.Where(t => t.ReviewStatus == ReviewStatus.Accepted).ToList(),
             Favorites = favoritesCounts.TryGetValue(image.Id, out var count) ? count : 0,
-            LikedAt = likedStatus.TryGetValue(image.Id, out var date) ? (DateTime?)date : null
+            LikedAt = likedStatus.TryGetValue(image.Id, out var date) ? (DateTime?)date : null,
+            AddedToAlbumAt = addedToAlbumMap.TryGetValue(image.Id, out var addedAt) ? addedAt : null
         }).ToList();
 
         return new PaginatedList<ImageDto>(imageDtos, totalCount, request.Page, pageSize);

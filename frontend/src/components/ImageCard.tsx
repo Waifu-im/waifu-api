@@ -1,5 +1,5 @@
 ﻿import { ImageDto } from "../types";
-import { Heart, Trash2 } from "lucide-react";
+import { Heart, Trash2, Edit2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useState } from "react";
@@ -8,9 +8,10 @@ import api from "../services/api";
 interface ImageCardProps {
     image: ImageDto;
     onDelete?: (id: number) => void;
+    onEdit?: (image: ImageDto) => void;
 }
 
-const ImageCard = ({ image, onDelete }: ImageCardProps) => {
+const ImageCard = ({ image, onDelete, onEdit }: ImageCardProps) => {
     const { user } = useAuth();
     const isAdmin = user?.role === 3;
     const [isLiked, setIsLiked] = useState(!!image.likedAt);
@@ -19,10 +20,10 @@ const ImageCard = ({ image, onDelete }: ImageCardProps) => {
 
     const toggleLike = async (e: React.MouseEvent) => {
         e.preventDefault();
+        e.stopPropagation(); // Stop propagation
         if (!user || isLikeLoading) return;
 
         setIsLikeLoading(true);
-        // Optimistic Update
         const prevLiked = isLiked;
         setIsLiked(!prevLiked);
         setLikesCount(prev => prevLiked ? prev - 1 : prev + 1);
@@ -34,7 +35,6 @@ const ImageCard = ({ image, onDelete }: ImageCardProps) => {
                 await api.post(`/users/me/albums/favorites/images/${image.id}`);
             }
         } catch (error) {
-            // Revert if failed
             setIsLiked(prevLiked);
             setLikesCount(prev => prevLiked ? prev : prev - 1);
             console.error("Like failed", error);
@@ -54,11 +54,20 @@ const ImageCard = ({ image, onDelete }: ImageCardProps) => {
                 />
             </Link>
 
-            {/* Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col justify-between p-3">
+            {/* Overlay: pointer-events-none allows clicks to pass through to the Link */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col justify-between p-3 pointer-events-none">
 
-                {/* Top Actions */}
-                <div className="flex justify-end">
+                {/* Top Actions: pointer-events-auto re-enables clicking buttons */}
+                <div className="flex justify-end gap-2 pointer-events-auto">
+                    {onEdit && (
+                        <button
+                            onClick={(e) => { e.preventDefault(); onEdit(image); }}
+                            className="p-2 bg-accent/90 text-accent-foreground rounded-full shadow-sm hover:bg-accent transition-transform hover:scale-110"
+                            title="Edit Image"
+                        >
+                            <Edit2 size={14} />
+                        </button>
+                    )}
                     {isAdmin && onDelete && (
                         <button
                             onClick={(e) => { e.preventDefault(); onDelete(image.id); }}
@@ -77,9 +86,10 @@ const ImageCard = ({ image, onDelete }: ImageCardProps) => {
                             <span className="text-xs font-mono opacity-75">#{image.id}</span>
                         </div>
 
+                        {/* pointer-events-auto for Like button */}
                         <button
                             onClick={toggleLike}
-                            className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md transition-colors"
+                            className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md transition-colors pointer-events-auto"
                         >
                             <Heart
                                 size={14}

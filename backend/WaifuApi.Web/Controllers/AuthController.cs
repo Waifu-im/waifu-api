@@ -7,6 +7,7 @@ using WaifuApi.Application.Features.Auth.CreateApiKey;
 using WaifuApi.Application.Features.Auth.GetApiKeys;
 using WaifuApi.Application.Features.Auth.LoginWithDiscord;
 using WaifuApi.Application.Features.Auth.RevokeApiKey;
+using WaifuApi.Application.Features.Auth.UpdateApiKey;
 using WaifuApi.Domain.Entities;
 
 namespace WaifuApi.Web.Controllers;
@@ -50,15 +51,30 @@ public class AuthController : ControllerBase
     /// <summary>
     /// Creates a new API key for the current user.
     /// </summary>
-    /// <param name="request">The request containing the description for the new key.</param>
+    /// <param name="request">The request containing the description and expiration.</param>
     /// <returns>The created API key.</returns>
     [Authorize]
     [HttpPost("api-keys")]
     public async Task<ActionResult<ApiKeyDto>> CreateApiKey([FromBody] CreateApiKeyRequest request)
     {
         var userId = long.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        var key = await _mediator.Send(new CreateApiKeyCommand(userId, request.Description));
+        var key = await _mediator.Send(new CreateApiKeyCommand(userId, request.Description, request.ExpirationDate));
         return CreatedAtAction(nameof(GetApiKeys), null, key);
+    }
+
+    /// <summary>
+    /// Updates an existing API key.
+    /// </summary>
+    /// <param name="id">The ID of the API key to update.</param>
+    /// <param name="request">The update request.</param>
+    /// <returns>The updated API key.</returns>
+    [Authorize]
+    [HttpPut("api-keys/{id:long}")]
+    public async Task<ActionResult<ApiKeyDto>> UpdateApiKey([FromRoute] long id, [FromBody] UpdateApiKeyRequest request)
+    {
+        var userId = long.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var key = await _mediator.Send(new UpdateApiKeyCommand(userId, id, request.Description, request.ExpirationDate));
+        return Ok(key);
     }
 
     /// <summary>
@@ -78,4 +94,11 @@ public class AuthController : ControllerBase
 public class CreateApiKeyRequest
 {
     public string Description { get; set; } = string.Empty;
+    public DateTime? ExpirationDate { get; set; }
+}
+
+public class UpdateApiKeyRequest
+{
+    public string Description { get; set; } = string.Empty;
+    public DateTime? ExpirationDate { get; set; }
 }

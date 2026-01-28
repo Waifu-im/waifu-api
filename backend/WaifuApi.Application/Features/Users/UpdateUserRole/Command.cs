@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Mediator;
@@ -12,14 +13,21 @@ public record UpdateUserRoleCommand(long UserId, Role Role) : ICommand<User>;
 public class UpdateUserRoleCommandHandler : ICommandHandler<UpdateUserRoleCommand, User>
 {
     private readonly IWaifuDbContext _context;
+    private readonly ICurrentUserService _currentUserService;
 
-    public UpdateUserRoleCommandHandler(IWaifuDbContext context)
+    public UpdateUserRoleCommandHandler(IWaifuDbContext context, ICurrentUserService currentUserService)
     {
         _context = context;
+        _currentUserService = currentUserService;
     }
 
     public async ValueTask<User> Handle(UpdateUserRoleCommand request, CancellationToken cancellationToken)
     {
+        if (request.UserId == _currentUserService.UserId)
+        {
+            throw new InvalidOperationException("You cannot change your own role.");
+        }
+
         var user = await _context.Users.FindAsync(new object[] { request.UserId }, cancellationToken);
         if (user == null)
         {

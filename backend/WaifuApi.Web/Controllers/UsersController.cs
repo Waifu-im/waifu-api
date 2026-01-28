@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Mediator;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using WaifuApi.Application.Common.Models;
 using WaifuApi.Application.Features.Users.BanUser;
 using WaifuApi.Application.Features.Users.GetMe;
 using WaifuApi.Application.Features.Users.GetUsers;
@@ -41,11 +42,11 @@ public class UsersController : ControllerBase
     /// </summary>
     /// <param name="search">Optional search term for name or Discord ID.</param>
     /// <param name="page">Page number (default 1).</param>
-    /// <param name="pageSize">Page size (default 20).</param>
+    /// <param name="pageSize">Page size (default 0, uses server default).</param>
     /// <returns>A paginated list of users.</returns>
     [HttpGet]
     [Authorize(Policy = "Admin")]
-    public async Task<ActionResult<List<User>>> Get([FromQuery] string? search, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+    public async Task<ActionResult<PaginatedList<User>>> Get([FromQuery] string? search, [FromQuery] int page = 1, [FromQuery] int pageSize = 0)
     {
         var users = await _mediator.Send(new GetUsersQuery(search, page, pageSize));
         return Ok(users);

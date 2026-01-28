@@ -9,7 +9,7 @@ using WaifuApi.Domain.Entities;
 
 namespace WaifuApi.Application.Features.Auth.CreateApiKey;
 
-public record CreateApiKeyCommand(long UserId, string Description) : ICommand<ApiKeyDto>;
+public record CreateApiKeyCommand(long UserId, string Description, DateTime? ExpirationDate) : ICommand<ApiKeyDto>;
 
 public class CreateApiKeyCommandHandler : ICommandHandler<CreateApiKeyCommand, ApiKeyDto>
 {
@@ -28,7 +28,8 @@ public class CreateApiKeyCommandHandler : ICommandHandler<CreateApiKeyCommand, A
             UserId = request.UserId,
             Key = key,
             Description = request.Description,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            ExpirationDate = request.ExpirationDate
         };
 
         _context.ApiKeys.Add(apiKey);

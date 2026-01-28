@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using WaifuApi.Application.Common.Models;
 using WaifuApi.Application.Features.Artists.CreateArtist;
 using WaifuApi.Application.Features.Artists.DeleteArtist;
+using WaifuApi.Application.Features.Artists.GetArtistByName;
 using WaifuApi.Application.Features.Artists.GetArtists;
 using WaifuApi.Application.Features.Artists.UpdateArtist;
 using WaifuApi.Domain.Entities;
@@ -32,6 +33,18 @@ public class ArtistsController : ControllerBase
     {
         var artists = await _mediator.Send(query);
         return Ok(artists);
+    }
+
+    /// <summary>
+    /// Retrieves an artist by name.
+    /// </summary>
+    /// <param name="name">The name of the artist.</param>
+    /// <returns>The artist details.</returns>
+    [HttpGet("by-name/{name}")]
+    public async Task<ActionResult<Artist>> GetByName([FromRoute] string name)
+    {
+        var artist = await _mediator.Send(new GetArtistByNameQuery(name));
+        return Ok(artist);
     }
 
     /// <summary>

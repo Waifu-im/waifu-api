@@ -5,10 +5,14 @@ import Upload from './pages/Upload'
 import Callback from './pages/Callback'
 import Gallery from './pages/Gallery'
 import Tags from './pages/Tags'
+import Artists from './pages/Artists'
 import Albums from './pages/Albums'
-import AlbumPage from './pages/AlbumPage' // Import new page
+import AlbumPage from './pages/AlbumPage'
 import ImagePage from './pages/ImagePage'
 import Layout from './components/layout/Layout'
+import Review from './pages/Review'
+import Users from './pages/Users'
+import ApiKeys from './pages/ApiKeys'
 
 function App() {
     return (
@@ -17,11 +21,15 @@ function App() {
                 <Route index element={<Home />} />
                 <Route path="gallery" element={<Gallery />} />
                 <Route path="albums" element={<Albums />} />
-                <Route path="albums/:id" element={<AlbumPage />} /> {/* Route added */}
+                <Route path="albums/:id" element={<AlbumPage />} />
                 <Route path="images/:id" element={<ImagePage />} />
                 <Route path="tags" element={<Tags />} />
+                <Route path="artists" element={<Artists />} />
                 <Route path="login" element={<Login />} />
                 <Route path="upload" element={<Upload />} />
+                <Route path="review" element={<Review />} />
+                <Route path="users" element={<Users />} />
+                <Route path="api-keys" element={<ApiKeys />} />
                 <Route path="auth/callback" element={<Callback />} />
             </Route>
         </Routes>

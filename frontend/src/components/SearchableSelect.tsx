@@ -1,5 +1,5 @@
 ﻿import { useState, useEffect, useRef } from 'react';
-import { X, Plus, ChevronDown } from 'lucide-react';
+import { X, Plus, ChevronDown, Check } from 'lucide-react';
 
 interface Option {
     id: number | string;
@@ -46,19 +46,23 @@ const SearchableSelect = ({
     }, []);
 
     const filteredOptions = options.filter(option =>
-        option.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-        !selectedOptions.some(selected => selected.id === option.id)
+        option.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    const handleSelect = (option: Option) => {
-        onSelect(option);
+    const handleOptionClick = (option: Option) => {
+        // Fix: Check by ID first, then by Name (handles case where selected comes from URL string and option comes from API object)
+        const isSelected = selectedOptions.some(selected =>
+            selected.id === option.id || selected.name === option.name
+        );
+
+        if (isSelected) {
+            onRemove(option);
+        } else {
+            onSelect(option);
+        }
+
         if (!isMulti) setIsOpen(false);
         setSearchTerm('');
-    };
-
-    const handleContainerClick = () => {
-        setIsOpen(true);
-        inputRef.current?.focus();
     };
 
     return (
@@ -67,7 +71,7 @@ const SearchableSelect = ({
 
             <div
                 className="min-h-[42px] p-1.5 border border-input rounded-xl bg-card focus-within:ring-2 focus-within:ring-primary focus-within:border-transparent flex flex-wrap items-center gap-1.5 cursor-pointer shadow-sm hover:border-primary/50 transition-colors"
-                onClick={handleContainerClick}
+                onClick={() => { setIsOpen(true); inputRef.current?.focus(); }}
             >
                 {selectedOptions.length === 0 && !searchTerm && (
                     <span className="text-muted-foreground text-sm px-2 select-none pointer-events-none absolute">{placeholder}</span>
@@ -75,7 +79,7 @@ const SearchableSelect = ({
 
                 {selectedOptions.map(option => (
                     <span key={option.id} className="bg-secondary text-secondary-foreground px-2.5 py-1 rounded-lg text-sm font-medium flex items-center gap-1.5 animate-in fade-in zoom-in duration-200">
-            {option.name}
+                        {option.name}
                         {clearable && (
                             <button
                                 onClick={(e) => { e.stopPropagation(); onRemove(option); }}
@@ -84,19 +88,15 @@ const SearchableSelect = ({
                                 <X size={12} />
                             </button>
                         )}
-          </span>
+                    </span>
                 ))}
 
-                {/* Input: Flex-1 to take space but min-width to act as input area */}
                 <input
                     ref={inputRef}
                     type="text"
                     className="flex-1 bg-transparent outline-none text-sm px-1 min-w-[2rem] h-6"
                     value={searchTerm}
-                    onChange={(e) => {
-                        setSearchTerm(e.target.value);
-                        setIsOpen(true);
-                    }}
+                    onChange={(e) => { setSearchTerm(e.target.value); setIsOpen(true); }}
                     onFocus={() => setIsOpen(true)}
                 />
 
@@ -107,16 +107,26 @@ const SearchableSelect = ({
 
             {isOpen && (
                 <div className="absolute z-50 w-full mt-2 bg-popover border border-border rounded-xl shadow-xl max-h-60 overflow-auto py-1 animate-in fade-in slide-in-from-top-2">
-                    {filteredOptions.map(option => (
-                        <div
-                            key={option.id}
-                            className="px-4 py-2.5 hover:bg-accent hover:text-accent-foreground cursor-pointer flex justify-between items-center text-sm transition-colors"
-                            onClick={() => handleSelect(option)}
-                        >
-                            <span>{option.name}</span>
-                            {option.description && <span className="text-xs text-muted-foreground truncate ml-2 max-w-[50%] opacity-70">{option.description}</span>}
-                        </div>
-                    ))}
+                    {filteredOptions.map(option => {
+                        const isSelected = selectedOptions.some(s => s.id === option.id || s.name === option.name);
+                        return (
+                            <div
+                                key={option.id}
+                                className={`px-4 py-2.5 cursor-pointer flex justify-between items-center text-sm transition-colors ${
+                                    isSelected
+                                        ? 'bg-primary/10 text-primary font-medium'
+                                        : 'hover:bg-accent hover:text-accent-foreground'
+                                }`}
+                                onClick={() => handleOptionClick(option)}
+                            >
+                                <div className="flex items-center gap-2 overflow-hidden">
+                                    {isSelected && <Check size={14} />}
+                                    <span className="truncate">{option.name}</span>
+                                </div>
+                                {option.description && <span className="text-xs text-muted-foreground truncate ml-2 max-w-[40%] opacity-70">{option.description}</span>}
+                            </div>
+                        );
+                    })}
 
                     {searchTerm && onCreate && !options.some(o => o.name.toLowerCase() === searchTerm.toLowerCase()) && (
                         <div
