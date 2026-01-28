@@ -30,10 +30,10 @@ public class ImageProcessingService : IImageProcessingService
         var height = image.Height;
 
         // Resolution Check
-        var minWidth = _configuration.GetValue<int>("Image:MinWidth");
-        var minHeight = _configuration.GetValue<int>("Image:MinHeight");
-        var maxWidth = _configuration.GetValue<int>("Image:MaxWidth");
-        var maxHeight = _configuration.GetValue<int>("Image:MaxHeight");
+        var minWidth = int.Parse(_configuration["Image:MinWidth"] ?? throw new InvalidOperationException("Image:MinWidth is required."));
+        var minHeight = int.Parse(_configuration["Image:MinHeight"] ?? throw new InvalidOperationException("Image:MinHeight is required."));
+        var maxWidth = int.Parse(_configuration["Image:MaxWidth"] ?? throw new InvalidOperationException("Image:MaxWidth is required."));
+        var maxHeight = int.Parse(_configuration["Image:MaxHeight"] ?? throw new InvalidOperationException("Image:MaxHeight is required."));
 
         if (width < minWidth || height < minHeight)
         {

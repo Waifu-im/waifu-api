@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Pgvector.EntityFrameworkCore;
 using WaifuApi.Application.Interfaces;
 using WaifuApi.Infrastructure.Persistence;
 using WaifuApi.Infrastructure.Services;
@@ -12,7 +13,7 @@ public static class DependencyInjection
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddDbContext<WaifuDbContext>(options =>
-            options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
+            options.UseNpgsql(configuration.GetConnectionString("DefaultConnection"), o => o.UseVector()));
 
         services.AddScoped<IWaifuDbContext>(provider => provider.GetRequiredService<WaifuDbContext>());
 

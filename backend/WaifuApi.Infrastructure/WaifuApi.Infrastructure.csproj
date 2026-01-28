@@ -12,6 +12,7 @@
     </PackageReference>
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.2" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0" />
+    <PackageReference Include="Pgvector.EntityFrameworkCore" Version="0.2.1" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.15.0" />
     <PackageReference Include="AWSSDK.S3" Version="4.0.17.3" />
     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />

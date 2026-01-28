@@ -7,7 +7,7 @@ namespace WaifuApi.Application.Common.Models;
 public class ImageDto
 {
     public long Id { get; set; }
-    public string Signature { get; set; } = string.Empty;
+    public required string PerceptualHash { get; set; }
     public string Extension { get; set; } = string.Empty;
     public string DominantColor { get; set; } = string.Empty;
     public string? Source { get; set; }

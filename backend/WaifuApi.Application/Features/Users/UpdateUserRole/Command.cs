@@ -1,4 +1,5 @@
-﻿using System.Threading;
+﻿using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Mediator;
 using WaifuApi.Application.Interfaces;
@@ -6,9 +7,9 @@ using WaifuApi.Domain.Entities;
 
 namespace WaifuApi.Application.Features.Users.UpdateUserRole;
 
-public record UpdateUserRoleCommand(long UserId, Role Role) : ICommand;
+public record UpdateUserRoleCommand(long UserId, Role Role) : ICommand<User>;
 
-public class UpdateUserRoleCommandHandler : ICommandHandler<UpdateUserRoleCommand>
+public class UpdateUserRoleCommandHandler : ICommandHandler<UpdateUserRoleCommand, User>
 {
     private readonly IWaifuDbContext _context;
 
@@ -17,14 +18,17 @@ public class UpdateUserRoleCommandHandler : ICommandHandler<UpdateUserRoleComman
         _context = context;
     }
 
-    public async ValueTask<Unit> Handle(UpdateUserRoleCommand request, CancellationToken cancellationToken)
+    public async ValueTask<User> Handle(UpdateUserRoleCommand request, CancellationToken cancellationToken)
     {
         var user = await _context.Users.FindAsync(new object[] { request.UserId }, cancellationToken);
-        if (user != null)
+        if (user == null)
         {
-            user.Role = request.Role;
-            await _context.SaveChangesAsync(cancellationToken);
+            throw new KeyNotFoundException($"User with ID {request.UserId} not found.");
         }
-        return Unit.Value;
+
+        user.Role = request.Role;
+        await _context.SaveChangesAsync(cancellationToken);
+        
+        return user;
     }
 }

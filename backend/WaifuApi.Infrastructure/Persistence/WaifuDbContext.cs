@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using WaifuApi.Application.Interfaces;
 using WaifuApi.Domain.Entities;
 
@@ -21,6 +22,8 @@ public class WaifuDbContext : DbContext, IWaifuDbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.HasPostgresExtension("vector");
+
         modelBuilder.Entity<User>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -43,7 +46,10 @@ public class WaifuDbContext : DbContext, IWaifuDbContext
         modelBuilder.Entity<Image>(entity =>
         {
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.PerceptualHash).IsRequired();
+            entity.Property(e => e.PerceptualHash)
+                .HasColumnType("bit(64)")
+                .IsRequired();
+            
             entity.Property(e => e.Extension).IsRequired();
             entity.Property(e => e.DominantColor).IsRequired();
             
@@ -60,12 +66,18 @@ public class WaifuDbContext : DbContext, IWaifuDbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Name).IsRequired();
+            entity.HasIndex(e => e.Name).IsUnique();
+            entity.HasIndex(e => e.Patreon).IsUnique();
+            entity.HasIndex(e => e.Pixiv).IsUnique();
+            entity.HasIndex(e => e.Twitter).IsUnique();
+            entity.HasIndex(e => e.DeviantArt).IsUnique();
         });
 
         modelBuilder.Entity<Tag>(entity =>
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Name).IsRequired();
+            entity.HasIndex(e => e.Name).IsUnique();
             entity.Property(e => e.Description).IsRequired();
         });
 

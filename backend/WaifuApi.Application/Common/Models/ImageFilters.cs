@@ -14,7 +14,6 @@ public class ImageFilters
     public string OrderBy { get; set; } = string.Empty;
     public string Orientation { get; set; } = string.Empty;
     public int Limit { get; set; }
-    public bool Full { get; set; }
     public string Width { get; set; } = string.Empty;
     public string Height { get; set; } = string.Empty;
     public string ByteSize { get; set; } = string.Empty;

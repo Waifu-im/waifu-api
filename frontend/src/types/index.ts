@@ -15,6 +15,7 @@
   tags: Tag[];
   favorites: number;
   likedAt?: string;
+  uploaderId: number;
 }
 
 export interface Artist {
@@ -30,7 +31,6 @@ export interface Tag {
   id: number;
   name: string;
   description: string;
-  isNsfw: boolean;
 }
 
 export interface User {
@@ -45,4 +45,13 @@ export enum Role {
   TrustedUser = 1,
   Moderator = 2,
   Admin = 3
+}
+
+export interface PaginatedList<T> {
+  items: T[];
+  pageNumber: number;
+  totalPages: number;
+  totalCount: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
 }

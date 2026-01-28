@@ -3,6 +3,9 @@ import Home from './pages/Home'
 import Login from './pages/Login'
 import Upload from './pages/Upload'
 import Callback from './pages/Callback'
+import Gallery from './pages/Gallery'
+import Tags from './pages/Tags'
+import ImagePage from './pages/ImagePage'
 import Layout from './components/layout/Layout'
 
 function App() {
@@ -10,6 +13,9 @@ function App() {
     <Routes>
       <Route path="/" element={<Layout />}>
         <Route index element={<Home />} />
+        <Route path="gallery" element={<Gallery />} />
+        <Route path="images/:id" element={<ImagePage />} />
+        <Route path="tags" element={<Tags />} />
         <Route path="login" element={<Login />} />
         <Route path="upload" element={<Upload />} />
         <Route path="auth/callback" element={<Callback />} />

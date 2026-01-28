@@ -1,11 +1,16 @@
+using System.Collections.Generic;
+using System.IO;
 using System.Security.Claims;
+using System.Threading.Tasks;
 using Mediator;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using WaifuApi.Application.Common.Models;
 using WaifuApi.Application.Features.GetImageById;
 using WaifuApi.Application.Features.GetImages;
 using WaifuApi.Application.Features.Images.DeleteImage;
+using WaifuApi.Application.Features.Images.UpdateImage;
 using WaifuApi.Application.Features.Images.UploadImage;
 using WaifuApi.Domain.Entities;
 
@@ -26,6 +31,16 @@ public class ImagesController : ControllerBase
     /// Searches for images based on filters.
     /// </summary>
     /// <param name="query">The search filters.</param>
+    /// <remarks>
+    /// **IsNsfw**: 
+    /// - Safe (0): Returns only Safe images (Default).
+    /// - Nsfw (1): Returns only NSFW images.
+    /// - All (2): Returns both Safe and NSFW images.
+    /// 
+    /// **Limit**:
+    /// - Number (e.g., "30"): Returns up to that many images (Default 1).
+    /// - "all": Returns all images (Admin only).
+    /// </remarks>
     /// <returns>A list of images matching the criteria.</returns>
     [HttpGet]
     public async Task<ActionResult<List<ImageDto>>> Get([FromQuery] GetImagesQuery query)
@@ -77,6 +92,21 @@ public class ImagesController : ControllerBase
     }
 
     /// <summary>
+    /// Updates an image's metadata.
+    /// </summary>
+    /// <param name="id">The image ID.</param>
+    /// <param name="request">The update request.</param>
+    /// <returns>The updated image details.</returns>
+    [Authorize(Policy = "Moderator")]
+    [HttpPatch("{id:long}")]
+    public async Task<ActionResult<ImageDto>> Update([FromRoute] long id, [FromBody] UpdateImageRequest request)
+    {
+        var command = new UpdateImageCommand(id, request.Source, request.IsNsfw, request.UserId);
+        var image = await _mediator.Send(command);
+        return Ok(image);
+    }
+
+    /// <summary>
     /// Deletes an image.
     /// </summary>
     /// <param name="id">The ID of the image to delete.</param>
@@ -100,4 +130,11 @@ public class UploadImageRequest
     public List<string>? Tags { get; set; }
     public string? Source { get; set; }
     public bool IsNsfw { get; set; }
+}
+
+public class UpdateImageRequest
+{
+    public string? Source { get; set; }
+    public bool? IsNsfw { get; set; }
+    public long? UserId { get; set; }
 }

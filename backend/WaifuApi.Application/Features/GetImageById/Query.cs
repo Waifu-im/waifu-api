@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -7,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using WaifuApi.Application.Common.Models;
 using WaifuApi.Application.Interfaces;
+using WaifuApi.Domain.Enums;
 
 namespace WaifuApi.Application.Features.GetImageById;
 
@@ -49,11 +51,11 @@ public class GetImageByIdQueryHandler : IQueryHandler<GetImageByIdQuery, ImageDt
         return new ImageDto
         {
             Id = image.Id,
-            Signature = image.PerceptualHash,
+            PerceptualHash = BitArrayToHex(image.PerceptualHash),
             Extension = image.Extension,
             DominantColor = image.DominantColor,
             Source = image.Source,
-            Artist = image.Artist,
+            Artist = (image.Artist != null && image.Artist.ReviewStatus == ReviewStatus.Accepted) ? image.Artist : null,
             UploadedAt = image.UploadedAt,
             IsNsfw = image.IsNsfw,
             IsAnimated = image.IsAnimated,
@@ -61,9 +63,16 @@ public class GetImageByIdQueryHandler : IQueryHandler<GetImageByIdQuery, ImageDt
             Height = image.Height,
             ByteSize = image.ByteSize,
             Url = $"{_cdnBaseUrl}/{image.Id}{image.Extension}",
-            Tags = image.Tags,
+            Tags = image.Tags.Where(t => t.ReviewStatus == ReviewStatus.Accepted).ToList(),
             Favorites = favorites,
             LikedAt = likedAt
         };
+    }
+
+    private static string BitArrayToHex(BitArray bits)
+    {
+        var bytes = new byte[(bits.Length + 7) / 8];
+        bits.CopyTo(bytes, 0);
+        return Convert.ToHexString(bytes).ToLowerInvariant();
     }
 }

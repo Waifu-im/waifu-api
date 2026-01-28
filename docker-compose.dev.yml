@@ -1,6 +1,6 @@
 ﻿services:
   db:
-    image: postgres:18-alpine
+    image: pgvector/pgvector:pg18
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}

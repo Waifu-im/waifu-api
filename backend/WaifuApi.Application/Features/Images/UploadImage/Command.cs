@@ -1,6 +1,15 @@
-﻿using Mediator;
+﻿using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Mediator;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Pgvector.EntityFrameworkCore;
+using WaifuApi.Application.Common.Exceptions;
 using WaifuApi.Application.Common.Models;
 using WaifuApi.Application.Interfaces;
 using WaifuApi.Domain.Entities;
@@ -26,6 +35,7 @@ public class UploadImageCommandHandler : ICommandHandler<UploadImageCommand, Ima
     private readonly IImageProcessingService _imageProcessingService;
     private readonly IConfiguration _configuration;
     private readonly string _cdnBaseUrl;
+    private const int HammingDistanceThreshold = 4;
 
     public UploadImageCommandHandler(
         IWaifuDbContext context,
@@ -37,41 +47,33 @@ public class UploadImageCommandHandler : ICommandHandler<UploadImageCommand, Ima
         _storageService = storageService;
         _imageProcessingService = imageProcessingService;
         _configuration = configuration;
-        _cdnBaseUrl = configuration["Cdn:BaseUrl"] ?? "https://cdn.waifu.im";
+        _cdnBaseUrl = configuration["Cdn:BaseUrl"] ?? throw new InvalidOperationException("Cdn:BaseUrl is required.");
     }
 
     public async ValueTask<ImageDto> Handle(UploadImageCommand request, CancellationToken cancellationToken)
     {
-        // 1. Process Image
         var metadata = await _imageProcessingService.ProcessAsync(request.FileStream, request.FileName);
 
-        // 2. Check Duplicates
-        var targetHash = ulong.Parse(metadata.PerceptualHash, System.Globalization.NumberStyles.HexNumber);
-        
-        var existingHashes = await _context.Images
-            .AsNoTracking()
-            .Select(i => new { i.Id, i.PerceptualHash })
-            .ToListAsync(cancellationToken);
+        var targetHash = HexToBitArray(metadata.PerceptualHash);
 
-        foreach (var item in existingHashes)
+        // Use pgvector HammingDistance
+        var duplicate = await _context.Images
+            .Where(i => i.PerceptualHash.HammingDistance(targetHash) <= HammingDistanceThreshold)
+            .Select(i => new { i.Id })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (duplicate != null)
         {
-            if (ulong.TryParse(item.PerceptualHash, System.Globalization.NumberStyles.HexNumber, null, out var existingHash))
-            {
-                if (System.Numerics.BitOperations.PopCount(targetHash ^ existingHash) <= 4)
-                {
-                    throw new InvalidOperationException($"Duplicate image found. ID: {item.Id}");
-                }
-            }
+            throw new ConflictException($"Duplicate image found. ID: {duplicate.Id}");
         }
 
-        // 3. Handle Artist
         Artist? artist = null;
         if (!string.IsNullOrEmpty(request.ArtistName))
         {
             artist = await _context.Artists.FirstOrDefaultAsync(a => a.Name == request.ArtistName, cancellationToken);
             if (artist == null)
             {
-                var requireReview = _configuration.GetValue<bool>("Moderation:RequireArtistReview");
+                var requireReview = bool.Parse(_configuration["Moderation:RequireArtistReview"] ?? throw new InvalidOperationException("Moderation:RequireArtistReview is required."));
                 artist = new Artist
                 {
                     Name = request.ArtistName,
@@ -81,9 +83,8 @@ public class UploadImageCommandHandler : ICommandHandler<UploadImageCommand, Ima
             }
         }
 
-        // 4. Handle Tags
         var tags = new List<Tag>();
-        var requireTagReview = _configuration.GetValue<bool>("Moderation:RequireTagReview");
+        var requireTagReview = bool.Parse(_configuration["Moderation:RequireTagReview"] ?? throw new InvalidOperationException("Moderation:RequireTagReview is required."));
         foreach (var tagName in request.Tags)
         {
             var tag = await _context.Tags.FirstOrDefaultAsync(t => t.Name == tagName, cancellationToken);
@@ -100,11 +101,10 @@ public class UploadImageCommandHandler : ICommandHandler<UploadImageCommand, Ima
             tags.Add(tag);
         }
 
-        // 5. Create Image Entity
-        var requireImageReview = _configuration.GetValue<bool>("Moderation:RequireImageReview");
+        var requireImageReview = bool.Parse(_configuration["Moderation:RequireImageReview"] ?? throw new InvalidOperationException("Moderation:RequireImageReview is required."));
         var image = new Image
         {
-            PerceptualHash = metadata.PerceptualHash,
+            PerceptualHash = targetHash,
             Extension = metadata.Extension,
             DominantColor = metadata.DominantColor,
             Source = request.Source,
@@ -123,7 +123,6 @@ public class UploadImageCommandHandler : ICommandHandler<UploadImageCommand, Ima
         _context.Images.Add(image);
         await _context.SaveChangesAsync(cancellationToken);
 
-        // 6. Upload to S3
         try
         {
             request.FileStream.Position = 0;
@@ -137,11 +136,10 @@ public class UploadImageCommandHandler : ICommandHandler<UploadImageCommand, Ima
             throw;
         }
 
-        // 7. Return DTO
         return new ImageDto
         {
             Id = image.Id,
-            Signature = image.PerceptualHash,
+            PerceptualHash = BitArrayToHex(image.PerceptualHash),
             Extension = image.Extension,
             DominantColor = image.DominantColor,
             Source = image.Source,
@@ -157,5 +155,18 @@ public class UploadImageCommandHandler : ICommandHandler<UploadImageCommand, Ima
             Favorites = 0,
             LikedAt = null
         };
+    }
+
+    private static BitArray HexToBitArray(string hex)
+    {
+        var bytes = Convert.FromHexString(hex);
+        return new BitArray(bytes);
+    }
+
+    private static string BitArrayToHex(BitArray bits)
+    {
+        var bytes = new byte[(bits.Length + 7) / 8];
+        bits.CopyTo(bytes, 0);
+        return Convert.ToHexString(bytes).ToLowerInvariant();
     }
 }

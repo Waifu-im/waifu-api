@@ -10,6 +10,9 @@ public static class ImageQueryExtensions
 {
     public static IQueryable<Image> ApplyFilters(this IQueryable<Image> query, ImageFilters filters)
     {
+        // Filter by ReviewStatus
+        query = query.Where(i => i.ReviewStatus == ReviewStatus.Accepted);
+
         // IsNsfw Logic
         switch (filters.IsNsfw)
         {

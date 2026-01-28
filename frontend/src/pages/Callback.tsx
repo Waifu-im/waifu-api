@@ -14,7 +14,11 @@ const Callback = () => {
       api.post('/auth/discord', { code })
         .then((response) => {
           login(response.data.token);
-          navigate('/');
+          
+          // Redirect to original location or home
+          const redirectPath = localStorage.getItem('auth_redirect') || '/';
+          localStorage.removeItem('auth_redirect');
+          navigate(redirectPath);
         })
         .catch((error) => {
           console.error('Login failed', error);

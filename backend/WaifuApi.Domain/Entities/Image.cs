@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using WaifuApi.Domain.Enums;
 
@@ -7,7 +8,7 @@ namespace WaifuApi.Domain.Entities;
 public class Image
 {
     public long Id { get; set; }
-    public required string PerceptualHash { get; set; }
+    public required BitArray PerceptualHash { get; set; }
     public required string Extension { get; set; }
     public required string DominantColor { get; set; }
     public string? Source { get; set; }

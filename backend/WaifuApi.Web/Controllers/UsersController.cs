@@ -1,4 +1,6 @@
-﻿using System.Security.Claims;
+﻿using System.Collections.Generic;
+using System.Security.Claims;
+using System.Threading.Tasks;
 using Mediator;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -54,12 +56,13 @@ public class UsersController : ControllerBase
     /// </summary>
     /// <param name="id">The ID of the user to update.</param>
     /// <param name="request">The new role.</param>
+    /// <returns>The updated user.</returns>
     [HttpPut("{id:long}/role")]
     [Authorize(Policy = "Admin")]
-    public async Task<IActionResult> UpdateRole(long id, [FromBody] UpdateRoleRequest request)
+    public async Task<ActionResult<User>> UpdateRole(long id, [FromBody] UpdateRoleRequest request)
     {
-        await _mediator.Send(new UpdateUserRoleCommand(id, request.Role));
-        return NoContent();
+        var user = await _mediator.Send(new UpdateUserRoleCommand(id, request.Role));
+        return Ok(user);
     }
 
     /// <summary>
@@ -67,12 +70,13 @@ public class UsersController : ControllerBase
     /// </summary>
     /// <param name="id">The ID of the user.</param>
     /// <param name="request">The ban status.</param>
+    /// <returns>The updated user.</returns>
     [HttpPut("{id:long}/ban")]
     [Authorize(Policy = "Admin")]
-    public async Task<IActionResult> Ban(long id, [FromBody] BanUserRequest request)
+    public async Task<ActionResult<User>> Ban(long id, [FromBody] BanUserRequest request)
     {
-        await _mediator.Send(new BanUserCommand(id, request.IsBlacklisted));
-        return NoContent();
+        var user = await _mediator.Send(new BanUserCommand(id, request.IsBlacklisted));
+        return Ok(user);
     }
 }
 

@@ -1,5 +1,13 @@
-﻿const Login = () => {
+﻿import { useLocation } from 'react-router-dom';
+
+const Login = () => {
+  const location = useLocation();
+
   const handleLogin = () => {
+    // Store the redirect path if present
+    const from = location.state?.from?.pathname || '/';
+    localStorage.setItem('auth_redirect', from);
+
     const clientId = import.meta.env.VITE_DISCORD_CLIENT_ID;
     const redirectUri = encodeURIComponent(import.meta.env.VITE_DISCORD_REDIRECT_URI);
     const scope = encodeURIComponent('identify email');

@@ -1,6 +1,8 @@
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
@@ -16,7 +18,6 @@ using WaifuApi.Web.Services;
 
 Console.WriteLine($"Current Directory: {Directory.GetCurrentDirectory()}");
 
-// Helper to find .env file (Max 2 levels up)
 var currentDir = Directory.GetCurrentDirectory();
 string? envPath = null;
 int levels = 0;
@@ -45,21 +46,61 @@ else
 
 var builder = WebApplication.CreateBuilder(args);
 
+void ValidateConfiguration(IConfiguration configuration)
+{
+    var requiredKeys = new[]
+    {
+        "API_BASE_PATH",
+        "Frontend:BaseUrl",
+        "Cdn:BaseUrl",
+        "S3:AccessKey",
+        "S3:SecretKey",
+        "S3:ServiceUrl",
+        "S3:BucketName",
+        "S3:Region",
+        "Discord:ClientId",
+        "Discord:ClientSecret",
+        "Discord:RedirectUri",
+        "Jwt:Key",
+        "Jwt:Issuer",
+        "Jwt:Audience",
+        "Moderation:RequireImageReview",
+        "Moderation:RequireArtistReview",
+        "Moderation:RequireTagReview",
+        "Image:MaxLimit",
+        "Image:MinWidth",
+        "Image:MinHeight",
+        "Image:MaxWidth",
+        "Image:MaxHeight"
+    };
+
+    var missingKeys = new List<string>();
+    foreach (var key in requiredKeys)
+    {
+        if (string.IsNullOrEmpty(configuration[key]))
+        {
+            missingKeys.Add(key);
+        }
+    }
+
+    if (missingKeys.Any())
+    {
+        throw new InvalidOperationException($"Missing required configuration keys: {string.Join(", ", missingKeys)}");
+    }
+}
+
+ValidateConfiguration(builder.Configuration);
+
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 Console.WriteLine($"Using Connection String: {connectionString}");
 
 var basePath = builder.Configuration["API_BASE_PATH"];
-if (string.IsNullOrEmpty(basePath))
-{
-    throw new InvalidOperationException("API_BASE_PATH environment variable is required.");
-}
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddControllers();
 builder.Services.AddSingleton(TimeProvider.System);
 
-// Add CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll",
@@ -77,7 +118,6 @@ builder.Services.AddOpenApi(options =>
     {
         document.Info = new OpenApiInfo { Title = "Waifu API", Version = "v1" };
         
-        // Set Server URL to Base Path
         document.Servers = new List<OpenApiServer>
         {
             new OpenApiServer { Url = basePath }
@@ -196,5 +236,22 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
-app.MapFallback(() => Results.Json(new { message = "Route not found" }, statusCode: StatusCodes.Status404NotFound));
+app.MapFallback(async context =>
+{
+    context.Response.StatusCode = StatusCodes.Status404NotFound;
+    context.Response.ContentType = "application/problem+json";
+
+    var problemDetails = new ProblemDetails
+    {
+        Title = "Not Found",
+        Status = StatusCodes.Status404NotFound,
+        Detail = "The requested endpoint was not found.",
+        Instance = context.Request.Path,
+        Type = "https://tools.ietf.org/html/rfc9110#section-15.5.5"
+    };
+    
+    problemDetails.Extensions["traceId"] = System.Diagnostics.Activity.Current?.Id ?? context.TraceIdentifier;
+
+    await context.Response.WriteAsync(JsonSerializer.Serialize(problemDetails));
+});
 app.Run();
