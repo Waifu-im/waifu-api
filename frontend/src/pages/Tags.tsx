@@ -1,15 +1,18 @@
 ﻿import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import api from '../services/api';
 import { Tag, PaginatedList, Role } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 import Modal from '../components/Modal';
-import { Plus, Edit2, Trash2, Tag as TagIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import TagModal, { TagFormData } from '../components/modals/TagModal';
+import { Plus, Edit2, Trash2, Tag as TagIcon, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
 
 const Tags = () => {
     const { user } = useAuth();
     const { showNotification } = useNotification();
+    const navigate = useNavigate();
+    const location = useLocation();
 
     const [tags, setTags] = useState<Tag[]>([]);
     const [loading, setLoading] = useState(true);
@@ -23,7 +26,7 @@ const Tags = () => {
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
     const [selectedTag, setSelectedTag] = useState<Tag | null>(null);
-    const [formData, setFormData] = useState({ name: '', description: '' });
+    const [formData, setFormData] = useState<TagFormData>({ name: '', slug: '', description: '' });
 
     const fetchTags = async () => {
         setLoading(true);
@@ -45,23 +48,33 @@ const Tags = () => {
         fetchTags();
     }, [page]);
 
-    const handleCreate = async () => {
+    const handleOpenCreate = () => {
+        if (!user) {
+            showNotification('warning', 'Log in to create tags.');
+            navigate('/login', { state: { from: location } });
+            return;
+        }
+        setFormData({ name: '', slug: '', description: '' });
+        setIsCreateOpen(true);
+    };
+
+    const handleCreate = async (data: TagFormData) => {
         try {
-            await api.post('/tags', formData);
+            await api.post('/tags', data);
             showNotification('success', 'Tag created');
             setIsCreateOpen(false);
-            setFormData({ name: '', description: '' });
+            setFormData({ name: '', slug: '', description: '' });
             fetchTags();
         } catch (e: any) {
-            if (e.response?.status === 409) showNotification('error', 'Tag already exists');
+            if (e.response?.status === 409) showNotification('error', 'Tag name or slug already exists');
             else showNotification('error', 'Failed to create tag');
         }
     };
 
-    const handleEdit = async () => {
+    const handleEdit = async (data: TagFormData) => {
         if (!selectedTag) return;
         try {
-            await api.put(`/tags/${selectedTag.id}`, formData);
+            await api.put(`/tags/${selectedTag.id}`, data);
             showNotification('success', 'Tag updated');
             setIsEditOpen(false);
             fetchTags();
@@ -86,7 +99,7 @@ const Tags = () => {
         e.preventDefault();
         e.stopPropagation();
         setSelectedTag(tag);
-        setFormData({ name: tag.name, description: tag.description });
+        setFormData({ name: tag.name, slug: tag.slug, description: tag.description });
         setIsEditOpen(true);
     };
 
@@ -111,7 +124,7 @@ const Tags = () => {
                     <p className="text-muted-foreground mt-1">Browse and manage image tags.</p>
                 </div>
                 <button
-                    onClick={() => { setFormData({name:'', description:''}); setIsCreateOpen(true); }}
+                    onClick={handleOpenCreate}
                     className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-bold hover:opacity-90 shadow-lg transition-all"
                 >
                     <Plus size={20} /> New Tag
@@ -123,37 +136,49 @@ const Tags = () => {
                     [...Array(8)].map((_,i) => <div key={i} className="h-32 bg-muted rounded-xl animate-pulse"/>)
                 ) : (
                     tags.map(tag => (
-                        <div key={tag.id} className="relative group bg-card border border-border rounded-xl hover:shadow-md hover:border-primary/50 transition-all overflow-hidden">
-                            {/* Lien vers la galerie */}
-                            <Link
-                                to={`/gallery?includedTags=${encodeURIComponent(tag.name)}`}
-                                className="block p-6 h-full hover:bg-secondary/5 transition-colors"
-                            >
-                                <h3 className="font-bold text-lg mb-2 text-foreground group-hover:text-primary transition-colors">{tag.name}</h3>
-                                <p className="text-sm text-muted-foreground line-clamp-2">{tag.description || "No description"}</p>
-                            </Link>
+                        <div key={tag.id} className="group bg-card border border-border rounded-xl hover:shadow-md hover:border-primary/50 transition-all overflow-hidden flex flex-col p-6">
+                            <div className="flex justify-between items-start mb-2">
+                                <div className="flex flex-col gap-1">
+                                    <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors">{tag.name}</h3>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs font-mono bg-secondary px-2 py-1 rounded text-muted-foreground select-text">#{tag.id}</span>
+                                        <code className="text-xs text-primary/80 bg-primary/5 px-1.5 py-0.5 rounded select-text" title="API Slug">{tag.slug}</code>
+                                    </div>
+                                </div>
 
-                            {/* Actions toujours visibles pour admins */}
-                            {canEdit && (
-                                <div className="absolute top-4 right-4 flex gap-2 z-10">
-                                    <button
-                                        onClick={(e) => openEdit(e, tag)}
+                                <div className="flex gap-2">
+                                    <Link
+                                        to={`/gallery?includedTags=${encodeURIComponent(tag.slug)}`}
                                         className="p-1.5 bg-secondary hover:bg-primary hover:text-primary-foreground rounded text-muted-foreground transition-colors shadow-sm"
-                                        title="Edit"
+                                        title="View in Gallery"
                                     >
-                                        <Edit2 size={16}/>
-                                    </button>
-                                    {isAdmin && (
-                                        <button
-                                            onClick={(e) => openDelete(e, tag)}
-                                            className="p-1.5 bg-secondary hover:bg-destructive hover:text-destructive-foreground rounded text-muted-foreground transition-colors shadow-sm"
-                                            title="Delete"
-                                        >
-                                            <Trash2 size={16}/>
-                                        </button>
+                                        <ExternalLink size={16} />
+                                    </Link>
+                                    
+                                    {canEdit && (
+                                        <>
+                                            <button
+                                                onClick={(e) => openEdit(e, tag)}
+                                                className="p-1.5 bg-secondary hover:bg-primary hover:text-primary-foreground rounded text-muted-foreground transition-colors shadow-sm"
+                                                title="Edit"
+                                            >
+                                                <Edit2 size={16}/>
+                                            </button>
+                                            {isAdmin && (
+                                                <button
+                                                    onClick={(e) => openDelete(e, tag)}
+                                                    className="p-1.5 bg-secondary hover:bg-destructive hover:text-destructive-foreground rounded text-muted-foreground transition-colors shadow-sm"
+                                                    title="Delete"
+                                                >
+                                                    <Trash2 size={16}/>
+                                                </button>
+                                            )}
+                                        </>
                                     )}
                                 </div>
-                            )}
+                            </div>
+
+                            <p className="text-sm text-muted-foreground line-clamp-3 mt-2">{tag.description || "No description"}</p>
                         </div>
                     ))
                 )}
@@ -179,33 +204,23 @@ const Tags = () => {
                 </div>
             )}
 
-            <Modal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} title="New Tag">
-                <div className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-bold mb-1">Name</label>
-                        <input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full p-3 bg-secondary rounded-lg outline-none focus:ring-1 focus:ring-primary text-foreground"/>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-bold mb-1">Description</label>
-                        <textarea value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full p-3 bg-secondary rounded-lg outline-none h-24 resize-none text-foreground"/>
-                    </div>
-                    <button onClick={handleCreate} className="w-full py-3 bg-primary text-primary-foreground font-bold rounded-lg mt-2">Create</button>
-                </div>
-            </Modal>
+            <TagModal
+                isOpen={isCreateOpen}
+                onClose={() => setIsCreateOpen(false)}
+                onSubmit={handleCreate}
+                initialData={{ name: '', slug: '', description: '' }}
+                title="New Tag"
+                submitLabel="Create"
+            />
 
-            <Modal isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} title="Edit Tag">
-                <div className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-bold mb-1">Name</label>
-                        <input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full p-3 bg-secondary rounded-lg outline-none focus:ring-1 focus:ring-primary text-foreground"/>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-bold mb-1">Description</label>
-                        <textarea value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full p-3 bg-secondary rounded-lg outline-none h-24 resize-none text-foreground"/>
-                    </div>
-                    <button onClick={handleEdit} className="w-full py-3 bg-primary text-primary-foreground font-bold rounded-lg mt-2">Save</button>
-                </div>
-            </Modal>
+            <TagModal
+                isOpen={isEditOpen}
+                onClose={() => setIsEditOpen(false)}
+                onSubmit={handleEdit}
+                initialData={formData}
+                title="Edit Tag"
+                submitLabel="Save"
+            />
 
             <Modal isOpen={isDeleteOpen} onClose={() => setIsDeleteOpen(false)} title="Delete Tag">
                 <div className="text-center space-y-4">

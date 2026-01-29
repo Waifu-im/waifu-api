@@ -5,6 +5,7 @@
   dominantColor: string;
   source?: string;
   artist?: Artist;
+  artists: Artist[];
   uploadedAt: string;
   isNsfw: boolean;
   isAnimated: boolean;
@@ -13,7 +14,7 @@
   byteSize: number;
   url: string;
   tags: Tag[];
-  albums?: AlbumDto[]; // Keeps your previous request
+  albums?: AlbumDto[];
   favorites: number;
   likedAt?: string;
   uploaderId: number;
@@ -26,16 +27,16 @@ export interface Artist {
   pixiv?: string;
   twitter?: string;
   deviantArt?: string;
-  reviewStatus?: number; // Added to fix TS2339 in Review.tsx
+  reviewStatus?: number;
 }
 
 export interface Tag {
   id: number;
   name: string;
+  slug: string;
   description: string;
-  reviewStatus?: number; // Added to fix TS2339 in Review.tsx
+  reviewStatus?: number;
 }
-
 export interface User {
   id: number;
   name: string;
@@ -89,6 +90,6 @@ export interface ImageFormData {
   source?: string;
   isNsfw: boolean;
   tagIds: number[];
-  artistId?: number | null;
+  artistIds: number[];
   userId?: number;
 }

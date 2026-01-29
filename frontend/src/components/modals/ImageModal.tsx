@@ -1,6 +1,14 @@
 ﻿import { useState, useEffect } from 'react';
 import Modal from '../Modal';
-import { ImageDto, ImageFormData } from '../../types';
+import { ImageDto, ImageFormData, Tag, Artist, PaginatedList } from '../../types';
+import SearchableSelect from '../SearchableSelect';
+import api from '../../services/api';
+
+interface Option {
+    id: number | string;
+    name: string;
+    description?: string;
+}
 
 interface ImageModalProps {
     isOpen: boolean;
@@ -13,22 +21,41 @@ const ImageModal = ({ isOpen, onClose, initialData, onSubmit }: ImageModalProps)
     const [source, setSource] = useState('');
     const [isNsfw, setIsNsfw] = useState(false);
     const [userId, setUserId] = useState<string>('');
-    const [tagIds, setTagIds] = useState<number[]>([]);
-    const [artistId, setArtistId] = useState<number | null>(null);
+    
+    const [tags, setTags] = useState<Option[]>([]);
+    const [artists, setArtists] = useState<Option[]>([]);
+    const [selectedTags, setSelectedTags] = useState<Option[]>([]);
+    const [selectedArtists, setSelectedArtists] = useState<Option[]>([]);
+
+    useEffect(() => {
+        if (isOpen) {
+            const fetchData = async () => {
+                try {
+                    const [tagsRes, artistsRes] = await Promise.all([
+                        api.get<PaginatedList<Tag>>('/tags', { params: { pageSize: 1000, reviewStatus: 1 } }),
+                        api.get<PaginatedList<Artist>>('/artists', { params: { pageSize: 1000, reviewStatus: 1 } })
+                    ]);
+                    setTags(tagsRes.data.items.map(t => ({ id: t.id, name: t.name, description: t.description })));
+                    setArtists(artistsRes.data.items.map(a => ({ id: a.id, name: a.name })));
+                } catch (e) { console.error("Failed to fetch tags/artists", e); }
+            };
+            fetchData();
+        }
+    }, [isOpen]);
 
     useEffect(() => {
         if (initialData) {
             setSource(initialData.source || '');
             setIsNsfw(initialData.isNsfw);
             setUserId(initialData.uploaderId?.toString() || '');
-            setTagIds(initialData.tags ? initialData.tags.map(t => t.id) : []);
-            setArtistId(initialData.artist?.id || null);
+            setSelectedTags(initialData.tags ? initialData.tags.map(t => ({ id: t.id, name: t.name, description: t.description })) : []);
+            setSelectedArtists(initialData.artists ? initialData.artists.map(a => ({ id: a.id, name: a.name })) : []);
         } else {
             setSource('');
             setIsNsfw(false);
             setUserId('');
-            setTagIds([]);
-            setArtistId(null);
+            setSelectedTags([]);
+            setSelectedArtists([]);
         }
     }, [initialData, isOpen]);
 
@@ -37,8 +64,8 @@ const ImageModal = ({ isOpen, onClose, initialData, onSubmit }: ImageModalProps)
         await onSubmit({
             source: source || undefined,
             isNsfw,
-            tagIds,
-            artistId,
+            tagIds: selectedTags.map(t => Number(t.id)),
+            artistIds: selectedArtists.map(a => Number(a.id)),
             userId: userId ? parseInt(userId) : undefined,
         });
         onClose();
@@ -51,6 +78,24 @@ const ImageModal = ({ isOpen, onClose, initialData, onSubmit }: ImageModalProps)
             title={initialData ? `Edit Image #${initialData.id}` : 'Edit Image'}
         >
             <div className="space-y-5">
+                <SearchableSelect
+                    label="Artists"
+                    placeholder="Search artists..."
+                    options={artists}
+                    selectedOptions={selectedArtists}
+                    onSelect={(o) => setSelectedArtists(p => p.some(a => a.id === o.id) ? p : [...p, o])}
+                    onRemove={(o) => setSelectedArtists(p => p.filter(a => a.id !== o.id))}
+                    isMulti={true}
+                />
+                <SearchableSelect
+                    label="Tags"
+                    placeholder="Add tags..."
+                    options={tags}
+                    selectedOptions={selectedTags}
+                    onSelect={(o) => setSelectedTags(p => p.some(t => t.id === o.id) ? p : [...p, o])}
+                    onRemove={(o) => setSelectedTags(p => p.filter(t => t.id !== o.id))}
+                    isMulti={true}
+                />
                 <div>
                     <label className="block text-sm font-bold mb-1.5 text-muted-foreground uppercase tracking-wider">Source URL</label>
                     <input

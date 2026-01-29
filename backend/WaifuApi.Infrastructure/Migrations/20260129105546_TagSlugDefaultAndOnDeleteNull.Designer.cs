@@ -3,6 +3,7 @@ using System;
 using System.Collections;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using WaifuApi.Infrastructure.Persistence;
@@ -12,9 +13,11 @@ using WaifuApi.Infrastructure.Persistence;
 namespace WaifuApi.Infrastructure.Migrations
 {
     [DbContext(typeof(WaifuDbContext))]
-    partial class WaifuDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260129105546_TagSlugDefaultAndOnDeleteNull")]
+    partial class TagSlugDefaultAndOnDeleteNull
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -23,21 +26,6 @@ namespace WaifuApi.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "vector");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
-
-            modelBuilder.Entity("ArtistImage", b =>
-                {
-                    b.Property<long>("ArtistsId")
-                        .HasColumnType("bigint");
-
-                    b.Property<long>("ImagesId")
-                        .HasColumnType("bigint");
-
-                    b.HasKey("ArtistsId", "ImagesId");
-
-                    b.HasIndex("ImagesId");
-
-                    b.ToTable("ArtistImage");
-                });
 
             modelBuilder.Entity("ImageTag", b =>
                 {
@@ -194,6 +182,9 @@ namespace WaifuApi.Infrastructure.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
+                    b.Property<long?>("ArtistId")
+                        .HasColumnType("bigint");
+
                     b.Property<long>("ByteSize")
                         .HasColumnType("bigint");
 
@@ -234,6 +225,8 @@ namespace WaifuApi.Infrastructure.Migrations
                         .HasColumnType("bigint");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ArtistId");
 
                     b.HasIndex("UploaderId");
 
@@ -337,21 +330,6 @@ namespace WaifuApi.Infrastructure.Migrations
                     b.ToTable("Users");
                 });
 
-            modelBuilder.Entity("ArtistImage", b =>
-                {
-                    b.HasOne("WaifuApi.Domain.Entities.Artist", null)
-                        .WithMany()
-                        .HasForeignKey("ArtistsId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("WaifuApi.Domain.Entities.Image", null)
-                        .WithMany()
-                        .HasForeignKey("ImagesId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("ImageTag", b =>
                 {
                     b.HasOne("WaifuApi.Domain.Entities.Image", null)
@@ -410,11 +388,18 @@ namespace WaifuApi.Infrastructure.Migrations
 
             modelBuilder.Entity("WaifuApi.Domain.Entities.Image", b =>
                 {
+                    b.HasOne("WaifuApi.Domain.Entities.Artist", "Artist")
+                        .WithMany()
+                        .HasForeignKey("ArtistId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("WaifuApi.Domain.Entities.User", "Uploader")
                         .WithMany()
                         .HasForeignKey("UploaderId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Artist");
 
                     b.Navigation("Uploader");
                 });

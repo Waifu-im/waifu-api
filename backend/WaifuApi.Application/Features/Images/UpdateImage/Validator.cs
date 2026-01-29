@@ -15,8 +15,5 @@ public class UpdateImageCommandValidator : AbstractValidator<UpdateImageCommand>
             
         RuleFor(x => x.UserId)
             .GreaterThan(0).When(x => x.UserId.HasValue).WithMessage("Invalid User ID.");
-            
-        RuleFor(x => x.ArtistId)
-            .GreaterThan(0).When(x => x.ArtistId.HasValue).WithMessage("Invalid Artist ID.");
     }
 }

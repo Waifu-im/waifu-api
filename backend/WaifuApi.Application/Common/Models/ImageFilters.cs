@@ -8,6 +8,8 @@ public class ImageFilters
     public NsfwMode IsNsfw { get; set; } = NsfwMode.Safe;
     public List<string> IncludedTags { get; set; } = new();
     public List<string> ExcludedTags { get; set; } = new();
+    public List<string> IncludedArtists { get; set; } = new();
+    public List<string> ExcludedArtists { get; set; } = new();
     public List<string> IncludedFiles { get; set; } = new();
     public List<string> ExcludedFiles { get; set; } = new();
     public bool? IsAnimated { get; set; }
@@ -18,5 +20,4 @@ public class ImageFilters
     public string ByteSize { get; set; } = string.Empty;
     public long UserId { get; set; }
     public long? AlbumId { get; set; }
-    public long? ArtistId { get; set; }
 }

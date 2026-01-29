@@ -1,11 +1,23 @@
 ﻿import { useState, useEffect } from 'react';
 import Modal from '../Modal';
-import { Info, Loader2 } from 'lucide-react'; // Added Loader
+import { Info, Loader2, Link as LinkIcon } from 'lucide-react';
 
 export interface TagFormData {
     name: string;
+    slug: string;
     description: string;
 }
+
+const slugify = (text: string) => {
+    return text
+        .toString()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/[^\w-]+/g, '')
+        .replace(/--+/g, '-');
+};
 
 interface TagModalProps {
     isOpen: boolean;
@@ -18,18 +30,35 @@ interface TagModalProps {
 }
 
 const TagModal = ({ isOpen, onClose, onSubmit, initialData, title, isReviewMode, submitLabel = "Save" }: TagModalProps) => {
-    const [formData, setFormData] = useState<TagFormData>({ name: '', description: '' });
+    const [formData, setFormData] = useState<TagFormData>({ name: '', slug: '', description: '' });
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isSlugManuallyEdited, setIsSlugManuallyEdited] = useState(false);
 
     useEffect(() => {
         if (isOpen) {
             setFormData({
                 name: initialData?.name || '',
+                slug: initialData?.slug || '',
                 description: initialData?.description || ''
             });
             setIsSubmitting(false);
+            setIsSlugManuallyEdited(!!initialData?.slug);
         }
     }, [isOpen, initialData]);
+
+    const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const name = e.target.value;
+        setFormData(prev => ({
+            ...prev,
+            name,
+            slug: isSlugManuallyEdited ? prev.slug : slugify(name)
+        }));
+    };
+
+    const handleSlugChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setFormData(prev => ({ ...prev, slug: e.target.value }));
+        setIsSlugManuallyEdited(true);
+    };
 
     const handleSubmit = async () => {
         if (isSubmitting) return;
@@ -50,7 +79,7 @@ const TagModal = ({ isOpen, onClose, onSubmit, initialData, title, isReviewMode,
                         <div>
                             <h4 className="font-bold text-blue-600 dark:text-blue-400 text-sm">Review Required</h4>
                             <p className="text-xs text-muted-foreground mt-1">
-                                New tags must be approved by a moderator before appearing in public lists.
+                                New tags must be approved by a moderator.
                             </p>
                         </div>
                     </div>
@@ -60,12 +89,29 @@ const TagModal = ({ isOpen, onClose, onSubmit, initialData, title, isReviewMode,
                     <label className="block text-sm font-bold mb-1">Name</label>
                     <input
                         value={formData.name}
-                        onChange={e => setFormData({...formData, name: e.target.value})}
+                        onChange={handleNameChange}
                         className="w-full p-3 bg-secondary rounded-lg outline-none focus:ring-1 focus:ring-primary text-foreground"
                         placeholder="Tag name"
                         disabled={isSubmitting}
                     />
                 </div>
+
+                <div>
+                    <label className="block text-sm font-bold mb-1 flex items-center gap-2">
+                        Slug <span className="text-xs font-normal text-muted-foreground">(URL Friendly ID)</span>
+                    </label>
+                    <div className="relative">
+                        <LinkIcon size={16} className="absolute left-3 top-3.5 text-muted-foreground"/>
+                        <input
+                            value={formData.slug}
+                            onChange={handleSlugChange}
+                            className="w-full pl-9 p-3 bg-secondary rounded-lg outline-none focus:ring-1 focus:ring-primary text-foreground font-mono text-sm"
+                            placeholder="tag-slug"
+                            disabled={isSubmitting}
+                        />
+                    </div>
+                </div>
+
                 <div>
                     <label className="block text-sm font-bold mb-1">Description</label>
                     <textarea

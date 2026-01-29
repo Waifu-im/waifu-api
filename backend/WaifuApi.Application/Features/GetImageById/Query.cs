@@ -34,37 +34,24 @@ public class GetImageByIdQueryHandler : IQueryHandler<GetImageByIdQuery, ImageDt
         var image = await _context.Images
             .AsNoTracking()
             .Include(i => i.Tags)
-            .Include(i => i.Artist)
+            .Include(i => i.Artists)
             .FirstOrDefaultAsync(i => i.Id == request.Id, cancellationToken);
 
-        if (image == null)
-        {
-            throw new KeyNotFoundException($"Image with ID {request.Id} not found.");
-        }
+        if (image == null) throw new KeyNotFoundException($"Image with ID {request.Id} not found.");
 
+        // ... (Stats Logic inchangée)
         var favorites = await _context.AlbumItems.CountAsync(ai => ai.ImageId == image.Id && ai.Album.IsDefault, cancellationToken);
-        var likedAt = request.UserId > 0
-            ? await _context.AlbumItems
-                .Where(ai => ai.ImageId == image.Id && ai.Album.UserId == request.UserId && ai.Album.IsDefault)
-                .Select(ai => (DateTime?)ai.AddedAt)
-                .FirstOrDefaultAsync(cancellationToken)
-            : null;
-
-        var albums = request.UserId > 0
-            ? await _context.AlbumItems
-                .Where(ai => ai.ImageId == image.Id && ai.Album.UserId == request.UserId)
-                .Select(ai => new AlbumDto { Id = ai.Album.Id, Name = ai.Album.Name, UserId = ai.Album.UserId, IsDefault = ai.Album.IsDefault })
-                .ToListAsync(cancellationToken)
-            : new List<AlbumDto>();
+        var likedAt = request.UserId > 0 ? await _context.AlbumItems.Where(ai => ai.ImageId == image.Id && ai.Album.UserId == request.UserId && ai.Album.IsDefault).Select(ai => (DateTime?)ai.AddedAt).FirstOrDefaultAsync(cancellationToken) : null;
+        var albums = request.UserId > 0 ? await _context.AlbumItems.Where(ai => ai.ImageId == image.Id && ai.Album.UserId == request.UserId).Select(ai => new AlbumDto { Id = ai.Album.Id, Name = ai.Album.Name, UserId = ai.Album.UserId, IsDefault = ai.Album.IsDefault }).ToListAsync(cancellationToken) : new List<AlbumDto>();
 
         return new ImageDto
         {
             Id = image.Id,
-            PerceptualHash = BitArrayToHex(image.PerceptualHash),
+            PerceptualHash = BitArrayHelper.ToHex(image.PerceptualHash),
             Extension = image.Extension,
             DominantColor = image.DominantColor,
             Source = image.Source,
-            Artist = (image.Artist != null && image.Artist.ReviewStatus == ReviewStatus.Accepted) ? image.Artist : null,
+            Artists = image.Artists.Where(a => a.ReviewStatus == ReviewStatus.Accepted).ToList(),
             UploaderId = image.UploaderId,
             UploadedAt = image.UploadedAt,
             IsNsfw = image.IsNsfw,
@@ -73,17 +60,18 @@ public class GetImageByIdQueryHandler : IQueryHandler<GetImageByIdQuery, ImageDt
             Height = image.Height,
             ByteSize = image.ByteSize,
             Url = CdnUrlHelper.GetImageUrl(_cdnBaseUrl, image.Id, image.Extension),
-            Tags = image.Tags.Where(t => t.ReviewStatus == ReviewStatus.Accepted).ToList(),
+            // Mapping Tag -> TagDto
+            Tags = image.Tags.Where(t => t.ReviewStatus == ReviewStatus.Accepted).Select(t => new TagDto 
+            { 
+                Id = t.Id, 
+                Name = t.Name, 
+                Slug = t.Slug, 
+                Description = t.Description, 
+                ReviewStatus = t.ReviewStatus 
+            }).ToList(),
             Favorites = favorites,
             LikedAt = likedAt,
             Albums = albums
         };
-    }
-
-    private static string BitArrayToHex(BitArray bits)
-    {
-        var bytes = new byte[(bits.Length + 7) / 8];
-        bits.CopyTo(bytes, 0);
-        return Convert.ToHexString(bytes).ToLowerInvariant();
     }
 }

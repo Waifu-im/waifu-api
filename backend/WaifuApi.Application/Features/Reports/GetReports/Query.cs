@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using Mediator;
+﻿using Mediator;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using WaifuApi.Application.Common.Models;
@@ -51,8 +45,12 @@ public class GetReportsQueryHandler : IQueryHandler<GetReportsQuery, PaginatedLi
         if (_maxPageSize > 0 && pageSize > _maxPageSize) pageSize = _maxPageSize;
 
         var query = _context.Reports
+            .AsNoTracking()
             .Include(r => r.User)
             .Include(r => r.Image)
+            .ThenInclude(i => i.Artists)
+            .Include(r => r.Image)
+            .ThenInclude(i => i.Tags)
             .AsQueryable();
 
         if (request.IsResolved.HasValue)
@@ -73,11 +71,11 @@ public class GetReportsQueryHandler : IQueryHandler<GetReportsQuery, PaginatedLi
             Image = report.Image != null ? new ImageDto
             {
                 Id = report.Image.Id,
-                PerceptualHash = BitArrayToHex(report.Image.PerceptualHash),
+                PerceptualHash = BitArrayHelper.ToHex(report.Image.PerceptualHash), // Utilisation du Helper
                 Extension = report.Image.Extension,
                 DominantColor = report.Image.DominantColor,
                 Source = report.Image.Source,
-                Artist = report.Image.Artist,
+                Artists = report.Image.Artists,
                 UploaderId = report.Image.UploaderId,
                 UploadedAt = report.Image.UploadedAt,
                 IsNsfw = report.Image.IsNsfw,
@@ -86,7 +84,14 @@ public class GetReportsQueryHandler : IQueryHandler<GetReportsQuery, PaginatedLi
                 Height = report.Image.Height,
                 ByteSize = report.Image.ByteSize,
                 Url = CdnUrlHelper.GetImageUrl(_cdnBaseUrl, report.Image.Id, report.Image.Extension),
-                Tags = report.Image.Tags
+                Tags = report.Image.Tags.Select(t => new TagDto
+                {
+                    Id = t.Id,
+                    Name = t.Name,
+                    Slug = t.Slug,
+                    Description = t.Description,
+                    ReviewStatus = t.ReviewStatus
+                }).ToList()
             } : null,
             Description = report.Description,
             IsResolved = report.IsResolved,
@@ -94,12 +99,5 @@ public class GetReportsQueryHandler : IQueryHandler<GetReportsQuery, PaginatedLi
         }).ToList();
 
         return new PaginatedList<ReportDto>(reportDtos, paginatedReports.TotalCount, paginatedReports.PageNumber, pageSize);
-    }
-
-    private static string BitArrayToHex(BitArray bits)
-    {
-        var bytes = new byte[(bits.Length + 7) / 8];
-        bits.CopyTo(bytes, 0);
-        return Convert.ToHexString(bytes).ToLowerInvariant();
     }
 }

@@ -172,13 +172,16 @@ const ImagePage = () => {
         source: data.source || null,
         isNsfw: data.isNsfw,
         userId: data.userId || null,
+        tagIds: data.tagIds || [],
+        artistIds: data.artistIds || []
       };
-      const { data: updatedImage } = await api.patch<ImageDto>(`/images/${id}`, payload);
+      const { data: updatedImage } = await api.put<ImageDto>(`/images/${id}`, payload);
       setImage(updatedImage);
       setShowEditModal(false);
+      showNotification('success', 'Image updated successfully');
     } catch (err) {
       console.error('Failed to update image', err);
-      alert('Failed to update image.');
+      showNotification('error', 'Failed to update image');
     }
   };
 
@@ -322,12 +325,17 @@ const ImagePage = () => {
                 <p>Dims: <span className="text-foreground font-medium">{image.width}x{image.height}</span></p>
               </div>
 
-              {image.artist && (
+              {image.artists && image.artists.length > 0 && (
                   <p className="flex items-center gap-2">
-                    Artist:
-                    <Link to={`/gallery?artistId=${image.artist.id}`} className="text-primary hover:underline font-bold text-base">
-                      {image.artist.name}
-                    </Link>
+                    Artist{image.artists.length > 1 ? 's' : ''}:
+                    {image.artists.map((artist, index) => (
+                        <span key={artist.id}>
+                            <Link to={`/gallery?includedArtists=${artist.id}`} className="text-primary hover:underline font-bold text-base">
+                              {artist.name}
+                            </Link>
+                            {index < image.artists.length - 1 && ", "}
+                        </span>
+                    ))}
                   </p>
               )}
 

@@ -7,6 +7,8 @@ export interface ImageFilters {
   isNsfw?: number;
   includedTags?: string[];
   excludedTags?: string[];
+  includedArtists?: string[];
+  excludedArtists?: string[];
   isAnimated?: boolean;
   orientation?: string;
   orderBy?: string;
@@ -15,7 +17,6 @@ export interface ImageFilters {
   width?: string;
   height?: string;
   byteSize?: string;
-  artistId?: number; // Added artistId
 }
 
 export const useImages = (filters: ImageFilters) => {
@@ -28,7 +29,6 @@ export const useImages = (filters: ImageFilters) => {
 
       if (filters.isNsfw !== undefined) params.append('isNsfw', filters.isNsfw.toString());
       if (filters.isAnimated !== undefined) params.append('isAnimated', filters.isAnimated.toString());
-      if (filters.artistId !== undefined) params.append('artistId', filters.artistId.toString());
 
       if (filters.orderBy) params.append('orderBy', filters.orderBy);
       if (filters.orientation) params.append('orientation', filters.orientation);
@@ -41,6 +41,9 @@ export const useImages = (filters: ImageFilters) => {
 
       filters.includedTags?.forEach(tag => params.append('includedTags', tag));
       filters.excludedTags?.forEach(tag => params.append('excludedTags', tag));
+      
+      filters.includedArtists?.forEach(artist => params.append('includedArtists', artist));
+      filters.excludedArtists?.forEach(artist => params.append('excludedArtists', artist));
 
       const { data } = await api.get<PaginatedList<ImageDto>>('/images', { params });
       return data;

@@ -22,6 +22,8 @@ public class GetImagesQuery : IQuery<PaginatedList<ImageDto>>
     public NsfwMode IsNsfw { get; set; } = NsfwMode.Safe;
     public List<string> IncludedTags { get; set; } = new();
     public List<string> ExcludedTags { get; set; } = new();
+    public List<string> IncludedArtists { get; set; } = new();
+    public List<string> ExcludedArtists { get; set; } = new();
     public List<string> IncludedFiles { get; set; } = new();
     public List<string> ExcludedFiles { get; set; } = new();
     public bool? IsAnimated { get; set; }
@@ -40,8 +42,6 @@ public class GetImagesQuery : IQuery<PaginatedList<ImageDto>>
     
     [JsonIgnore]
     public long? AlbumId { get; set; }
-    
-    public long? ArtistId { get; set; }
 }
 
 public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList<ImageDto>>
@@ -66,18 +66,17 @@ public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList
 
     public async ValueTask<PaginatedList<ImageDto>> Handle(GetImagesQuery request, CancellationToken cancellationToken)
     {
+        // ... (Logique pagination et filtrage inchangée)
         var pageSize = request.PageSize == 0 ? _defaultPageSize : request.PageSize;
-        
-        if (_maxPageSize > 0 && pageSize > _maxPageSize)
-        {
-            pageSize = _maxPageSize;
-        }
+        if (_maxPageSize > 0 && pageSize > _maxPageSize) pageSize = _maxPageSize;
         
         var filters = new ImageFilters
         {
             IsNsfw = request.IsNsfw,
             IncludedTags = request.IncludedTags,
             ExcludedTags = request.ExcludedTags,
+            IncludedArtists = request.IncludedArtists,
+            ExcludedArtists = request.ExcludedArtists,
             IncludedFiles = request.IncludedFiles,
             ExcludedFiles = request.ExcludedFiles,
             IsAnimated = request.IsAnimated,
@@ -87,8 +86,7 @@ public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList
             Height = request.Height,
             ByteSize = request.ByteSize,
             UserId = request.UserId,
-            AlbumId = request.AlbumId,
-            ArtistId = request.ArtistId
+            AlbumId = request.AlbumId
         };
 
         IQueryable<Image> query = _context.Images.AsNoTracking();
@@ -98,113 +96,54 @@ public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList
         int totalCount;
         Dictionary<long, DateTime> addedToAlbumMap = new();
 
-        if (filters.AlbumId.HasValue)
-        {
-            var joined = query.Join(_context.AlbumItems, i => i.Id, ai => ai.ImageId, (i, ai) => new { i, ai })
+        // ... (Bloc Album logic identique, omis pour brièveté, mais doit être présent)
+        if (filters.AlbumId.HasValue) { /* ... */  
+             // Dans ce bloc, lors du fetch des images finales, s'assurer d'inclure les tags
+             // images = ... .Include(i => i.Tags).Include(i => i.Artist)...
+             // Je remets le code de fallback standard pour l'exemple
+             var joined = query.Join(_context.AlbumItems, i => i.Id, ai => ai.ImageId, (i, ai) => new { i, ai })
                 .Where(x => x.ai.AlbumId == filters.AlbumId.Value);
+             if (request.OrderBy == "ADDED_TO_ALBUM") joined = joined.OrderByDescending(x => x.ai.AddedAt);
+             else if (request.OrderBy == "UPLOADED_AT") joined = joined.OrderByDescending(x => x.i.UploadedAt);
+             else if (request.OrderBy == "FAVORITES") joined = joined.OrderByDescending(x => _context.AlbumItems.Count(ai => ai.ImageId == x.i.Id && ai.Album.IsDefault));
+             else joined = joined.OrderBy(x => EF.Functions.Random());
 
-            // Sorting
-            if (request.OrderBy == "ADDED_TO_ALBUM")
-            {
-                joined = joined.OrderByDescending(x => x.ai.AddedAt);
-            }
-            else if (request.OrderBy == "UPLOADED_AT")
-            {
-                joined = joined.OrderByDescending(x => x.i.UploadedAt);
-            }
-            else if (request.OrderBy == "FAVORITES")
-            {
-                joined = joined.OrderByDescending(x => _context.AlbumItems.Count(ai => ai.ImageId == x.i.Id && ai.Album.IsDefault));
-            }
-            else
-            {
-                // Default to RANDOM if not specified or unknown
-                joined = joined.OrderBy(x => EF.Functions.Random());
-            }
-
-            totalCount = await joined.CountAsync(cancellationToken);
-            var pagedItems = await joined.Skip((request.Page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
-
-            var imageIds = pagedItems.Select(x => x.i.Id).ToList();
-            addedToAlbumMap = pagedItems.ToDictionary(x => x.i.Id, x => x.ai.AddedAt);
-
-            var fetchedImages = await _context.Images
-                .AsNoTracking()
-                .Include(i => i.Tags)
-                .Include(i => i.Artist)
-                .Where(i => imageIds.Contains(i.Id))
-                .ToListAsync(cancellationToken);
-
-            // Re-order in memory
-            images = imageIds.Select(id => fetchedImages.First(img => img.Id == id)).ToList();
-        }
-        else
+             totalCount = await joined.CountAsync(cancellationToken);
+             var pagedItems = await joined.Skip((request.Page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
+             var imageIds = pagedItems.Select(x => x.i.Id).ToList();
+             addedToAlbumMap = pagedItems.ToDictionary(x => x.i.Id, x => x.ai.AddedAt);
+             
+             var fetchedImages = await _context.Images.AsNoTracking().Include(i => i.Tags).Include(i => i.Artists).Where(i => imageIds.Contains(i.Id)).ToListAsync(cancellationToken);
+             images = imageIds.Select(id => fetchedImages.First(img => img.Id == id)).ToList();
+        } 
+        else 
         {
-            // Standard path
-            if (request.OrderBy == "UPLOADED_AT")
-            {
-                query = query.OrderByDescending(i => i.UploadedAt);
-            }
-            else if (request.OrderBy == "FAVORITES")
-            {
-                 query = query.OrderByDescending(i => _context.AlbumItems.Count(ai => ai.ImageId == i.Id && ai.Album.IsDefault));
-            }
-            else
-            {
-                // Default to RANDOM
-                query = query.OrderBy(i => EF.Functions.Random());
-            }
+            if (request.OrderBy == "UPLOADED_AT") query = query.OrderByDescending(i => i.UploadedAt);
+            else if (request.OrderBy == "FAVORITES") query = query.OrderByDescending(i => _context.AlbumItems.Count(ai => ai.ImageId == i.Id && ai.Album.IsDefault));
+            else query = query.OrderBy(i => EF.Functions.Random());
 
             totalCount = await query.CountAsync(cancellationToken);
-            images = await query
-                .Include(i => i.Tags)
-                .Include(i => i.Artist)
-                .Skip((request.Page - 1) * pageSize)
-                .Take(pageSize)
-                .ToListAsync(cancellationToken);
+            images = await query.Include(i => i.Tags).Include(i => i.Artists).Skip((request.Page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
         }
 
+        // ... (Logic Favorites et UserAlbums inchangée)
         var imageIdsForStats = images.Select(i => i.Id).ToList();
-        
-        var favoritesCounts = await _context.AlbumItems
-            .Where(ai => imageIdsForStats.Contains(ai.ImageId) && ai.Album.IsDefault)
-            .GroupBy(ai => ai.ImageId)
-            .Select(g => new { ImageId = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(x => x.ImageId, x => x.Count, cancellationToken);
-
-        var likedStatus = request.UserId > 0
-            ? await _context.AlbumItems
-                .Where(ai => imageIdsForStats.Contains(ai.ImageId) && ai.Album.UserId == request.UserId && ai.Album.IsDefault)
-                .Select(ai => new { ai.ImageId, ai.AddedAt })
-                .ToDictionaryAsync(x => x.ImageId, x => x.AddedAt, cancellationToken)
-            : new Dictionary<long, DateTime>();
-
+        var favoritesCounts = await _context.AlbumItems.Where(ai => imageIdsForStats.Contains(ai.ImageId) && ai.Album.IsDefault).GroupBy(ai => ai.ImageId).Select(g => new { ImageId = g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.ImageId, x => x.Count, cancellationToken);
+        var likedStatus = request.UserId > 0 ? await _context.AlbumItems.Where(ai => imageIdsForStats.Contains(ai.ImageId) && ai.Album.UserId == request.UserId && ai.Album.IsDefault).Select(ai => new { ai.ImageId, ai.AddedAt }).ToDictionaryAsync(x => x.ImageId, x => x.AddedAt, cancellationToken) : new Dictionary<long, DateTime>();
         var userAlbumsMap = new Dictionary<long, List<AlbumDto>>();
-        if (request.UserId > 0)
-        {
-            var userAlbums = await _context.AlbumItems
-                .Where(ai => imageIdsForStats.Contains(ai.ImageId) && ai.Album.UserId == request.UserId)
-                .Select(ai => new { ai.ImageId, Album = new AlbumDto { Id = ai.Album.Id, Name = ai.Album.Name, UserId = ai.Album.UserId, IsDefault = ai.Album.IsDefault } })
-                .ToListAsync(cancellationToken);
-
-             foreach (var item in userAlbums)
-             {
-                 if (!userAlbumsMap.ContainsKey(item.ImageId))
-                 {
-                     userAlbumsMap[item.ImageId] = new List<AlbumDto>();
-                 }
-                 userAlbumsMap[item.ImageId].Add(item.Album);
-             }
+        if (request.UserId > 0) {
+             var userAlbums = await _context.AlbumItems.Where(ai => imageIdsForStats.Contains(ai.ImageId) && ai.Album.UserId == request.UserId).Select(ai => new { ai.ImageId, Album = new AlbumDto { Id = ai.Album.Id, Name = ai.Album.Name, UserId = ai.Album.UserId, IsDefault = ai.Album.IsDefault } }).ToListAsync(cancellationToken);
+             foreach (var item in userAlbums) { if (!userAlbumsMap.ContainsKey(item.ImageId)) userAlbumsMap[item.ImageId] = new List<AlbumDto>(); userAlbumsMap[item.ImageId].Add(item.Album); }
         }
 
         var imageDtos = images.Select(image => new ImageDto
         {
             Id = image.Id,
-            PerceptualHash = BitArrayToHex(image.PerceptualHash),
+            PerceptualHash = BitArrayHelper.ToHex(image.PerceptualHash),
             Extension = image.Extension,
             DominantColor = image.DominantColor,
             Source = image.Source,
-            Artist = (image.Artist != null && image.Artist.ReviewStatus == ReviewStatus.Accepted) ? image.Artist : null,
+            Artists = image.Artists.Where(a => a.ReviewStatus == ReviewStatus.Accepted).ToList(),
             UploaderId = image.UploaderId,
             UploadedAt = image.UploadedAt,
             IsNsfw = image.IsNsfw,
@@ -213,7 +152,15 @@ public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList
             Height = image.Height,
             ByteSize = image.ByteSize,
             Url = CdnUrlHelper.GetImageUrl(_cdnBaseUrl, image.Id, image.Extension),
-            Tags = image.Tags.Where(t => t.ReviewStatus == ReviewStatus.Accepted).ToList(),
+            // Mapping Tag -> TagDto
+            Tags = image.Tags.Where(t => t.ReviewStatus == ReviewStatus.Accepted).Select(t => new TagDto 
+            { 
+                Id = t.Id, 
+                Name = t.Name, 
+                Slug = t.Slug, 
+                Description = t.Description, 
+                ReviewStatus = t.ReviewStatus 
+            }).ToList(),
             Favorites = favoritesCounts.TryGetValue(image.Id, out var count) ? count : 0,
             LikedAt = likedStatus.TryGetValue(image.Id, out var date) ? (DateTime?)date : null,
             AddedToAlbumAt = addedToAlbumMap.TryGetValue(image.Id, out var addedAt) ? addedAt : null,
@@ -221,12 +168,5 @@ public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList
         }).ToList();
 
         return new PaginatedList<ImageDto>(imageDtos, totalCount, request.Page, pageSize);
-    }
-
-    private static string BitArrayToHex(BitArray bits)
-    {
-        var bytes = new byte[(bits.Length + 7) / 8];
-        bits.CopyTo(bytes, 0);
-        return Convert.ToHexString(bytes).ToLowerInvariant();
     }
 }

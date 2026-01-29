@@ -84,7 +84,7 @@ public class ImagesController : ControllerBase
             stream,
             request.File.FileName,
             request.File.ContentType,
-            request.ArtistId,
+            request.ArtistIds ?? new List<long>(),
             request.TagIds ?? new List<long>(),
             request.Source,
             request.IsNsfw
@@ -104,7 +104,7 @@ public class ImagesController : ControllerBase
     [HttpPut("{id:long}")]
     public async Task<ActionResult<ImageDto>> Update([FromRoute] long id, [FromBody] UpdateImageRequest request)
     {
-        var command = new UpdateImageCommand(id, request.Source, request.IsNsfw, request.UserId, request.TagIds, request.ArtistId);
+        var command = new UpdateImageCommand(id, request.Source, request.IsNsfw, request.UserId, request.TagIds, request.ArtistIds);
         var image = await _mediator.Send(command);
         return Ok(image);
     }
@@ -129,7 +129,7 @@ public class ImagesController : ControllerBase
 public class UploadImageRequest
 {
     public IFormFile File { get; set; } = null!;
-    public long? ArtistId { get; set; }
+    public List<long>? ArtistIds { get; set; }
     public List<long>? TagIds { get; set; }
     public string? Source { get; set; }
     public bool IsNsfw { get; set; }
@@ -141,5 +141,5 @@ public class UpdateImageRequest
     public bool IsNsfw { get; set; }
     public long? UserId { get; set; }
     public List<long>? TagIds { get; set; }
-    public long? ArtistId { get; set; }
+    public List<long>? ArtistIds { get; set; }
 }

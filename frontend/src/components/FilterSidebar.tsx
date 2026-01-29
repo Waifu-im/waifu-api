@@ -1,7 +1,7 @@
 ﻿import { useEffect, useState } from 'react';
 import SearchableSelect from './SearchableSelect';
 import api from '../services/api';
-import { PaginatedList, Tag } from '../types';
+import { PaginatedList, Tag, Artist } from '../types';
 
 interface Option {
     id: string;
@@ -18,10 +18,15 @@ interface FilterSidebarProps {
 
 const FilterSidebar = ({ searchParams, setSearchParams, showFilters, setShowFilters, sortOptions }: FilterSidebarProps) => {
     const [allTags, setAllTags] = useState<{ id: number, name: string }[]>([]);
+    const [allArtists, setAllArtists] = useState<{ id: number, name: string }[]>([]);
 
     useEffect(() => {
         api.get<PaginatedList<Tag>>('/tags', { params: { pageSize: 1000 } })
             .then(res => setAllTags(res.data.items))
+            .catch(console.error);
+            
+        api.get<PaginatedList<Artist>>('/artists', { params: { pageSize: 1000 } })
+            .then(res => setAllArtists(res.data.items))
             .catch(console.error);
     }, []);
 
@@ -47,6 +52,21 @@ const FilterSidebar = ({ searchParams, setSearchParams, showFilters, setShowFilt
             return prev;
         });
     };
+    
+    const handleArtistChange = (key: 'includedArtists' | 'excludedArtists', name: string, action: 'add' | 'remove') => {
+        setSearchParams(prev => {
+            const current = prev.getAll(key);
+            prev.delete(key);
+            if (action === 'add' && !current.includes(name)) {
+                [...current, name].forEach(t => prev.append(key, t));
+            } else if (action === 'remove') {
+                current.filter(t => t !== name).forEach(t => prev.append(key, t));
+            } else {
+                current.forEach(t => prev.append(key, t));
+            }
+            return prev;
+        });
+    };
 
     const orderBy = searchParams.get('orderBy') || 'UPLOADED_AT';
     const isNsfw = searchParams.get('isNsfw') || '0';
@@ -54,6 +74,8 @@ const FilterSidebar = ({ searchParams, setSearchParams, showFilters, setShowFilt
     const isAnimatedStr = searchParams.get('isAnimated') || '';
     const includedTags = searchParams.getAll('includedTags');
     const excludedTags = searchParams.getAll('excludedTags');
+    const includedArtists = searchParams.getAll('includedArtists');
+    const excludedArtists = searchParams.getAll('excludedArtists');
     const width = searchParams.get('width') || '';
     const height = searchParams.get('height') || '';
     const byteSize = searchParams.get('byteSize') || '';
@@ -176,6 +198,28 @@ const FilterSidebar = ({ searchParams, setSearchParams, showFilters, setShowFilt
                     selectedOptions={excludedTags.map(t => ({ id: t, name: t }))}
                     onSelect={(o) => handleTagChange('excludedTags', o.name, 'add')}
                     onRemove={(o) => handleTagChange('excludedTags', o.name, 'remove')}
+                    isMulti={true}
+                />
+                
+                <div className="border-t border-border"></div>
+
+                <SearchableSelect
+                    label="Included Artists"
+                    placeholder="Search artists..."
+                    options={allArtists}
+                    selectedOptions={includedArtists.map(t => ({ id: t, name: t }))}
+                    onSelect={(o) => handleArtistChange('includedArtists', o.name, 'add')}
+                    onRemove={(o) => handleArtistChange('includedArtists', o.name, 'remove')}
+                    isMulti={true}
+                />
+
+                <SearchableSelect
+                    label="Excluded Artists"
+                    placeholder="Exclude artists..."
+                    options={allArtists}
+                    selectedOptions={excludedArtists.map(t => ({ id: t, name: t }))}
+                    onSelect={(o) => handleArtistChange('excludedArtists', o.name, 'add')}
+                    onRemove={(o) => handleArtistChange('excludedArtists', o.name, 'remove')}
                     isMulti={true}
                 />
             </div>

@@ -9,7 +9,6 @@ using WaifuApi.Application.Features.Tags.CreateTag;
 using WaifuApi.Application.Features.Tags.DeleteTag;
 using WaifuApi.Application.Features.Tags.GetTagByName;
 using WaifuApi.Application.Features.Tags.UpdateTag;
-using WaifuApi.Domain.Entities;
 
 namespace WaifuApi.Web.Controllers;
 
@@ -24,61 +23,37 @@ public class TagsController : ControllerBase
         _mediator = mediator;
     }
 
-    /// <summary>
-    /// Retrieves all available tags.
-    /// </summary>
-    /// <returns>A paginated list of tags.</returns>
     [HttpGet]
-    public async Task<ActionResult<PaginatedList<Tag>>> Get([FromQuery] GetTagsQuery query)
+    public async Task<ActionResult<PaginatedList<TagDto>>> Get([FromQuery] GetTagsQuery query)
     {
         var tags = await _mediator.Send(query);
         return Ok(tags);
     }
 
-    /// <summary>
-    /// Retrieves a tag by its name.
-    /// </summary>
-    /// <param name="name">The name of the tag.</param>
-    /// <returns>The tag details.</returns>
     [HttpGet("by-name/{name}")]
-    public async Task<ActionResult<Tag>> GetByName([FromRoute] string name)
+    public async Task<ActionResult<TagDto>> GetByName([FromRoute] string name)
     {
         var tag = await _mediator.Send(new GetTagByNameQuery(name));
         return Ok(tag);
     }
 
-    /// <summary>
-    /// Creates a new tag.
-    /// </summary>
-    /// <param name="request">The tag details.</param>
-    /// <returns>The created tag.</returns>
     [Authorize]
     [HttpPost]
-    public async Task<ActionResult<Tag>> Create([FromBody] CreateTagRequest request)
+    public async Task<ActionResult<TagDto>> Create([FromBody] CreateTagRequest request)
     {
-        var tag = await _mediator.Send(new CreateTagCommand(request.Name, request.Description));
+        var tag = await _mediator.Send(new CreateTagCommand(request.Name, request.Description, request.Slug));
         return CreatedAtAction(nameof(Get), new { id = tag.Id }, tag);
     }
 
-    /// <summary>
-    /// Updates a tag.
-    /// </summary>
-    /// <param name="id">The tag ID.</param>
-    /// <param name="request">The update request.</param>
-    /// <returns>The updated tag.</returns>
     [Authorize(Policy = "Moderator")]
     [HttpPut("{id:long}")]
-    public async Task<ActionResult<Tag>> Update([FromRoute] long id, [FromBody] UpdateTagRequest request)
+    public async Task<ActionResult<TagDto>> Update([FromRoute] long id, [FromBody] UpdateTagRequest request)
     {
-        var command = new UpdateTagCommand(id, request.Name, request.Description);
+        var command = new UpdateTagCommand(id, request.Name, request.Description, request.Slug);
         var tag = await _mediator.Send(command);
         return Ok(tag);
     }
 
-    /// <summary>
-    /// Deletes a tag.
-    /// </summary>
-    /// <param name="id">The tag ID.</param>
     [Authorize(Policy = "Moderator")]
     [HttpDelete("{id:long}")]
     public async Task<IActionResult> Delete([FromRoute] long id)
@@ -92,10 +67,12 @@ public class CreateTagRequest
 {
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
+    public string? Slug { get; set; }
 }
 
 public class UpdateTagRequest
 {
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
+    public string? Slug { get; set; }
 }

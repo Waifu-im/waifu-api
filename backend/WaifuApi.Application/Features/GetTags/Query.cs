@@ -13,13 +13,13 @@ using WaifuApi.Domain.Enums;
 
 namespace WaifuApi.Application.Features.GetTags;
 
-public class GetTagsQuery : IQuery<PaginatedList<Tag>>
+public class GetTagsQuery : IQuery<PaginatedList<TagDto>>
 {
     public int Page { get; set; } = 1;
     public int PageSize { get; set; }
 }
 
-public class GetTagsQueryHandler : IQueryHandler<GetTagsQuery, PaginatedList<Tag>>
+public class GetTagsQueryHandler : IQueryHandler<GetTagsQuery, PaginatedList<TagDto>>
 {
     private readonly IWaifuDbContext _context;
     private readonly int _defaultPageSize;
@@ -32,15 +32,28 @@ public class GetTagsQueryHandler : IQueryHandler<GetTagsQuery, PaginatedList<Tag
         _maxPageSize = int.Parse(configuration["Tag:MaxPageSize"] ?? throw new InvalidOperationException("Tag:MaxPageSize is required."));
     }
 
-    public async ValueTask<PaginatedList<Tag>> Handle(GetTagsQuery request, CancellationToken cancellationToken)
+    public async ValueTask<PaginatedList<TagDto>> Handle(GetTagsQuery request, CancellationToken cancellationToken)
     {
         var pageSize = request.PageSize == 0 ? _defaultPageSize : request.PageSize;
         if (_maxPageSize > 0 && pageSize > _maxPageSize) pageSize = _maxPageSize;
 
         var query = _context.Tags
             .AsNoTracking()
-            .Where(t => t.ReviewStatus == ReviewStatus.Accepted);
+            .Where(t => t.ReviewStatus == ReviewStatus.Accepted)
+            .OrderBy(t => t.Name);
 
-        return await PaginatedList<Tag>.CreateAsync(query, request.Page, pageSize, cancellationToken);
+        var count = await query.CountAsync(cancellationToken);
+        var items = await query.Skip((request.Page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
+
+        var dtos = items.Select(t => new TagDto
+        {
+            Id = t.Id,
+            Name = t.Name,
+            Slug = t.Slug,
+            Description = t.Description,
+            ReviewStatus = t.ReviewStatus
+        }).ToList();
+
+        return new PaginatedList<TagDto>(dtos, count, request.Page, pageSize);
     }
 }

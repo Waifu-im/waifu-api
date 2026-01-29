@@ -11,10 +11,8 @@ public static class ImageQueryExtensions
 {
     public static IQueryable<Image> ApplyFilters(this IQueryable<Image> query, ImageFilters filters)
     {
-        // Filter by ReviewStatus
         query = query.Where(i => i.ReviewStatus == ReviewStatus.Accepted);
 
-        // IsNsfw Logic
         switch (filters.IsNsfw)
         {
             case NsfwMode.Safe:
@@ -27,55 +25,73 @@ public static class ImageQueryExtensions
                 break;
         }
 
-        // IsAnimated Logic
         if (filters.IsAnimated.HasValue)
         {
-            if (filters.IsAnimated.Value)
-            {
-                query = query.Where(i => i.IsAnimated == true);
-            }
-            else
-            {
-                query = query.Where(i => i.IsAnimated == false);
-            }
+            query = query.Where(i => i.IsAnimated == filters.IsAnimated.Value);
         }
 
-        // Orientation Logic
         if (!string.IsNullOrEmpty(filters.Orientation))
         {
             if (filters.Orientation.Equals("LANDSCAPE", StringComparison.OrdinalIgnoreCase))
-            {
                 query = query.Where(i => i.Width > i.Height);
-            }
             else if (filters.Orientation.Equals("PORTRAIT", StringComparison.OrdinalIgnoreCase))
-            {
                 query = query.Where(i => i.Height > i.Width);
-            }
             else if (filters.Orientation.Equals("SQUARE", StringComparison.OrdinalIgnoreCase))
-            {
                 query = query.Where(i => i.Width == i.Height);
-            }
         }
 
         if (filters.IncludedTags.Any())
         {
-            foreach (var tag in filters.IncludedTags)
+            foreach (var tagInput in filters.IncludedTags)
             {
-                query = query.Where(i => i.Tags.Any(t => t.Name == tag));
+                if (long.TryParse(tagInput, out var tagId))
+                {
+                    query = query.Where(i => i.Tags.Any(t => t.Id == tagId));
+                }
+                else
+                {
+                    var slug = tagInput.Trim().ToLowerInvariant();
+                    query = query.Where(i => i.Tags.Any(t => t.Slug == slug));
+                }
             }
         }
 
         if (filters.ExcludedTags.Any())
         {
-            foreach (var tag in filters.ExcludedTags)
+            foreach (var tagInput in filters.ExcludedTags)
             {
-                query = query.Where(i => !i.Tags.Any(t => t.Name == tag));
+                if (long.TryParse(tagInput, out var tagId))
+                {
+                    query = query.Where(i => !i.Tags.Any(t => t.Id == tagId));
+                }
+                else
+                {
+                    var slug = tagInput.Trim().ToLowerInvariant();
+                    query = query.Where(i => !i.Tags.Any(t => t.Slug == slug));
+                }
             }
         }
-
-        if (filters.ArtistId.HasValue)
+        
+        if (filters.IncludedArtists.Any())
         {
-            query = query.Where(i => i.Artist != null && i.Artist.Id == filters.ArtistId.Value);
+            foreach (var artistInput in filters.IncludedArtists)
+            {
+                if (long.TryParse(artistInput, out var artistId))
+                {
+                    query = query.Where(i => i.Artists.Any(a => a.Id == artistId));
+                }
+            }
+        }
+        
+        if (filters.ExcludedArtists.Any())
+        {
+            foreach (var artistInput in filters.ExcludedArtists)
+            {
+                if (long.TryParse(artistInput, out var artistId))
+                {
+                    query = query.Where(i => !i.Artists.Any(a => a.Id == artistId));
+                }
+            }
         }
 
         query = ApplyRangeFilter(query, filters.Width, i => i.Width);
@@ -88,7 +104,6 @@ public static class ImageQueryExtensions
     private static IQueryable<Image> ApplyRangeFilter(IQueryable<Image> query, string filter, Expression<Func<Image, long>> propertySelector)
     {
         if (string.IsNullOrWhiteSpace(filter)) return query;
-
         filter = filter.Trim();
         long value;
 

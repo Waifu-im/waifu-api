@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using Mediator;
+﻿using Mediator;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using WaifuApi.Application.Common.Models;
@@ -51,7 +45,7 @@ public class GetPendingImagesQueryHandler : IQueryHandler<GetPendingImagesQuery,
         var query = _context.Images
             .AsNoTracking()
             .Include(i => i.Tags)
-            .Include(i => i.Artist)
+            .Include(i => i.Artists)
             .Where(i => i.ReviewStatus == ReviewStatus.Pending)
             .OrderBy(i => i.UploadedAt);
 
@@ -60,11 +54,11 @@ public class GetPendingImagesQueryHandler : IQueryHandler<GetPendingImagesQuery,
         var imageDtos = paginatedImages.Items.Select(image => new ImageDto
         {
             Id = image.Id,
-            PerceptualHash = BitArrayToHex(image.PerceptualHash),
+            PerceptualHash = BitArrayHelper.ToHex(image.PerceptualHash), // Utilisation du Helper
             Extension = image.Extension,
             DominantColor = image.DominantColor,
             Source = image.Source,
-            Artist = image.Artist,
+            Artists = image.Artists,
             UploaderId = image.UploaderId,
             UploadedAt = image.UploadedAt,
             IsNsfw = image.IsNsfw,
@@ -73,21 +67,21 @@ public class GetPendingImagesQueryHandler : IQueryHandler<GetPendingImagesQuery,
             Height = image.Height,
             ByteSize = image.ByteSize,
             Url = CdnUrlHelper.GetImageUrl(_cdnBaseUrl, image.Id, image.Extension),
-            Tags = image.Tags
+            Tags = image.Tags.Select(t => new TagDto
+            {
+                Id = t.Id,
+                Name = t.Name,
+                Slug = t.Slug,
+                Description = t.Description,
+                ReviewStatus = t.ReviewStatus
+            }).ToList()
         }).ToList();
 
         return new PaginatedList<ImageDto>(
             imageDtos,
             paginatedImages.TotalCount,
             paginatedImages.PageNumber,
-            pageSize // Pass the actual pageSize used for calculation
+            pageSize
         );
-    }
-
-    private static string BitArrayToHex(BitArray bits)
-    {
-        var bytes = new byte[(bits.Length + 7) / 8];
-        bits.CopyTo(bytes, 0);
-        return Convert.ToHexString(bytes).ToLowerInvariant();
     }
 }

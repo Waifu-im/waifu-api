@@ -23,8 +23,5 @@ public class UploadImageCommandValidator : AbstractValidator<UploadImageCommand>
         RuleFor(x => x.Source)
             .MaximumLength(500).WithMessage("Source URL must not exceed 500 characters.")
             .When(x => !string.IsNullOrEmpty(x.Source));
-            
-        RuleFor(x => x.ArtistId)
-            .GreaterThan(0).When(x => x.ArtistId.HasValue).WithMessage("Invalid Artist ID.");
     }
 }

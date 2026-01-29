@@ -109,7 +109,7 @@ const AlbumPage = () => {
                 isNsfw: data.isNsfw,
                 userId: data.userId || null,
             };
-            const { data: updatedImage } = await api.patch<ImageDto>(`/images/${editingImage.id}`, payload);
+            const { data: updatedImage } = await api.put<ImageDto>(`/images/${editingImage.id}`, payload);
             setImages(prev => prev.map(img => img.id === updatedImage.id ? updatedImage : img));
             showNotification('success', 'Image updated');
             setIsEditImageOpen(false);

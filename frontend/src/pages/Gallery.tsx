@@ -33,11 +33,10 @@ const Gallery = () => {
   const byteSize = searchParams.get('byteSize') || '';
   const includedTags = searchParams.getAll('includedTags');
   const excludedTags = searchParams.getAll('excludedTags');
+  const includedArtists = searchParams.getAll('includedArtists');
+  const excludedArtists = searchParams.getAll('excludedArtists');
   const pageStr = searchParams.get('page');
   const page = pageStr ? parseInt(pageStr) : 1;
-
-  const artistIdStr = searchParams.get('artistId');
-  const artistId = artistIdStr ? parseInt(artistIdStr) : undefined;
 
   const isAdminOrModerator = user && (user.role === Role.Admin || user.role === Role.Moderator);
   const isAnimatedBool = isAnimatedStr === 'true' ? true : isAnimatedStr === 'false' ? false : undefined;
@@ -52,7 +51,8 @@ const Gallery = () => {
     byteSize,
     includedTags,
     excludedTags,
-    artistId,
+    includedArtists,
+    excludedArtists,
     page: page,
     pageSize: 50
   });
@@ -91,8 +91,10 @@ const Gallery = () => {
         source: data.source || null,
         isNsfw: data.isNsfw,
         userId: data.userId || null,
+        tagIds: data.tagIds || [],
+        artistIds: data.artistIds || []
       };
-      await api.patch<ImageDto>(`/images/${editingImage.id}`, payload);
+      await api.put<ImageDto>(`/images/${editingImage.id}`, payload);
       showNotification('success', 'Image updated');
       refetch();
       setIsEditModalOpen(false);

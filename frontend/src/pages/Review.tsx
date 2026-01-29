@@ -65,7 +65,14 @@ const Review = () => {
     const handleUpdateImage = async (data: ImageFormData) => {
         if (!editingImage) return;
         try {
-            await api.put(`/images/${editingImage.id}`, data);
+            const payload = {
+                source: data.source || null,
+                isNsfw: data.isNsfw,
+                userId: data.userId || null,
+                tagIds: data.tagIds,
+                artistIds: data.artistIds
+            };
+            await api.put(`/images/${editingImage.id}`, payload);
             showNotification('success', 'Image updated');
             setEditingImage(null);
             fetchData();
@@ -139,15 +146,18 @@ const Review = () => {
                                             {/* Metadata Section */}
                                             <div className="flex flex-wrap gap-1">
                                                 {/* Artist Link */}
-                                                {img.artist ? (
-                                                    <Link
-                                                        to={`/gallery?artistId=${img.artist.id}`}
-                                                        className={`text-xs px-2 py-1 rounded flex items-center gap-1 hover:bg-primary/10 transition-colors max-w-full ${img.artist.reviewStatus === 0 ? 'bg-orange-500/10 text-orange-600 border border-orange-500/20' : 'bg-secondary'}`}
-                                                        title={img.artist.reviewStatus === 0 ? "Artist Pending Review" : "View Artist in Gallery"}
-                                                    >
-                                                        {img.artist.reviewStatus === 0 && <Clock size={10} className="shrink-0" />}
-                                                        <span className="truncate">{img.artist.name}</span>
-                                                    </Link>
+                                                {img.artists && img.artists.length > 0 ? (
+                                                    img.artists.map(artist => (
+                                                        <Link
+                                                            key={artist.id}
+                                                            to={`/gallery?includedArtists=${artist.id}`}
+                                                            className={`text-xs px-2 py-1 rounded flex items-center gap-1 hover:bg-primary/10 transition-colors max-w-full ${artist.reviewStatus === 0 ? 'bg-orange-500/10 text-orange-600 border border-orange-500/20' : 'bg-secondary'}`}
+                                                            title={artist.reviewStatus === 0 ? "Artist Pending Review" : "View Artist in Gallery"}
+                                                        >
+                                                            {artist.reviewStatus === 0 && <Clock size={10} className="shrink-0" />}
+                                                            <span className="truncate">{artist.name}</span>
+                                                        </Link>
+                                                    ))
                                                 ) : <span className="text-xs text-muted-foreground italic">No Artist</span>}
 
                                                 {/* Tags Links */}
@@ -184,7 +194,7 @@ const Review = () => {
                                         <div className="overflow-hidden flex-1 min-w-0">
                                             <h3 className="font-bold text-lg truncate" title={artist.name}>
                                                 {/* Link to Gallery filtered by Artist */}
-                                                <Link to={`/gallery?artistId=${artist.id}`} className="hover:underline hover:text-primary transition-colors">
+                                                <Link to={`/gallery?includedArtists=${artist.id}`} className="hover:underline hover:text-primary transition-colors">
                                                     {artist.name}
                                                 </Link>
                                             </h3>

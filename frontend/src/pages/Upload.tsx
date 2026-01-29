@@ -32,7 +32,7 @@ const Upload = () => {
   const [tags, setTags] = useState<Option[]>([]);
   const [artists, setArtists] = useState<Option[]>([]);
   const [selectedTags, setSelectedTags] = useState<Option[]>([]);
-  const [selectedArtist, setSelectedArtist] = useState<Option | null>(null);
+  const [selectedArtists, setSelectedArtists] = useState<Option[]>([]);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   // Modals
@@ -109,7 +109,7 @@ const Upload = () => {
     try {
       const res = await api.post<Artist>('/artists', data);
       const newOption = { id: res.data.id, name: res.data.name };
-      setSelectedArtist(newOption);
+      setSelectedArtists(p => p.some(a => a.id === newOption.id) ? p : [...p, newOption]);
 
       showNotification(isReviewMode ? 'info' : 'success', isReviewMode ? 'Artist submitted for review' : 'Artist created');
       setShowCreateArtistModal(false);
@@ -120,7 +120,7 @@ const Upload = () => {
           const existing = existingRes.data;
           const existingOpt = { id: existing.id, name: existing.name };
           
-          setSelectedArtist(existingOpt);
+          setSelectedArtists(p => p.some(a => a.id === existingOpt.id) ? p : [...p, existingOpt]);
           showNotification('info', 'Artist already exists (possibly under review), selected.');
           setShowCreateArtistModal(false);
         } catch (fetchErr) {
@@ -138,8 +138,7 @@ const Upload = () => {
     
     // Use IDs instead of names
     selectedTags.forEach(tag => formData.append('tagIds', String(tag.id)));
-    
-    if (selectedArtist) formData.append('artistId', String(selectedArtist.id));
+    selectedArtists.forEach(artist => formData.append('artistIds', String(artist.id)));
 
     if (data.source) formData.append('source', data.source);
     formData.append('isNsfw', String(data.isNsfw));
@@ -191,14 +190,14 @@ const Upload = () => {
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
               <div className="space-y-4">
                 <SearchableSelect
-                    label="Artist"
-                    placeholder="Search artist..."
+                    label="Artists"
+                    placeholder="Search artists..."
                     options={artists}
-                    selectedOptions={selectedArtist ? [selectedArtist] : []}
-                    onSelect={setSelectedArtist}
-                    onRemove={() => setSelectedArtist(null)}
+                    selectedOptions={selectedArtists}
+                    onSelect={(o) => setSelectedArtists(p => p.some(a => a.id === o.id) ? p : [...p, o])}
+                    onRemove={(o) => setSelectedArtists(p => p.filter(a => a.id !== o.id))}
                     onCreate={(name) => { setNewArtistName(name); setShowCreateArtistModal(true); }}
-                    isMulti={false}
+                    isMulti={true}
                 />
                 <SearchableSelect
                     label="Tags"

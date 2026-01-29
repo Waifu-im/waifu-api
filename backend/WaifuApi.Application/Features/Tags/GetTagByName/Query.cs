@@ -3,14 +3,14 @@ using System.Threading.Tasks;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
 using WaifuApi.Application.Common.Exceptions;
+using WaifuApi.Application.Common.Models;
 using WaifuApi.Application.Interfaces;
-using WaifuApi.Domain.Entities;
 
 namespace WaifuApi.Application.Features.Tags.GetTagByName;
 
-public record GetTagByNameQuery(string Name) : IQuery<Tag>;
+public record GetTagByNameQuery(string Name) : IQuery<TagDto>;
 
-public class GetTagByNameQueryHandler : IQueryHandler<GetTagByNameQuery, Tag>
+public class GetTagByNameQueryHandler : IQueryHandler<GetTagByNameQuery, TagDto>
 {
     private readonly IWaifuDbContext _context;
 
@@ -19,7 +19,7 @@ public class GetTagByNameQueryHandler : IQueryHandler<GetTagByNameQuery, Tag>
         _context = context;
     }
 
-    public async ValueTask<Tag> Handle(GetTagByNameQuery request, CancellationToken cancellationToken)
+    public async ValueTask<TagDto> Handle(GetTagByNameQuery request, CancellationToken cancellationToken)
     {
         var tag = await _context.Tags
             .AsNoTracking()
@@ -30,6 +30,13 @@ public class GetTagByNameQueryHandler : IQueryHandler<GetTagByNameQuery, Tag>
             throw new KeyNotFoundException($"Tag with name '{request.Name}' not found.");
         }
 
-        return tag;
+        return new TagDto
+        {
+            Id = tag.Id,
+            Name = tag.Name,
+            Slug = tag.Slug,
+            Description = tag.Description,
+            ReviewStatus = tag.ReviewStatus
+        };
     }
 }

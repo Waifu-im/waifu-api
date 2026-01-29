@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -12,29 +11,34 @@ using WaifuApi.Application.Common.Models;
 using WaifuApi.Application.Common.Utilities;
 using WaifuApi.Application.Interfaces;
 using WaifuApi.Domain.Entities;
-using WaifuApi.Domain.Enums;
 
 namespace WaifuApi.Application.Features.Images.UpdateImage;
 
-public record UpdateImageCommand(long Id, string? Source, bool IsNsfw, long? UserId, List<long>? TagIds, long? ArtistId) : ICommand<ImageDto>;
+public record UpdateImageCommand(
+    long Id, 
+    string? Source, 
+    bool IsNsfw, 
+    long? UserId, 
+    List<long>? TagIds, 
+    List<long>? ArtistIds
+) : ICommand<ImageDto>;
 
 public class UpdateImageCommandHandler : ICommandHandler<UpdateImageCommand, ImageDto>
 {
     private readonly IWaifuDbContext _context;
     private readonly string _cdnBaseUrl;
-    private readonly IConfiguration _configuration;
 
     public UpdateImageCommandHandler(IWaifuDbContext context, IConfiguration configuration)
     {
         _context = context;
         _cdnBaseUrl = configuration["Cdn:BaseUrl"] ?? throw new InvalidOperationException("Cdn:BaseUrl is required.");
-        _configuration = configuration;
     }
 
     public async ValueTask<ImageDto> Handle(UpdateImageCommand request, CancellationToken cancellationToken)
     {
         var image = await _context.Images
             .Include(i => i.Tags)
+            .Include(i => i.Artists)
             .FirstOrDefaultAsync(i => i.Id == request.Id, cancellationToken);
 
         if (image == null)
@@ -42,7 +46,8 @@ public class UpdateImageCommandHandler : ICommandHandler<UpdateImageCommand, Ima
             throw new KeyNotFoundException($"Image with ID {request.Id} not found.");
         }
 
-        image.Source = request.Source;
+        // Clean string input
+        image.Source = request.Source.ToNullIfEmpty();
         image.IsNsfw = request.IsNsfw;
 
         if (request.UserId.HasValue)
@@ -58,6 +63,7 @@ public class UpdateImageCommandHandler : ICommandHandler<UpdateImageCommand, Ima
 
         if (request.TagIds != null)
         {
+            // Update tags only if list provided
             image.Tags.Clear();
             if (request.TagIds.Any())
             {
@@ -75,33 +81,35 @@ public class UpdateImageCommandHandler : ICommandHandler<UpdateImageCommand, Ima
             }
         }
 
-        if (request.ArtistId.HasValue)
+        if (request.ArtistIds != null)
         {
-            var artist = await _context.Artists.FindAsync(new object[] { request.ArtistId.Value }, cancellationToken);
-            if (artist == null)
+            image.Artists.Clear();
+            if (request.ArtistIds.Any())
             {
-                throw new KeyNotFoundException($"Artist with ID {request.ArtistId.Value} not found.");
+                var foundArtists = await _context.Artists
+                    .Where(a => request.ArtistIds.Contains(a.Id))
+                    .ToListAsync(cancellationToken);
+
+                if (foundArtists.Count != request.ArtistIds.Count)
+                {
+                    var foundIds = foundArtists.Select(a => a.Id).ToList();
+                    var missingIds = request.ArtistIds.Except(foundIds).ToList();
+                    throw new KeyNotFoundException($"Artists with IDs {string.Join(", ", missingIds)} not found.");
+                }
+                image.Artists = foundArtists;
             }
-            image.Artist = artist;
-        }
-        else
-        {
-            image.Artist = null;
         }
 
         await _context.SaveChangesAsync(cancellationToken);
 
-        // Explicitly load related data (Artist) - Tags are already loaded/updated
-        await _context.Entry(image).Reference(i => i.Artist).LoadAsync(cancellationToken);
-
         return new ImageDto
         {
             Id = image.Id,
-            PerceptualHash = BitArrayToHex(image.PerceptualHash),
+            PerceptualHash = BitArrayHelper.ToHex(image.PerceptualHash),
             Extension = image.Extension,
             DominantColor = image.DominantColor,
             Source = image.Source,
-            Artist = image.Artist,
+            Artists = image.Artists,
             UploaderId = image.UploaderId,
             UploadedAt = image.UploadedAt,
             IsNsfw = image.IsNsfw,
@@ -110,16 +118,17 @@ public class UpdateImageCommandHandler : ICommandHandler<UpdateImageCommand, Ima
             Height = image.Height,
             ByteSize = image.ByteSize,
             Url = CdnUrlHelper.GetImageUrl(_cdnBaseUrl, image.Id, image.Extension),
-            Tags = image.Tags,
-            Favorites = 0, // Not calculating favorites for update response
+            // Map Tags to DTO
+            Tags = image.Tags.Select(t => new TagDto
+            {
+                Id = t.Id,
+                Name = t.Name,
+                Slug = t.Slug,
+                Description = t.Description,
+                ReviewStatus = t.ReviewStatus
+            }).ToList(),
+            Favorites = 0, // Not relevant for update response
             LikedAt = null
         };
-    }
-
-    private static string BitArrayToHex(BitArray bits)
-    {
-        var bytes = new byte[(bits.Length + 7) / 8];
-        bits.CopyTo(bytes, 0);
-        return Convert.ToHexString(bytes).ToLowerInvariant();
     }
 }

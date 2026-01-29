@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using WaifuApi.Domain.Enums;
 
 namespace WaifuApi.Domain.Entities;
@@ -11,4 +12,5 @@ public class Artist
     public string? Twitter { get; set; }
     public string? DeviantArt { get; set; }
     public ReviewStatus ReviewStatus { get; set; } = ReviewStatus.Pending;
+    public List<Image> Images { get; set; } = new();
 }

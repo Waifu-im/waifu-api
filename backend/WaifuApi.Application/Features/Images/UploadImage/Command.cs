@@ -23,7 +23,7 @@ public record UploadImageCommand(
     Stream FileStream,
     string FileName,
     string ContentType,
-    long? ArtistId,
+    List<long> ArtistIds,
     List<long> TagIds,
     string? Source,
     bool IsNsfw
@@ -55,9 +55,9 @@ public class UploadImageCommandHandler : ICommandHandler<UploadImageCommand, Ima
     {
         var metadata = await _imageProcessingService.ProcessAsync(request.FileStream, request.FileName);
 
-        var targetHash = HexToBitArray(metadata.PerceptualHash);
+        var targetHash = BitArrayHelper.FromHex(metadata.PerceptualHash);
 
-        // Use pgvector HammingDistance
+        // Check duplicates using pgvector HammingDistance
         var duplicate = await _context.Images
             .Where(i => i.PerceptualHash.HammingDistance(targetHash) <= HammingDistanceThreshold)
             .Select(i => new { i.Id })
@@ -68,14 +68,20 @@ public class UploadImageCommandHandler : ICommandHandler<UploadImageCommand, Ima
             throw new ConflictException($"Duplicate image found. ID: {duplicate.Id}");
         }
 
-        Artist? artist = null;
-        if (request.ArtistId.HasValue)
+        var artists = new List<Artist>();
+        if (request.ArtistIds.Any())
         {
-            artist = await _context.Artists.FindAsync(new object[] { request.ArtistId.Value }, cancellationToken);
-            if (artist == null)
+            var foundArtists = await _context.Artists
+                .Where(a => request.ArtistIds.Contains(a.Id))
+                .ToListAsync(cancellationToken);
+
+            if (foundArtists.Count != request.ArtistIds.Count)
             {
-                throw new KeyNotFoundException($"Artist with ID {request.ArtistId.Value} not found.");
+                var foundIds = foundArtists.Select(a => a.Id).ToList();
+                var missingIds = request.ArtistIds.Except(foundIds).ToList();
+                throw new KeyNotFoundException($"Artists with IDs {string.Join(", ", missingIds)} not found.");
             }
+            artists = foundArtists;
         }
 
         var tags = new List<Tag>();
@@ -94,14 +100,15 @@ public class UploadImageCommandHandler : ICommandHandler<UploadImageCommand, Ima
             tags = foundTags;
         }
 
-        var requireImageReview = bool.Parse(_configuration["Moderation:RequireImageReview"] ?? throw new InvalidOperationException("Moderation:RequireImageReview is required."));
+        var requireImageReview = bool.Parse(_configuration["Moderation:RequireImageReview"] ?? "true");
+        
         var image = new Image
         {
             PerceptualHash = targetHash,
             Extension = metadata.Extension,
             DominantColor = metadata.DominantColor,
-            Source = request.Source,
-            Artist = artist,
+            Source = request.Source.ToNullIfEmpty(), // Clean input
+            Artists = artists,
             UploaderId = request.UserId,
             UploadedAt = DateTime.UtcNow,
             IsNsfw = request.IsNsfw,
@@ -124,6 +131,7 @@ public class UploadImageCommandHandler : ICommandHandler<UploadImageCommand, Ima
         }
         catch
         {
+            // Rollback DB if S3 fails
             _context.Images.Remove(image);
             await _context.SaveChangesAsync(cancellationToken);
             throw;
@@ -132,11 +140,11 @@ public class UploadImageCommandHandler : ICommandHandler<UploadImageCommand, Ima
         return new ImageDto
         {
             Id = image.Id,
-            PerceptualHash = BitArrayToHex(image.PerceptualHash),
+            PerceptualHash = BitArrayHelper.ToHex(image.PerceptualHash),
             Extension = image.Extension,
             DominantColor = image.DominantColor,
             Source = image.Source,
-            Artist = image.Artist,
+            Artists = image.Artists,
             UploaderId = image.UploaderId,
             UploadedAt = image.UploadedAt,
             IsNsfw = image.IsNsfw,
@@ -145,22 +153,16 @@ public class UploadImageCommandHandler : ICommandHandler<UploadImageCommand, Ima
             Height = image.Height,
             ByteSize = image.ByteSize,
             Url = CdnUrlHelper.GetImageUrl(_cdnBaseUrl, image.Id, image.Extension),
-            Tags = image.Tags,
+            Tags = image.Tags.Select(t => new TagDto
+            {
+                Id = t.Id,
+                Name = t.Name,
+                Slug = t.Slug,
+                Description = t.Description,
+                ReviewStatus = t.ReviewStatus
+            }).ToList(),
             Favorites = 0,
             LikedAt = null
         };
-    }
-
-    private static BitArray HexToBitArray(string hex)
-    {
-        var bytes = Convert.FromHexString(hex);
-        return new BitArray(bytes);
-    }
-
-    private static string BitArrayToHex(BitArray bits)
-    {
-        var bytes = new byte[(bits.Length + 7) / 8];
-        bits.CopyTo(bytes, 0);
-        return Convert.ToHexString(bytes).ToLowerInvariant();
     }
 }

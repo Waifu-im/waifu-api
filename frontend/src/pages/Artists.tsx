@@ -4,7 +4,7 @@ import api from '../services/api';
 import { Artist, PaginatedList, Role } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
-import { Plus, Edit2, Trash2, User as UserIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Edit2, Trash2, User as UserIcon, ChevronLeft, ChevronRight, Search, ExternalLink } from 'lucide-react';
 import ArtistModal, { ArtistFormData } from '../components/modals/ArtistModal';
 import ConfirmModal from '../components/modals/ConfirmModal';
 
@@ -20,6 +20,9 @@ const Artists = () => {
     const [totalPages, setTotalPages] = useState(1);
     const pageSize = 50;
 
+    const [search, setSearch] = useState('');
+    const [searchTerm, setSearchTerm] = useState('');
+
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
@@ -28,14 +31,23 @@ const Artists = () => {
     const fetchArtists = async () => {
         setLoading(true);
         try {
-            const { data } = await api.get<PaginatedList<Artist>>('/artists', { params: { page, pageSize } });
+            const params: any = { page, pageSize };
+            if (searchTerm) params.search = searchTerm;
+
+            const { data } = await api.get<PaginatedList<Artist>>('/artists', { params });
             setArtists(data.items);
             setTotalPages(data.totalPages);
         } catch { showNotification('error', 'Failed to load artists'); }
         finally { setLoading(false); }
     };
 
-    useEffect(() => { fetchArtists(); }, [page]);
+    useEffect(() => { fetchArtists(); }, [page, searchTerm]);
+
+    const handleSearch = (e: React.FormEvent) => {
+        e.preventDefault();
+        setSearchTerm(search);
+        setPage(1);
+    };
 
     const handleOpenCreate = () => {
         if (!user) {
@@ -84,50 +96,74 @@ const Artists = () => {
 
     return (
         <div className="container mx-auto p-6 md:p-10">
-            <div className="flex justify-between items-center mb-10">
+            <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-4">
                 <div>
                     <h1 className="text-3xl font-black flex items-center gap-3 text-foreground"><UserIcon className="text-primary" size={32}/> Artists</h1>
                     <p className="text-muted-foreground mt-1">Browse and manage artists.</p>
                 </div>
-                <button onClick={handleOpenCreate} className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-bold hover:opacity-90 shadow-lg transition-all"><Plus size={20} /> New Artist</button>
+
+                <div className="flex gap-3 w-full md:w-auto">
+                    <form onSubmit={handleSearch} className="relative w-full md:w-64">
+                        <Search className="absolute left-3 top-3 text-muted-foreground" size={18} />
+                        <input
+                            type="text"
+                            placeholder="Search artists..."
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            className="w-full pl-10 p-3 bg-card border border-border rounded-xl outline-none focus:ring-2 focus:ring-primary"
+                        />
+                    </form>
+                    <button onClick={handleOpenCreate} className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-bold hover:opacity-90 shadow-lg transition-all whitespace-nowrap">
+                        <Plus size={20} /> <span className="hidden sm:inline">New</span>
+                    </button>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {loading ? [...Array(8)].map((_,i) => <div key={i} className="h-32 bg-muted rounded-xl animate-pulse"/>) : artists.map(artist => (
-                    <div key={artist.id} className="relative group bg-card border border-border rounded-xl hover:shadow-md hover:border-primary/50 transition-all overflow-hidden">
-
-                        {/* Lien vers la galerie */}
-                        <Link
-                            to={`/gallery?artistId=${artist.id}`}
-                            className="block p-6 h-full hover:bg-secondary/5 transition-colors"
-                        >
-                            <h3 className="font-bold text-lg mb-2 truncate text-foreground group-hover:text-primary transition-colors">{artist.name}</h3>
-                            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground mt-2">
-                                {artist.twitter && <span className="bg-secondary px-2 py-1 rounded">TW</span>}
-                                {artist.pixiv && <span className="bg-secondary px-2 py-1 rounded">PX</span>}
+                    <div key={artist.id} className="group bg-card border border-border rounded-xl hover:shadow-md hover:border-primary/50 transition-all overflow-hidden p-6 flex flex-col">
+                        <div className="flex justify-between items-start mb-2">
+                            <div className="flex flex-col gap-1 overflow-hidden">
+                                <h3 className="font-bold text-lg truncate text-foreground group-hover:text-primary transition-colors">{artist.name}</h3>
+                                <span className="text-xs font-mono bg-secondary px-2 py-1 rounded text-muted-foreground select-text w-fit">#{artist.id}</span>
                             </div>
-                        </Link>
-
-                        {/* Actions */}
-                        {canManage && (
-                            <div className="absolute top-4 right-4 flex gap-2 z-10">
-                                <button
-                                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedArtist(artist); setIsEditOpen(true); }}
+                            
+                            <div className="flex gap-2 flex-shrink-0 ml-2">
+                                <Link
+                                    to={`/gallery?includedArtists=${artist.id}`}
                                     className="p-1.5 bg-secondary hover:bg-primary hover:text-primary-foreground rounded text-muted-foreground transition-colors shadow-sm"
+                                    title="View in Gallery"
                                 >
-                                    <Edit2 size={16}/>
-                                </button>
-                                {isAdmin && (
-                                    <button
-                                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedArtist(artist); setIsDeleteOpen(true); }}
-                                        className="p-1.5 bg-secondary hover:bg-destructive hover:text-destructive-foreground rounded text-muted-foreground transition-colors shadow-sm"
-                                        title="Delete"
-                                    >
-                                        <Trash2 size={16}/>
-                                    </button>
+                                    <ExternalLink size={16} />
+                                </Link>
+
+                                {canManage && (
+                                    <>
+                                        <button
+                                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedArtist(artist); setIsEditOpen(true); }}
+                                            className="p-1.5 bg-secondary hover:bg-primary hover:text-primary-foreground rounded text-muted-foreground transition-colors shadow-sm"
+                                            title="Edit"
+                                        >
+                                            <Edit2 size={16}/>
+                                        </button>
+                                        {isAdmin && (
+                                            <button
+                                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedArtist(artist); setIsDeleteOpen(true); }}
+                                                className="p-1.5 bg-secondary hover:bg-destructive hover:text-destructive-foreground rounded text-muted-foreground transition-colors shadow-sm"
+                                                title="Delete"
+                                            >
+                                                <Trash2 size={16}/>
+                                            </button>
+                                        )}
+                                    </>
                                 )}
                             </div>
-                        )}
+                        </div>
+
+                        <div className="flex flex-wrap gap-2 text-xs text-muted-foreground mt-2">
+                            {artist.twitter && <span className="bg-secondary px-2 py-1 rounded">TW</span>}
+                            {artist.pixiv && <span className="bg-secondary px-2 py-1 rounded">PX</span>}
+                        </div>
                     </div>
                 ))}
             </div>

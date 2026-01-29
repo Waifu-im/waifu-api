@@ -2,7 +2,7 @@
 import { ArrowRight, Book, ShieldCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import api from '../services/api';
-import { ImageDto } from '../types';
+import { ImageDto, PaginatedList } from '../types';
 
 const Home = () => {
   const [heroImage, setHeroImage] = useState<ImageDto | null>(null);
@@ -10,10 +10,10 @@ const Home = () => {
   useEffect(() => {
     const fetchHero = async () => {
       try {
-        const { data } = await api.get<ImageDto[]>('/images', {
-          params: { isNsfw: 0, limit: 1, orientation: 'LANDSCAPE' }
+        const { data } = await api.get<PaginatedList<ImageDto>>('/images', {
+          params: { isNsfw: 0, pageSize: 1, orientation: 'LANDSCAPE' }
         });
-        if (data.length > 0) setHeroImage(data[0]);
+        if (data.items.length > 0) setHeroImage(data.items[0]);
       } catch (e) { console.error(e); }
     };
     fetchHero();

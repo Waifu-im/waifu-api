@@ -14,7 +14,7 @@ public class Image
     public required string DominantColor { get; set; }
     public string? Source { get; set; }
     
-    public Artist? Artist { get; set; }
+    public List<Artist> Artists { get; set; } = new();
     
     public long UploaderId { get; set; }
     public User Uploader { get; set; } = null!;

@@ -58,6 +58,9 @@ public class WaifuDbContext : DbContext, IWaifuDbContext
                 .HasForeignKey(e => e.UploaderId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            entity.HasMany(e => e.Artists)
+                .WithMany(a => a.Images);
+
             entity.HasMany(i => i.Tags)
                 .WithMany(t => t.Images);
         });
@@ -78,6 +81,10 @@ public class WaifuDbContext : DbContext, IWaifuDbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Name).IsRequired();
             entity.HasIndex(e => e.Name).IsUnique();
+            
+            entity.Property(e => e.Slug).IsRequired();
+            entity.HasIndex(e => e.Slug).IsUnique();
+            
             entity.Property(e => e.Description).IsRequired();
         });
 
