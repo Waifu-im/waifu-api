@@ -1,15 +1,15 @@
 ﻿import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useImages } from '../hooks/useImages';
-import { SlidersHorizontal, RefreshCw, Search, ChevronLeft, ChevronRight } from 'lucide-react';
-import ImageCard from '../components/ImageCard';
+import { SlidersHorizontal, Search } from 'lucide-react';
 import api from '../services/api';
-import { ImageDto, Role, ImageFormData } from '../types';
+import { ImageDto, Role, ImageFormData, ImageSort } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 import ImageModal from '../components/modals/ImageModal';
 import FilterSidebar from '../components/FilterSidebar';
 import ConfirmModal from '../components/modals/ConfirmModal';
+import ImageGrid from '../components/ImageGrid';
 
 const Gallery = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -23,9 +23,18 @@ const Gallery = () => {
   const [editingImage, setEditingImage] = useState<ImageDto | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
+  useEffect(() => {
+    if (!searchParams.has('orderBy')) {
+      setSearchParams(prev => {
+        prev.set('orderBy', ImageSort.RANDOM);
+        return prev;
+      }, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
   // Extract Params
   const isNsfw = searchParams.get('isNsfw') || '0';
-  const orderBy = searchParams.get('orderBy') || 'RANDOM';
+  const orderBy = searchParams.get('orderBy') || ImageSort.RANDOM;
   const orientation = searchParams.get('orientation') || '';
   const isAnimatedStr = searchParams.get('isAnimated');
   const height = searchParams.get('height') || '';
@@ -84,7 +93,7 @@ const Gallery = () => {
       setImageToDelete(null);
       showNotification('success', 'Image deleted');
     } catch(e) {
-      showNotification('error', 'Failed to delete image');
+      // Error handled globally
     }
   };
 
@@ -95,8 +104,8 @@ const Gallery = () => {
         source: data.source || null,
         isNsfw: data.isNsfw,
         userId: data.userId || null,
-        tagIds: data.tagIds || [],
-        artistIds: data.artistIds || []
+        tags: data.tags || [], // Updated key
+        artists: data.artists || [] // Updated key
       };
       await api.put<ImageDto>(`/images/${editingImage.id}`, payload);
       showNotification('success', 'Image updated');
@@ -104,7 +113,7 @@ const Gallery = () => {
       setIsEditModalOpen(false);
       setEditingImage(null);
     } catch (err) {
-      showNotification('error', 'Failed to update image');
+      // Error handled globally
     }
   };
 
@@ -116,9 +125,9 @@ const Gallery = () => {
   };
 
   const sortOptions = [
-    { id: 'RANDOM', name: 'Random Shuffle' },
-    { id: 'UPLOADED_AT', name: 'Newest First' },
-    { id: 'FAVORITES', name: 'Most Popular' }
+    { id: ImageSort.RANDOM, name: 'Random Shuffle' },
+    { id: ImageSort.UPLOADED_AT, name: 'Newest First' },
+    { id: ImageSort.FAVORITES, name: 'Most Popular' }
   ];
 
   return (
@@ -133,54 +142,24 @@ const Gallery = () => {
             </button>
           </div>
 
-          {isLoading ? (
-              <div className="columns-2 sm:columns-3 md:columns-4 gap-4 space-y-4">
-                {[...Array(12)].map((_,i) => <div key={i} className="bg-muted h-64 rounded-xl animate-pulse break-inside-avoid"></div>)}
-              </div>
-          ) : error ? (
-              <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
-                <p className="mb-4">Unable to load images.</p>
-                <button onClick={() => refetch()} className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg"><RefreshCw size={16}/> Retry</button>
-              </div>
-          ) : images.length > 0 ? (
-              <div className="columns-2 sm:columns-3 md:columns-4 xl:columns-5 gap-4 space-y-4 pb-10">
-                {images.map(img => (
-                    <div key={img.id} className="break-inside-avoid relative group">
-                      <ImageCard
-                          image={img}
-                          onDelete={confirmDelete}
-                          onEdit={isAdminOrModerator ? (img) => { setEditingImage(img); setIsEditModalOpen(true); } : undefined}
-                      />
-                    </div>
-                ))}
-              </div>
-          ) : (
-              <div className="flex flex-col items-center justify-center h-[50vh] text-muted-foreground">
-                <Search size={48} className="mb-4 opacity-20" />
-                <p className="text-lg font-medium">No images found.</p>
-                <button onClick={() => { setSearchParams({}); refetch(); }} className="mt-6 px-6 py-2 bg-secondary text-foreground rounded-lg font-bold">Clear All Filters</button>
-              </div>
-          )}
-
-          {!isLoading && totalPages > 1 && (
-              <div className="flex justify-center items-center gap-4 mt-10 pb-10">
-                  <button
-                      disabled={page === 1}
-                      onClick={() => setPage(Math.max(1, page - 1))}
-                      className="p-2 rounded-full bg-secondary disabled:opacity-50 hover:bg-secondary/80"
-                  >
-                      <ChevronLeft size={20} />
-                  </button>
-                  <span className="text-sm font-bold">Page {page} of {totalPages}</span>
-                  <button
-                      disabled={page === totalPages}
-                      onClick={() => setPage(Math.min(totalPages, page + 1))}
-                      className="p-2 rounded-full bg-secondary disabled:opacity-50 hover:bg-secondary/80"
-                  >
-                      <ChevronRight size={20} />
-                  </button>
-              </div>
-          )}
+          <ImageGrid
+              images={images}
+              isLoading={isLoading}
+              error={error}
+              onRetry={() => refetch()}
+              page={page}
+              totalPages={totalPages}
+              setPage={setPage}
+              onDelete={confirmDelete}
+              onEdit={isAdminOrModerator ? (img) => { setEditingImage(img); setIsEditModalOpen(true); } : undefined}
+              emptyState={
+                  <div className="flex flex-col items-center justify-center h-[50vh] text-muted-foreground">
+                      <Search size={48} className="mb-4 opacity-20" />
+                      <p className="text-lg font-medium">No images found.</p>
+                      <button onClick={() => { setSearchParams({}); refetch(); }} className="mt-6 px-6 py-2 bg-secondary text-foreground rounded-lg font-bold">Clear All Filters</button>
+                  </div>
+              }
+          />
         </div>
 
         <FilterSidebar

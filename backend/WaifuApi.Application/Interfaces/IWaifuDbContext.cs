@@ -1,8 +1,4 @@
-﻿using System.Collections;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.ChangeTracking;
+﻿using Microsoft.EntityFrameworkCore;
 using WaifuApi.Domain.Entities;
 
 namespace WaifuApi.Application.Interfaces;
@@ -17,8 +13,8 @@ public interface IWaifuDbContext
     DbSet<Album> Albums { get; }
     DbSet<AlbumItem> AlbumItems { get; }
     DbSet<Report> Reports { get; }
+    DbSet<DailyStat> DailyStats { get; }
+    DbSet<GlobalStat> GlobalStats { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
-    
-    EntityEntry<TEntity> Entry<TEntity>(TEntity entity) where TEntity : class;
 }

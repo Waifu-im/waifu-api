@@ -22,6 +22,12 @@ public class UploadImageCommandValidator : AbstractValidator<UploadImageCommand>
 
         RuleFor(x => x.Source)
             .MaximumLength(500).WithMessage("Source URL must not exceed 500 characters.")
-            .When(x => !string.IsNullOrEmpty(x.Source));
+            .Must(BeAValidUrl).When(x => !string.IsNullOrEmpty(x.Source))
+            .WithMessage("Source must be a valid URL.");
+    }
+
+    private bool BeAValidUrl(string url)
+    {
+        return Uri.TryCreate(url, UriKind.Absolute, out _);
     }
 }

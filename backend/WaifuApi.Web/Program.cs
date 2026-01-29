@@ -215,6 +215,9 @@ builder.Services.AddAuthorization(options =>
         (c.Value == Role.Admin.ToString() || c.Value == Role.Moderator.ToString()))));
 });
 
+// Register the background service for stats cleanup
+builder.Services.AddHostedService<StatsCleanupService>();
+
 var app = builder.Build();
 
 app.UsePathBase(basePath);
@@ -238,13 +241,17 @@ if (app.Environment.IsDevelopment())
     app.MapScalarApiReference();
 }
 
+// IMPORTANT: Authentication must come BEFORE RequestLoggingMiddleware
+// otherwise HttpContext.User will not be populated when logging runs.
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.UseMiddleware<RequestLoggingMiddleware>();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 app.UseCors("AllowAll");
 
 app.UseHttpsRedirection();
-app.UseAuthentication();
-app.UseAuthorization();
 app.MapControllers();
 
 app.MapFallback(async context =>

@@ -16,8 +16,8 @@ public class Image
     
     public List<Artist> Artists { get; set; } = new();
     
-    public long UploaderId { get; set; }
-    public User Uploader { get; set; } = null!;
+    public long? UploaderId { get; set; }
+    public User? Uploader { get; set; }
 
     public DateTime UploadedAt { get; set; }
     public bool IsNsfw { get; set; }

@@ -73,10 +73,9 @@
   }
 
   .text-info {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-sky-400 to-teal-300 font-black;
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-sky-600 to-teal-500 dark:from-sky-400 dark:to-teal-300 font-black;
   }
 
-  /* Improved Masonry */
   .masonry-grid {
     column-gap: 1rem;
   }

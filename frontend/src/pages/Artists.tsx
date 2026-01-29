@@ -1,13 +1,13 @@
-﻿import { useState, useEffect } from 'react';
+﻿import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import api from '../services/api';
-import { Artist, PaginatedList, Role } from '../types';
+import { Artist, Role } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
-import { Plus, Edit2, Trash2, User as UserIcon, ChevronLeft, ChevronRight, Search, ExternalLink } from 'lucide-react';
+import { Plus, Edit2, Trash2, User as UserIcon, ChevronLeft, ChevronRight, Search, ExternalLink, Info, Link as LinkIcon } from 'lucide-react';
 import ArtistModal, { ArtistFormData } from '../components/modals/ArtistModal';
 import ConfirmModal from '../components/modals/ConfirmModal';
-import { useDebounce } from '../hooks/useDebounce';
+import Modal from '../components/Modal';
+import { useResource } from '../hooks/useResource';
 
 const Artists = () => {
     const { user } = useAuth();
@@ -15,38 +15,24 @@ const Artists = () => {
     const navigate = useNavigate();
     const location = useLocation();
 
-    const [artists, setArtists] = useState<Artist[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [page, setPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(1);
-    const pageSize = 50;
-
-    const [search, setSearch] = useState('');
-    const debouncedSearch = useDebounce(search, 500);
+    const { 
+        items: artists, 
+        loading, 
+        page, 
+        setPage, 
+        totalPages, 
+        search, 
+        setSearch, 
+        createItem, 
+        updateItem, 
+        deleteItem 
+    } = useResource<Artist>('/artists');
 
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const [selectedArtist, setSelectedArtist] = useState<Artist | null>(null);
-
-    const fetchArtists = async () => {
-        setLoading(true);
-        try {
-            const params: any = { page, pageSize };
-            if (debouncedSearch) params.search = debouncedSearch;
-
-            const { data } = await api.get<PaginatedList<Artist>>('/artists', { params });
-            setArtists(data.items);
-            setTotalPages(data.totalPages);
-        } catch { showNotification('error', 'Failed to load artists'); }
-        finally { setLoading(false); }
-    };
-
-    useEffect(() => {
-        setPage(1);
-    }, [debouncedSearch]);
-
-    useEffect(() => { fetchArtists(); }, [page, debouncedSearch]);
+    const [infoArtist, setInfoArtist] = useState<Artist | null>(null);
 
     const handleOpenCreate = () => {
         if (!user) {
@@ -58,35 +44,21 @@ const Artists = () => {
     };
 
     const handleCreate = async (data: ArtistFormData) => {
-        try {
-            await api.post('/artists', data);
-            setIsCreateOpen(false);
-            fetchArtists();
-            const isMod = user?.role === Role.Moderator || user?.role === Role.Admin;
-            showNotification(isMod ? 'success' : 'info', isMod ? 'Artist created' : 'Artist submitted for review');
-        } catch (e: any) {
-            showNotification('error', e.response?.status === 409 ? 'Artist exists' : 'Failed to create artist');
-        }
+        const isMod = user?.role === Role.Moderator || user?.role === Role.Admin;
+        const success = await createItem(data, isMod ? 'Artist created' : 'Artist submitted for review');
+        if (success) setIsCreateOpen(false);
     };
 
     const handleEdit = async (data: ArtistFormData) => {
         if (!selectedArtist) return;
-        try {
-            await api.put(`/artists/${selectedArtist.id}`, data);
-            showNotification('success', 'Artist updated');
-            setIsEditOpen(false);
-            fetchArtists();
-        } catch { showNotification('error', 'Failed to update artist'); }
+        const success = await updateItem(selectedArtist.id, data, 'Artist updated');
+        if (success) setIsEditOpen(false);
     };
 
     const handleDelete = async () => {
         if (!selectedArtist) return;
-        try {
-            await api.delete(`/artists/${selectedArtist.id}`);
-            showNotification('success', 'Artist deleted');
-            setIsDeleteOpen(false);
-            fetchArtists();
-        } catch { showNotification('error', 'Failed to delete artist'); }
+        const success = await deleteItem(selectedArtist.id, 'Artist deleted');
+        if (success) setIsDeleteOpen(false);
     };
 
     const canManage = user && (user.role === Role.Admin || user.role === Role.Moderator);
@@ -119,7 +91,7 @@ const Artists = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {loading ? [...Array(8)].map((_,i) => <div key={i} className="h-32 bg-muted rounded-xl animate-pulse"/>) : artists.map(artist => (
+                {loading ? [...Array(8)].map((_,i) => <div key={i} className="h-40 bg-muted rounded-xl animate-pulse"/>) : artists.map(artist => (
                     <div key={artist.id} className="group bg-card border border-border rounded-xl hover:shadow-md hover:border-primary/50 transition-all overflow-hidden p-6 flex flex-col">
                         <div className="flex justify-between items-start mb-2">
                             <div className="flex flex-col gap-1 overflow-hidden">
@@ -128,6 +100,13 @@ const Artists = () => {
                             </div>
                             
                             <div className="flex gap-2 flex-shrink-0 ml-2">
+                                <button
+                                    onClick={() => setInfoArtist(artist)}
+                                    className="p-1.5 bg-secondary hover:bg-primary hover:text-primary-foreground rounded text-muted-foreground transition-colors shadow-sm"
+                                    title="Info"
+                                >
+                                    <Info size={16} />
+                                </button>
                                 <Link
                                     to={`/gallery?includedArtists=${artist.id}`}
                                     className="p-1.5 bg-secondary hover:bg-primary hover:text-primary-foreground rounded text-muted-foreground transition-colors shadow-sm"
@@ -159,9 +138,31 @@ const Artists = () => {
                             </div>
                         </div>
 
-                        <div className="flex flex-wrap gap-2 text-xs text-muted-foreground mt-2">
-                            {artist.twitter && <span className="bg-secondary px-2 py-1 rounded">TW</span>}
-                            {artist.pixiv && <span className="bg-secondary px-2 py-1 rounded">PX</span>}
+                        <div className="flex flex-col gap-2 text-xs text-muted-foreground mt-auto pt-4">
+                            {artist.twitter && (
+                                <a href={artist.twitter} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 bg-secondary px-2 py-1 rounded hover:bg-primary hover:text-primary-foreground transition-colors" title={artist.twitter}>
+                                    <LinkIcon size={14} className="text-muted-foreground shrink-0"/>
+                                    <span className="truncate">{artist.twitter.replace('https://', '')}</span>
+                                </a>
+                            )}
+                            {artist.pixiv && (
+                                <a href={artist.pixiv} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 bg-secondary px-2 py-1 rounded hover:bg-primary hover:text-primary-foreground transition-colors" title={artist.pixiv}>
+                                    <LinkIcon size={14} className="text-muted-foreground shrink-0"/>
+                                    <span className="truncate">{artist.pixiv.replace('https://', '')}</span>
+                                </a>
+                            )}
+                            {artist.deviantArt && (
+                                <a href={artist.deviantArt} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 bg-secondary px-2 py-1 rounded hover:bg-primary hover:text-primary-foreground transition-colors" title={artist.deviantArt}>
+                                    <LinkIcon size={14} className="text-muted-foreground shrink-0"/>
+                                    <span className="truncate">{artist.deviantArt.replace('https://', '')}</span>
+                                </a>
+                            )}
+                            {artist.patreon && (
+                                <a href={artist.patreon} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 bg-secondary px-2 py-1 rounded hover:bg-primary hover:text-primary-foreground transition-colors" title={artist.patreon}>
+                                    <LinkIcon size={14} className="text-muted-foreground shrink-0"/>
+                                    <span className="truncate">{artist.patreon.replace('https://', '')}</span>
+                                </a>
+                            )}
                         </div>
                     </div>
                 ))}
@@ -178,6 +179,48 @@ const Artists = () => {
             <ArtistModal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} onSubmit={handleCreate} title="New Artist" isReviewMode={isReviewMode} submitLabel="Create" />
             <ArtistModal isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} onSubmit={handleEdit} initialData={selectedArtist || undefined} title="Edit Artist" submitLabel="Save" />
             <ConfirmModal isOpen={isDeleteOpen} onClose={() => setIsDeleteOpen(false)} onConfirm={handleDelete} title="Delete Artist" message={<>Delete artist <strong>{selectedArtist?.name}</strong>?</>} />
+            
+            <Modal isOpen={!!infoArtist} onClose={() => setInfoArtist(null)} title="Artist Details">
+                {infoArtist && (
+                    <div className="space-y-4">
+                        <div>
+                            <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Name</h3>
+                            <p className="text-lg font-medium">{infoArtist.name}</p>
+                        </div>
+                        <div className="grid grid-cols-1 gap-4">
+                            {infoArtist.twitter && (
+                                <div>
+                                    <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Twitter</h3>
+                                    <a href={infoArtist.twitter} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">{infoArtist.twitter}</a>
+                                </div>
+                            )}
+                            {infoArtist.pixiv && (
+                                <div>
+                                    <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Pixiv</h3>
+                                    <a href={infoArtist.pixiv} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">{infoArtist.pixiv}</a>
+                                </div>
+                            )}
+                            {infoArtist.deviantArt && (
+                                <div>
+                                    <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">DeviantArt</h3>
+                                    <a href={infoArtist.deviantArt} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">{infoArtist.deviantArt}</a>
+                                </div>
+                            )}
+                            {infoArtist.patreon && (
+                                <div>
+                                    <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Patreon</h3>
+                                    <a href={infoArtist.patreon} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">{infoArtist.patreon}</a>
+                                </div>
+                            )}
+                        </div>
+                        <div className="pt-4 border-t border-border flex justify-end">
+                            <Link to={`/gallery?includedArtists=${infoArtist.id}`} className="px-4 py-2 bg-primary text-primary-foreground rounded-lg font-bold hover:opacity-90">
+                                View Gallery
+                            </Link>
+                        </div>
+                    </div>
+                )}
+            </Modal>
         </div>
     );
 };

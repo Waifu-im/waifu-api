@@ -7,7 +7,7 @@ using WaifuApi.Application.Common.Models;
 using WaifuApi.Application.Features.GetTags;
 using WaifuApi.Application.Features.Tags.CreateTag;
 using WaifuApi.Application.Features.Tags.DeleteTag;
-using WaifuApi.Application.Features.Tags.GetTagByName;
+using WaifuApi.Application.Features.Tags.GetTagBySlug;
 using WaifuApi.Application.Features.Tags.UpdateTag;
 
 namespace WaifuApi.Web.Controllers;
@@ -30,10 +30,10 @@ public class TagsController : ControllerBase
         return Ok(tags);
     }
 
-    [HttpGet("by-name/{name}")]
-    public async Task<ActionResult<TagDto>> GetByName([FromRoute] string name)
+    [HttpGet("by-slug/{slug}")]
+    public async Task<ActionResult<TagDto>> GetBySlug([FromRoute] string slug)
     {
-        var tag = await _mediator.Send(new GetTagByNameQuery(name));
+        var tag = await _mediator.Send(new GetTagBySlugQuery(slug));
         return Ok(tag);
     }
 

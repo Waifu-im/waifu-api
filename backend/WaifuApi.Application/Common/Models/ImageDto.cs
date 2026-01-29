@@ -12,7 +12,7 @@ public class ImageDto
     public string DominantColor { get; set; } = string.Empty;
     public string? Source { get; set; }
     public List<ArtistDto> Artists { get; set; } = new();
-    public long UploaderId { get; set; }
+    public long? UploaderId { get; set; }
     public DateTime UploadedAt { get; set; }
     public bool IsNsfw { get; set; }
     public bool IsAnimated { get; set; }

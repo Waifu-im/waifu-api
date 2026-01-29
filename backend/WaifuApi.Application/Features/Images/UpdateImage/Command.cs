@@ -20,7 +20,7 @@ public record UpdateImageCommand(
     string? Source, 
     bool IsNsfw, 
     long? UserId, 
-    List<long>? TagIds, 
+    List<string>? TagSlugs, // Slugs
     List<long>? ArtistIds
 ) : ICommand<ImageDto>;
 
@@ -47,36 +47,45 @@ public class UpdateImageCommandHandler : ICommandHandler<UpdateImageCommand, Ima
             throw new KeyNotFoundException($"Image with ID {request.Id} not found.");
         }
 
-        // Clean string input
         image.Source = request.Source.ToNullIfEmpty();
         image.IsNsfw = request.IsNsfw;
 
+        // Allow setting UserId to null if 0 or null is passed, or update it if a valid ID is passed
         if (request.UserId.HasValue)
         {
-            // Verify user exists
-            var user = await _context.Users.FindAsync(new object[] { request.UserId.Value }, cancellationToken);
-            if (user == null)
+            if (request.UserId.Value == 0)
             {
-                throw new KeyNotFoundException($"User with ID {request.UserId.Value} not found.");
+                image.UploaderId = null;
             }
-            image.UploaderId = request.UserId.Value;
+            else
+            {
+                var user = await _context.Users.FindAsync(new object[] { request.UserId.Value }, cancellationToken);
+                if (user == null)
+                {
+                    throw new KeyNotFoundException($"User with ID {request.UserId.Value} not found.");
+                }
+                image.UploaderId = request.UserId.Value;
+            }
+        }
+        else
+        {
+            image.UploaderId = null;
         }
 
-        if (request.TagIds != null)
+        if (request.TagSlugs != null)
         {
-            // Update tags only if list provided
             image.Tags.Clear();
-            if (request.TagIds.Any())
+            if (request.TagSlugs.Any())
             {
                 var foundTags = await _context.Tags
-                    .Where(t => request.TagIds.Contains(t.Id))
+                    .Where(t => request.TagSlugs.Contains(t.Slug))
                     .ToListAsync(cancellationToken);
 
-                if (foundTags.Count != request.TagIds.Count)
+                if (foundTags.Count != request.TagSlugs.Count)
                 {
-                    var foundIds = foundTags.Select(t => t.Id).ToList();
-                    var missingIds = request.TagIds.Except(foundIds).ToList();
-                    throw new KeyNotFoundException($"Tags with IDs {string.Join(", ", missingIds)} not found.");
+                    var foundSlugs = foundTags.Select(t => t.Slug).ToList();
+                    var missingSlugs = request.TagSlugs.Except(foundSlugs).ToList();
+                    throw new KeyNotFoundException($"Tags with slugs {string.Join(", ", missingSlugs)} not found.");
                 }
                 image.Tags = foundTags;
             }
@@ -121,7 +130,7 @@ public class UpdateImageCommandHandler : ICommandHandler<UpdateImageCommand, Ima
                     DeviantArt = a.DeviantArt,
                     ReviewStatus = a.ReviewStatus
                 }).ToList(),
-            UploaderId = image.UploaderId,
+            UploaderId = image.UploaderId ?? 0, // Return 0 if null for DTO compatibility if needed, or change DTO to nullable
             UploadedAt = image.UploadedAt,
             IsNsfw = image.IsNsfw,
             IsAnimated = image.IsAnimated,
@@ -129,7 +138,6 @@ public class UpdateImageCommandHandler : ICommandHandler<UpdateImageCommand, Ima
             Height = image.Height,
             ByteSize = image.ByteSize,
             Url = CdnUrlHelper.GetImageUrl(_cdnBaseUrl, image.Id, image.Extension),
-            // Map Tags to DTO
             Tags = image.Tags.Select(t => new TagDto
             {
                 Id = t.Id,
@@ -138,8 +146,9 @@ public class UpdateImageCommandHandler : ICommandHandler<UpdateImageCommand, Ima
                 Description = t.Description,
                 ReviewStatus = t.ReviewStatus
             }).ToList(),
-            Favorites = 0, // Not relevant for update response
-            LikedAt = null
+            Favorites = 0, 
+            LikedAt = null,
+            ReviewStatus = image.ReviewStatus
         };
     }
 }

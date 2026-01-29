@@ -1,13 +1,8 @@
 ﻿import { useEffect, useState } from 'react';
-import SearchableSelect from './SearchableSelect';
+import SearchableSelect, { Option } from './SearchableSelect';
 import api from '../services/api';
 import { PaginatedList, Tag, Artist } from '../types';
 import { X } from 'lucide-react';
-
-interface Option {
-    id: string;
-    name: string;
-}
 
 interface FilterSidebarProps {
     searchParams: URLSearchParams;
@@ -18,20 +13,34 @@ interface FilterSidebarProps {
 }
 
 const FilterSidebar = ({ searchParams, setSearchParams, showFilters, setShowFilters, sortOptions }: FilterSidebarProps) => {
-    const [allTags, setAllTags] = useState<{ id: number, name: string }[]>([]);
-    const [allArtists, setAllArtists] = useState<{ id: number, name: string }[]>([]);
+    const [initialTags, setInitialTags] = useState<Option[]>([]);
+    const [initialArtists, setInitialArtists] = useState<Option[]>([]);
+
     const [includedIdInput, setIncludedIdInput] = useState('');
     const [excludedIdInput, setExcludedIdInput] = useState('');
 
+    // Load initial data for selected items if needed, or just some defaults
     useEffect(() => {
-        api.get<PaginatedList<Tag>>('/tags', { params: { pageSize: 1000 } })
-            .then(res => setAllTags(res.data.items))
+        // We can load a small batch initially or just rely on async search
+        // For better UX, let's load the first 20 of each to populate the list initially
+        api.get<PaginatedList<Tag>>('/tags', { params: { pageSize: 20 } })
+            .then(res => setInitialTags(res.data.items.map(t => ({ id: t.id, name: t.name, slug: t.slug }))))
             .catch(console.error);
-            
-        api.get<PaginatedList<Artist>>('/artists', { params: { pageSize: 1000 } })
-            .then(res => setAllArtists(res.data.items))
+
+        api.get<PaginatedList<Artist>>('/artists', { params: { pageSize: 20 } })
+            .then(res => setInitialArtists(res.data.items.map(a => ({ id: a.id, name: a.name }))))
             .catch(console.error);
     }, []);
+
+    const loadTags = async (query: string) => {
+        const { data } = await api.get<PaginatedList<Tag>>('/tags', { params: { search: query, pageSize: 20 } });
+        return data.items.map(t => ({ id: t.id, name: t.name, slug: t.slug }));
+    };
+
+    const loadArtists = async (query: string) => {
+        const { data } = await api.get<PaginatedList<Artist>>('/artists', { params: { search: query, pageSize: 20 } });
+        return data.items.map(a => ({ id: a.id, name: a.name }));
+    };
 
     const updateFilter = (key: string, value: string | null) => {
         setSearchParams(prev => {
@@ -41,29 +50,31 @@ const FilterSidebar = ({ searchParams, setSearchParams, showFilters, setShowFilt
         });
     };
 
-    const handleTagChange = (key: 'includedTags' | 'excludedTags', name: string, action: 'add' | 'remove') => {
+    const handleTagChange = (key: 'includedTags' | 'excludedTags', tag: Option, action: 'add' | 'remove') => {
+        const value = tag.slug || tag.id.toString();
         setSearchParams(prev => {
             const current = prev.getAll(key);
             prev.delete(key);
-            if (action === 'add' && !current.includes(name)) {
-                [...current, name].forEach(t => prev.append(key, t));
+            if (action === 'add' && !current.includes(value)) {
+                [...current, value].forEach(t => prev.append(key, t));
             } else if (action === 'remove') {
-                current.filter(t => t !== name).forEach(t => prev.append(key, t));
+                current.filter(t => t !== value).forEach(t => prev.append(key, t));
             } else {
                 current.forEach(t => prev.append(key, t));
             }
             return prev;
         });
     };
-    
-    const handleArtistChange = (key: 'includedArtists' | 'excludedArtists', name: string, action: 'add' | 'remove') => {
+
+    const handleArtistChange = (key: 'includedArtists' | 'excludedArtists', artist: Option, action: 'add' | 'remove') => {
+        const value = artist.id.toString();
         setSearchParams(prev => {
             const current = prev.getAll(key);
             prev.delete(key);
-            if (action === 'add' && !current.includes(name)) {
-                [...current, name].forEach(t => prev.append(key, t));
+            if (action === 'add' && !current.includes(value)) {
+                [...current, value].forEach(t => prev.append(key, t));
             } else if (action === 'remove') {
-                current.filter(t => t !== name).forEach(t => prev.append(key, t));
+                current.filter(t => t !== value).forEach(t => prev.append(key, t));
             } else {
                 current.forEach(t => prev.append(key, t));
             }
@@ -98,15 +109,35 @@ const FilterSidebar = ({ searchParams, setSearchParams, showFilters, setShowFilt
     const isNsfw = searchParams.get('isNsfw') || '0';
     const orientation = searchParams.get('orientation') || '';
     const isAnimatedStr = searchParams.get('isAnimated') || '';
-    const includedTags = searchParams.getAll('includedTags');
-    const excludedTags = searchParams.getAll('excludedTags');
-    const includedArtists = searchParams.getAll('includedArtists');
-    const excludedArtists = searchParams.getAll('excludedArtists');
+
+    const includedTagSlugs = searchParams.getAll('includedTags');
+    const excludedTagSlugs = searchParams.getAll('excludedTags');
+    const includedArtistIds = searchParams.getAll('includedArtists');
+    const excludedArtistIds = searchParams.getAll('excludedArtists');
     const includedIds = searchParams.getAll('includedIds');
     const excludedIds = searchParams.getAll('excludedIds');
     const width = searchParams.get('width') || '';
     const height = searchParams.get('height') || '';
     const byteSize = searchParams.get('byteSize') || '';
+
+    // Helper to reconstruct selected options from URL params
+    // Note: This is imperfect because we might not have the full object (name) if it wasn't in the initial list
+    // Ideally, we would fetch the details for selected IDs if they are missing, but for now we fallback to displaying the ID/Slug
+    const getSelectedTags = (slugs: string[]) => {
+        return slugs.map(slug => {
+            // Try to find in initial list or just create a placeholder
+            // In a real app, you might want to fetch these specific tags by slug if missing
+            const found = initialTags.find(t => t.slug === slug);
+            return found || { id: slug, name: slug, slug: slug };
+        });
+    };
+
+    const getSelectedArtists = (ids: string[]) => {
+        return ids.map(id => {
+            const found = initialArtists.find(a => a.id.toString() === id);
+            return found || { id: id, name: `ID: ${id}` };
+        });
+    };
 
     const ratingOptions = [
         { id: '0', name: 'Safe' },
@@ -138,7 +169,6 @@ const FilterSidebar = ({ searchParams, setSearchParams, showFilters, setShowFilt
                 md:relative md:z-40 md:shadow-none
             `}
         >
-            {/* Scrollable content area */}
             <div className="flex-1 p-5 overflow-y-auto space-y-6 w-full md:w-80 min-w-[20rem] scrollbar-thin pt-10 md:pt-6">
                 <SearchableSelect
                     label="Sort By"
@@ -185,12 +215,12 @@ const FilterSidebar = ({ searchParams, setSearchParams, showFilters, setShowFilt
                         <label className="block text-xs font-bold uppercase text-muted-foreground mb-1">Dimensions (px)</label>
                         <div className="flex gap-2">
                             <input
-                                type="text" placeholder="Width (e.g. 1000)"
+                                type="text" placeholder="Width"
                                 value={width} onChange={e => updateFilter('width', e.target.value)}
                                 className="w-1/2 p-2 rounded bg-secondary text-sm border-transparent focus:ring-1 focus:ring-primary outline-none"
                             />
                             <input
-                                type="text" placeholder="Height (e.g. 1000)"
+                                type="text" placeholder="Height"
                                 value={height} onChange={e => updateFilter('height', e.target.value)}
                                 className="w-1/2 p-2 rounded bg-secondary text-sm border-transparent focus:ring-1 focus:ring-primary outline-none"
                             />
@@ -212,42 +242,42 @@ const FilterSidebar = ({ searchParams, setSearchParams, showFilters, setShowFilt
                 <SearchableSelect
                     label="Included Tags"
                     placeholder="Search tags..."
-                    options={allTags}
-                    selectedOptions={includedTags.map(t => ({ id: t, name: t }))}
-                    onSelect={(o) => handleTagChange('includedTags', o.name, 'add')}
-                    onRemove={(o) => handleTagChange('includedTags', o.name, 'remove')}
+                    loadOptions={loadTags}
+                    selectedOptions={getSelectedTags(includedTagSlugs)}
+                    onSelect={(o) => handleTagChange('includedTags', o, 'add')}
+                    onRemove={(o) => handleTagChange('includedTags', o, 'remove')}
                     isMulti={true}
                 />
 
                 <SearchableSelect
                     label="Excluded Tags"
                     placeholder="Exclude tags..."
-                    options={allTags}
-                    selectedOptions={excludedTags.map(t => ({ id: t, name: t }))}
-                    onSelect={(o) => handleTagChange('excludedTags', o.name, 'add')}
-                    onRemove={(o) => handleTagChange('excludedTags', o.name, 'remove')}
+                    loadOptions={loadTags}
+                    selectedOptions={getSelectedTags(excludedTagSlugs)}
+                    onSelect={(o) => handleTagChange('excludedTags', o, 'add')}
+                    onRemove={(o) => handleTagChange('excludedTags', o, 'remove')}
                     isMulti={true}
                 />
-                
+
                 <div className="border-t border-border"></div>
 
                 <SearchableSelect
                     label="Included Artists"
                     placeholder="Search artists..."
-                    options={allArtists}
-                    selectedOptions={includedArtists.map(t => ({ id: t, name: t }))}
-                    onSelect={(o) => handleArtistChange('includedArtists', o.name, 'add')}
-                    onRemove={(o) => handleArtistChange('includedArtists', o.name, 'remove')}
+                    loadOptions={loadArtists}
+                    selectedOptions={getSelectedArtists(includedArtistIds)}
+                    onSelect={(o) => handleArtistChange('includedArtists', o, 'add')}
+                    onRemove={(o) => handleArtistChange('includedArtists', o, 'remove')}
                     isMulti={true}
                 />
 
                 <SearchableSelect
                     label="Excluded Artists"
                     placeholder="Exclude artists..."
-                    options={allArtists}
-                    selectedOptions={excludedArtists.map(t => ({ id: t, name: t }))}
-                    onSelect={(o) => handleArtistChange('excludedArtists', o.name, 'add')}
-                    onRemove={(o) => handleArtistChange('excludedArtists', o.name, 'remove')}
+                    loadOptions={loadArtists}
+                    selectedOptions={getSelectedArtists(excludedArtistIds)}
+                    onSelect={(o) => handleArtistChange('excludedArtists', o, 'add')}
+                    onRemove={(o) => handleArtistChange('excludedArtists', o, 'remove')}
                     isMulti={true}
                 />
 
@@ -294,7 +324,6 @@ const FilterSidebar = ({ searchParams, setSearchParams, showFilters, setShowFilt
                 </div>
             </div>
 
-            {/* Bottom button for mobile */}
             <div className="p-4 border-t border-border md:hidden bg-card">
                 <button onClick={() => setShowFilters(false)} className="w-full py-3 bg-primary text-primary-foreground rounded-xl font-bold">Done</button>
             </div>

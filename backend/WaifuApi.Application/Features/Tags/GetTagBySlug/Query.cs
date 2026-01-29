@@ -6,28 +6,28 @@ using WaifuApi.Application.Common.Exceptions;
 using WaifuApi.Application.Common.Models;
 using WaifuApi.Application.Interfaces;
 
-namespace WaifuApi.Application.Features.Tags.GetTagByName;
+namespace WaifuApi.Application.Features.Tags.GetTagBySlug;
 
-public record GetTagByNameQuery(string Name) : IQuery<TagDto>;
+public record GetTagBySlugQuery(string Slug) : IQuery<TagDto>;
 
-public class GetTagByNameQueryHandler : IQueryHandler<GetTagByNameQuery, TagDto>
+public class GetTagBySlugQueryHandler : IQueryHandler<GetTagBySlugQuery, TagDto>
 {
     private readonly IWaifuDbContext _context;
 
-    public GetTagByNameQueryHandler(IWaifuDbContext context)
+    public GetTagBySlugQueryHandler(IWaifuDbContext context)
     {
         _context = context;
     }
 
-    public async ValueTask<TagDto> Handle(GetTagByNameQuery request, CancellationToken cancellationToken)
+    public async ValueTask<TagDto> Handle(GetTagBySlugQuery request, CancellationToken cancellationToken)
     {
         var tag = await _context.Tags
             .AsNoTracking()
-            .FirstOrDefaultAsync(t => t.Name == request.Name, cancellationToken);
+            .FirstOrDefaultAsync(t => t.Slug == request.Slug, cancellationToken);
 
         if (tag == null)
         {
-            throw new KeyNotFoundException($"Tag with name '{request.Name}' not found.");
+            throw new KeyNotFoundException($"Tag with slug '{request.Slug}' not found.");
         }
 
         return new TagDto

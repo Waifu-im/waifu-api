@@ -32,8 +32,9 @@ const Albums = () => {
             });
             setAlbums(data.items);
             setTotalPages(data.totalPages);
-        } catch { showNotification('error', 'Failed to load albums'); }
-        finally { setLoading(false); }
+        } catch { 
+            // showNotification('error', 'Failed to load albums'); // Handled globally
+        } finally { setLoading(false); }
     };
 
     useEffect(() => {
@@ -48,7 +49,9 @@ const Albums = () => {
             showNotification('success', 'Album created');
             setIsCreateOpen(false);
             fetchAlbums();
-        } catch { showNotification('error', 'Failed to create album'); }
+        } catch { 
+            // showNotification('error', 'Failed to create album'); // Handled globally
+        }
     };
 
     const handleEdit = async (data: AlbumFormData) => {
@@ -58,7 +61,9 @@ const Albums = () => {
             showNotification('success', 'Album updated');
             setIsEditOpen(false);
             fetchAlbums();
-        } catch { showNotification('error', 'Failed to update album'); }
+        } catch { 
+            // showNotification('error', 'Failed to update album'); // Handled globally
+        }
     };
 
     const handleDelete = async () => {
@@ -68,7 +73,9 @@ const Albums = () => {
             showNotification('success', 'Album deleted');
             setIsDeleteOpen(false);
             fetchAlbums();
-        } catch { showNotification('error', 'Failed to delete album'); }
+        } catch { 
+            // showNotification('error', 'Failed to delete album'); // Handled globally
+        }
     };
 
     if (!user) return null;
@@ -80,7 +87,7 @@ const Albums = () => {
                     <h1 className="text-3xl font-black flex items-center gap-3 text-foreground"><Library className="text-primary" size={32}/> My Albums</h1>
                     <p className="text-muted-foreground mt-1">Manage your collections.</p>
                 </div>
-                <button onClick={() => setIsCreateOpen(true)} className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-bold hover:opacity-90 shadow-lg transition-all"><Plus size={20} /> Create Album</button>
+                <button onClick={() => setIsCreateOpen(true)} className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-bold hover:opacity-90 shadow-lg transition-all whitespace-nowrap"><Plus size={20} /> <span className="hidden sm:inline">Create Album</span></button>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">

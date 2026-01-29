@@ -7,8 +7,8 @@ export interface ImageFilters {
   isNsfw?: number;
   includedTags?: string[];
   excludedTags?: string[];
-  includedArtists?: string[];
-  excludedArtists?: string[];
+  includedArtists?: string[]; // IDs (en string)
+  excludedArtists?: string[]; // IDs (en string)
   includedIds?: string[];
   excludedIds?: string[];
   isAnimated?: boolean;
@@ -19,6 +19,7 @@ export interface ImageFilters {
   width?: string;
   height?: string;
   byteSize?: string;
+  albumId?: number; // J'ai ajouté ça au cas où, vu le backend
 }
 
 export const useImages = (filters: ImageFilters) => {
@@ -41,9 +42,10 @@ export const useImages = (filters: ImageFilters) => {
       if (filters.page) params.append('page', filters.page.toString());
       if (filters.pageSize) params.append('pageSize', filters.pageSize.toString());
 
+      // Les tags envoient maintenant les slugs
       filters.includedTags?.forEach(tag => params.append('includedTags', tag));
       filters.excludedTags?.forEach(tag => params.append('excludedTags', tag));
-      
+
       filters.includedArtists?.forEach(artist => params.append('includedArtists', artist));
       filters.excludedArtists?.forEach(artist => params.append('excludedArtists', artist));
 

@@ -28,17 +28,6 @@ public class ImagesController : ControllerBase
         _mediator = mediator;
     }
 
-    /// <summary>
-    /// Searches for images based on filters.
-    /// </summary>
-    /// <param name="query">The search filters.</param>
-    /// <remarks>
-    /// **IsNsfw**: 
-    /// - Safe (0): Returns only Safe images (Default).
-    /// - Nsfw (1): Returns only NSFW images.
-    /// - All (2): Returns both Safe and NSFW images.
-    /// </remarks>
-    /// <returns>A paginated list of images matching the criteria.</returns>
     [HttpGet]
     public async Task<ActionResult<PaginatedList<ImageDto>>> Get([FromQuery] GetImagesQuery query)
     {
@@ -52,11 +41,6 @@ public class ImagesController : ControllerBase
         return Ok(images);
     }
 
-    /// <summary>
-    /// Gets a single image by ID.
-    /// </summary>
-    /// <param name="id">The image ID.</param>
-    /// <returns>The image details.</returns>
     [HttpGet("{id:long}")]
     public async Task<ActionResult<ImageDto>> GetById([FromRoute] long id)
     {
@@ -67,11 +51,6 @@ public class ImagesController : ControllerBase
         return Ok(image);
     }
 
-    /// <summary>
-    /// Uploads a new image.
-    /// </summary>
-    /// <param name="request">The upload request containing the file and metadata.</param>
-    /// <returns>The uploaded image details.</returns>
     [Authorize]
     [HttpPost("upload")]
     public async Task<ActionResult<ImageDto>> Upload([FromForm] UploadImageRequest request)
@@ -84,8 +63,8 @@ public class ImagesController : ControllerBase
             stream,
             request.File.FileName,
             request.File.ContentType,
-            request.ArtistIds ?? new List<long>(),
-            request.TagIds ?? new List<long>(),
+            request.Artists ?? new List<long>(),
+            request.Tags ?? new List<string>(), // Changed to list of slugs
             request.Source,
             request.IsNsfw
         );
@@ -94,25 +73,15 @@ public class ImagesController : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = image.Id }, image);
     }
 
-    /// <summary>
-    /// Updates an image's metadata.
-    /// </summary>
-    /// <param name="id">The image ID.</param>
-    /// <param name="request">The update request.</param>
-    /// <returns>The updated image details.</returns>
     [Authorize(Policy = "Moderator")]
     [HttpPut("{id:long}")]
     public async Task<ActionResult<ImageDto>> Update([FromRoute] long id, [FromBody] UpdateImageRequest request)
     {
-        var command = new UpdateImageCommand(id, request.Source, request.IsNsfw, request.UserId, request.TagIds, request.ArtistIds);
+        var command = new UpdateImageCommand(id, request.Source, request.IsNsfw, request.UserId, request.Tags, request.Artists);
         var image = await _mediator.Send(command);
         return Ok(image);
     }
 
-    /// <summary>
-    /// Deletes an image.
-    /// </summary>
-    /// <param name="id">The ID of the image to delete.</param>
     [Authorize]
     [HttpDelete("{id:long}")]
     public async Task<IActionResult> Delete([FromRoute] long id)
@@ -129,8 +98,8 @@ public class ImagesController : ControllerBase
 public class UploadImageRequest
 {
     public IFormFile File { get; set; } = null!;
-    public List<long>? ArtistIds { get; set; }
-    public List<long>? TagIds { get; set; }
+    public List<long>? Artists { get; set; }
+    public List<string>? Tags { get; set; } // Slugs
     public string? Source { get; set; }
     public bool IsNsfw { get; set; }
 }
@@ -140,6 +109,6 @@ public class UpdateImageRequest
     public string? Source { get; set; }
     public bool IsNsfw { get; set; }
     public long? UserId { get; set; }
-    public List<long>? TagIds { get; set; }
-    public List<long>? ArtistIds { get; set; }
+    public List<string>? Tags { get; set; } // Slugs
+    public List<long>? Artists { get; set; } // IDs
 }

@@ -3,13 +3,12 @@ import { useForm } from 'react-hook-form';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../services/api';
 import SearchableSelect from '../components/SearchableSelect';
-import { Tag, Artist, PaginatedList } from '../types';
-import { UploadCloud, Info } from 'lucide-react';
+import { UploadCloud, Info, Loader2 } from 'lucide-react';
 import { useNotification } from '../context/NotificationContext';
 import { useAuth } from '../context/AuthContext';
-import TagModal, { TagFormData } from '../components/modals/TagModal';
-import ArtistModal, { ArtistFormData } from '../components/modals/ArtistModal';
-import { useRequireAuth } from '../hooks/useRequireAuth';
+import TagModal from '../components/modals/TagModal';
+import ArtistModal from '../components/modals/ArtistModal';
+import { useMetadata } from '../hooks/useMetadata';
 
 interface UploadForm {
   file: FileList;
@@ -17,31 +16,29 @@ interface UploadForm {
   isNsfw: boolean;
 }
 
-interface Option {
-  id: number | string;
-  name: string;
-  description?: string;
-}
-
 const Upload = () => {
-  const user = useRequireAuth('/login', 'You must be logged in to upload images.');
   const { register, handleSubmit, watch, formState: { errors } } = useForm<UploadForm>();
   const navigate = useNavigate();
   const location = useLocation();
   const { showNotification } = useNotification();
+  const { user } = useAuth();
 
-  const [tags, setTags] = useState<Option[]>([]);
-  const [artists, setArtists] = useState<Option[]>([]);
-  const [selectedTags, setSelectedTags] = useState<Option[]>([]);
-  const [selectedArtists, setSelectedArtists] = useState<Option[]>([]);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
-  // Modals
-  const [showCreateTagModal, setShowCreateTagModal] = useState(false);
-  const [newTagName, setNewTagName] = useState('');
+  const isReviewMode = !(user?.role === 2 || user?.role === 3);
 
-  const [showCreateArtistModal, setShowCreateArtistModal] = useState(false);
-  const [newArtistName, setNewArtistName] = useState('');
+  const {
+      selectedTags, setSelectedTags,
+      selectedArtists, setSelectedArtists,
+      showCreateTagModal, setShowCreateTagModal,
+      newTagName, setNewTagName,
+      showCreateArtistModal, setShowCreateArtistModal,
+      newArtistName, setNewArtistName,
+      loadTags, loadArtists,
+      handleCreateTag, handleCreateArtist,
+      slugify
+  } = useMetadata(isReviewMode);
 
   const fileList = watch('file');
 
@@ -56,86 +53,21 @@ const Upload = () => {
   }, [fileList]);
 
   useEffect(() => {
-    if (!user) return;
-
-    const fetchData = async () => {
-      try {
-        const [tagsRes, artistsRes] = await Promise.all([
-          api.get<PaginatedList<Tag>>('/tags', { params: { pageSize: 1000 } }),
-          api.get<PaginatedList<Artist>>('/artists?pageSize=1000')
-        ]);
-
-        setTags(tagsRes.data.items.map(t => ({ id: t.id, name: t.name, description: t.description })));
-        setArtists(artistsRes.data.items.map(a => ({ id: a.id, name: a.name })));
-      } catch (e) { console.error(e); }
-    };
-    fetchData();
+    if (!user) {
+      showNotification('warning', 'You must be logged in to upload images.');
+      navigate('/login', { state: { from: location } });
+      return;
+    }
   }, [user, navigate, showNotification, location]);
 
-  const isReviewMode = !(user?.role === 2 || user?.role === 3);
-
-  const handleCreateTag = async (data: TagFormData) => {
-    try {
-      const res = await api.post<Tag>('/tags', data);
-      const newOpt = { id: res.data.id, name: res.data.name, description: res.data.description };
-      // Check duplicate before adding
-      setSelectedTags(p => p.some(t => t.id === newOpt.id) ? p : [...p, newOpt]);
-
-      showNotification(isReviewMode ? 'info' : 'success', isReviewMode ? 'Tag submitted for review' : 'Tag created');
-      setShowCreateTagModal(false);
-    } catch (err: any) {
-      if(err.response?.status === 409) {
-        try {
-          const existingRes = await api.get<Tag>(`/tags/by-name/${data.name}`);
-          const existing = existingRes.data;
-          const existingOpt = { id: existing.id, name: existing.name, description: existing.description };
-          
-          setSelectedTags(p => p.some(t => t.id === existingOpt.id) ? p : [...p, existingOpt]);
-          showNotification('info', 'Tag already exists (possibly under review), added to selection.');
-          setShowCreateTagModal(false);
-        } catch (fetchErr) {
-          showNotification('error', 'Tag exists but could not be retrieved.');
-        }
-      } else {
-        showNotification('error', 'Failed to create tag.');
-      }
-    }
-  };
-
-  const handleCreateArtist = async (data: ArtistFormData) => {
-    try {
-      const res = await api.post<Artist>('/artists', data);
-      const newOption = { id: res.data.id, name: res.data.name };
-      setSelectedArtists(p => p.some(a => a.id === newOption.id) ? p : [...p, newOption]);
-
-      showNotification(isReviewMode ? 'info' : 'success', isReviewMode ? 'Artist submitted for review' : 'Artist created');
-      setShowCreateArtistModal(false);
-    } catch (error: any) {
-      if (error.response?.status === 409) {
-        try {
-          const existingRes = await api.get<Artist>(`/artists/by-name/${data.name}`);
-          const existing = existingRes.data;
-          const existingOpt = { id: existing.id, name: existing.name };
-          
-          setSelectedArtists(p => p.some(a => a.id === existingOpt.id) ? p : [...p, existingOpt]);
-          showNotification('info', 'Artist already exists (possibly under review), selected.');
-          setShowCreateArtistModal(false);
-        } catch (fetchErr) {
-          showNotification('error', 'Artist exists but could not be retrieved.');
-        }
-      } else {
-        showNotification('error', 'Failed to create artist.');
-      }
-    }
-  };
-
   const onSubmit = async (data: UploadForm) => {
+    setIsUploading(true);
     const formData = new FormData();
     formData.append('file', data.file[0]);
-    
-    // Use IDs instead of names
-    selectedTags.forEach(tag => formData.append('tagIds', String(tag.id)));
-    selectedArtists.forEach(artist => formData.append('artistIds', String(artist.id)));
+
+    // Updated keys: tags (slugs) and artists (ids)
+    selectedTags.forEach(tag => formData.append('tags', tag.slug || slugify(tag.name)));
+    selectedArtists.forEach(artist => formData.append('artists', String(artist.id)));
 
     if (data.source) formData.append('source', data.source);
     formData.append('isNsfw', String(data.isNsfw));
@@ -144,7 +76,10 @@ const Upload = () => {
       await api.post('/images/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
       showNotification(isReviewMode ? 'info' : 'success', isReviewMode ? 'Upload pending review.' : 'Image uploaded!');
       navigate('/gallery');
-    } catch (e) { showNotification('error', 'Upload failed'); }
+    } catch (e) { 
+        // showNotification('error', 'Upload failed'); // Handled globally
+        setIsUploading(false);
+    }
   };
 
   if (!user) return null;
@@ -189,7 +124,7 @@ const Upload = () => {
                 <SearchableSelect
                     label="Artists"
                     placeholder="Search artists..."
-                    options={artists}
+                    loadOptions={loadArtists}
                     selectedOptions={selectedArtists}
                     onSelect={(o) => setSelectedArtists(p => p.some(a => a.id === o.id) ? p : [...p, o])}
                     onRemove={(o) => setSelectedArtists(p => p.filter(a => a.id !== o.id))}
@@ -199,9 +134,8 @@ const Upload = () => {
                 <SearchableSelect
                     label="Tags"
                     placeholder="Add tags..."
-                    options={tags}
+                    loadOptions={loadTags}
                     selectedOptions={selectedTags}
-                    // FIX: Guard against duplicates here
                     onSelect={(o) => setSelectedTags(p => p.some(t => t.id === o.id) ? p : [...p, o])}
                     onRemove={(o) => setSelectedTags(p => p.filter(t => t.id !== o.id))}
                     onCreate={(name) => { setNewTagName(name); setShowCreateTagModal(true); }}
@@ -216,7 +150,20 @@ const Upload = () => {
                   <div><span className="block font-bold">NSFW Content</span><span className="text-xs text-muted-foreground">Contains adult material</span></div>
                 </label>
               </div>
-              <button type="submit" className="w-full py-4 rounded-xl bg-foreground text-background font-bold text-lg hover:opacity-90 transition-all shadow-lg">Upload Now</button>
+              <button 
+                type="submit" 
+                disabled={isUploading}
+                className="w-full py-4 rounded-xl bg-foreground text-background font-bold text-lg hover:opacity-90 transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isUploading ? (
+                    <>
+                        <Loader2 size={20} className="animate-spin" />
+                        Uploading...
+                    </>
+                ) : (
+                    "Upload Now"
+                )}
+              </button>
             </form>
           </div>
         </div>

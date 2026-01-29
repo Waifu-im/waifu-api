@@ -1,13 +1,12 @@
-﻿import { useState, useEffect } from 'react';
+﻿import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import api from '../services/api';
-import { Tag, PaginatedList, Role } from '../types';
+import { Tag, Role } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 import Modal from '../components/Modal';
 import TagModal, { TagFormData } from '../components/modals/TagModal';
-import { Plus, Edit2, Trash2, Tag as TagIcon, ChevronLeft, ChevronRight, ExternalLink, Search } from 'lucide-react';
-import { useDebounce } from '../hooks/useDebounce';
+import { Plus, Edit2, Trash2, Tag as TagIcon, ChevronLeft, ChevronRight, ExternalLink, Search, Info } from 'lucide-react';
+import { useResource } from '../hooks/useResource';
 
 const Tags = () => {
     const { user } = useAuth();
@@ -15,47 +14,26 @@ const Tags = () => {
     const navigate = useNavigate();
     const location = useLocation();
 
-    const [tags, setTags] = useState<Tag[]>([]);
-    const [loading, setLoading] = useState(true);
-
-    const [page, setPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(1);
-    const pageSize = 50;
-
-    const [search, setSearch] = useState('');
-    const debouncedSearch = useDebounce(search, 500);
+    const { 
+        items: tags, 
+        loading, 
+        page, 
+        setPage, 
+        totalPages, 
+        search, 
+        setSearch, 
+        createItem, 
+        updateItem, 
+        deleteItem 
+    } = useResource<Tag>('/tags');
 
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
     const [selectedTag, setSelectedTag] = useState<Tag | null>(null);
+    const [infoTag, setInfoTag] = useState<Tag | null>(null);
     const [formData, setFormData] = useState<TagFormData>({ name: '', slug: '', description: '' });
-
-    const fetchTags = async () => {
-        setLoading(true);
-        try {
-            const params: any = { page, pageSize };
-            if (debouncedSearch) params.search = debouncedSearch;
-
-            const { data } = await api.get<PaginatedList<Tag>>('/tags', { params });
-            setTags(data.items);
-            setTotalPages(data.totalPages);
-        } catch (error) {
-            console.error(error);
-            showNotification('error', 'Failed to load tags');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        setPage(1);
-    }, [debouncedSearch]);
-
-    useEffect(() => {
-        fetchTags();
-    }, [page, debouncedSearch]);
 
     const handleOpenCreate = () => {
         if (!user) {
@@ -68,40 +46,23 @@ const Tags = () => {
     };
 
     const handleCreate = async (data: TagFormData) => {
-        try {
-            await api.post('/tags', data);
-            showNotification('success', 'Tag created');
+        const success = await createItem(data, 'Tag created');
+        if (success) {
             setIsCreateOpen(false);
             setFormData({ name: '', slug: '', description: '' });
-            fetchTags();
-        } catch (e: any) {
-            if (e.response?.status === 409) showNotification('error', 'Tag name or slug already exists');
-            else showNotification('error', 'Failed to create tag');
         }
     };
 
     const handleEdit = async (data: TagFormData) => {
         if (!selectedTag) return;
-        try {
-            await api.put(`/tags/${selectedTag.id}`, data);
-            showNotification('success', 'Tag updated');
-            setIsEditOpen(false);
-            fetchTags();
-        } catch (e) {
-            showNotification('error', 'Failed to update tag');
-        }
+        const success = await updateItem(selectedTag.id, data, 'Tag updated');
+        if (success) setIsEditOpen(false);
     };
 
     const handleDelete = async () => {
         if (!selectedTag) return;
-        try {
-            await api.delete(`/tags/${selectedTag.id}`);
-            showNotification('success', 'Tag deleted');
-            setIsDeleteOpen(false);
-            fetchTags();
-        } catch (e) {
-            showNotification('error', 'Failed to delete tag');
-        }
+        const success = await deleteItem(selectedTag.id, 'Tag deleted');
+        if (success) setIsDeleteOpen(false);
     };
 
     const openEdit = (e: React.MouseEvent, tag: Tag) => {
@@ -169,6 +130,13 @@ const Tags = () => {
                                 </div>
 
                                 <div className="flex gap-2">
+                                    <button
+                                        onClick={() => setInfoTag(tag)}
+                                        className="p-1.5 bg-secondary hover:bg-primary hover:text-primary-foreground rounded text-muted-foreground transition-colors shadow-sm"
+                                        title="Info"
+                                    >
+                                        <Info size={16} />
+                                    </button>
                                     <Link
                                         to={`/gallery?includedTags=${encodeURIComponent(tag.slug)}`}
                                         className="p-1.5 bg-secondary hover:bg-primary hover:text-primary-foreground rounded text-muted-foreground transition-colors shadow-sm"
@@ -253,6 +221,30 @@ const Tags = () => {
                         <button onClick={handleDelete} className="flex-1 py-3 bg-destructive text-destructive-foreground rounded-lg font-bold">Delete</button>
                     </div>
                 </div>
+            </Modal>
+
+            <Modal isOpen={!!infoTag} onClose={() => setInfoTag(null)} title="Tag Details">
+                {infoTag && (
+                    <div className="space-y-4">
+                        <div>
+                            <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Name</h3>
+                            <p className="text-lg font-medium">{infoTag.name}</p>
+                        </div>
+                        <div>
+                            <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Slug</h3>
+                            <code className="text-sm bg-secondary px-2 py-1 rounded">{infoTag.slug}</code>
+                        </div>
+                        <div>
+                            <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Description</h3>
+                            <p className="text-base whitespace-pre-wrap">{infoTag.description || "No description available."}</p>
+                        </div>
+                        <div className="pt-4 border-t border-border flex justify-end">
+                            <Link to={`/gallery?includedTags=${encodeURIComponent(infoTag.slug)}`} className="px-4 py-2 bg-primary text-primary-foreground rounded-lg font-bold hover:opacity-90">
+                                View Gallery
+                            </Link>
+                        </div>
+                    </div>
+                )}
             </Modal>
         </div>
     );

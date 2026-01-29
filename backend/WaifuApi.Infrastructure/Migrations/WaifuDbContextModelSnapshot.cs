@@ -186,6 +186,41 @@ namespace WaifuApi.Infrastructure.Migrations
                     b.ToTable("Artists");
                 });
 
+            modelBuilder.Entity("WaifuApi.Domain.Entities.DailyStat", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<int>("RequestCount")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Date")
+                        .IsUnique();
+
+                    b.ToTable("DailyStats");
+                });
+
+            modelBuilder.Entity("WaifuApi.Domain.Entities.GlobalStat", b =>
+                {
+                    b.Property<string>("Key")
+                        .HasColumnType("text");
+
+                    b.Property<long>("Value")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Key");
+
+                    b.ToTable("GlobalStats");
+                });
+
             modelBuilder.Entity("WaifuApi.Domain.Entities.Image", b =>
                 {
                     b.Property<long>("Id")
@@ -227,7 +262,7 @@ namespace WaifuApi.Infrastructure.Migrations
                     b.Property<DateTime>("UploadedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<long>("UploaderId")
+                    b.Property<long?>("UploaderId")
                         .HasColumnType("bigint");
 
                     b.Property<long>("Width")
@@ -315,6 +350,9 @@ namespace WaifuApi.Infrastructure.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
+                    b.Property<long>("ApiKeyRequestCount")
+                        .HasColumnType("bigint");
+
                     b.Property<string>("DiscordId")
                         .IsRequired()
                         .HasColumnType("text");
@@ -322,9 +360,15 @@ namespace WaifuApi.Infrastructure.Migrations
                     b.Property<bool>("IsBlacklisted")
                         .HasColumnType("boolean");
 
+                    b.Property<long>("JwtRequestCount")
+                        .HasColumnType("bigint");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<long>("RequestCount")
+                        .HasColumnType("bigint");
 
                     b.Property<int>("Role")
                         .HasColumnType("integer");
@@ -413,8 +457,7 @@ namespace WaifuApi.Infrastructure.Migrations
                     b.HasOne("WaifuApi.Domain.Entities.User", "Uploader")
                         .WithMany()
                         .HasForeignKey("UploaderId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("Uploader");
                 });

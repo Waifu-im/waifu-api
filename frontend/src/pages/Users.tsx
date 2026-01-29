@@ -30,8 +30,9 @@ const Users = () => {
             const { data } = await api.get<PaginatedList<User>>('/users', { params });
             setUsers(data.items);
             setTotalPages(data.totalPages);
-        } catch { showNotification('error', 'Failed to load users'); }
-        finally { setLoading(false); }
+        } catch { 
+            // showNotification('error', 'Failed to load users'); // Handled globally
+        } finally { setLoading(false); }
     };
 
     useEffect(() => { fetchUsers(); }, [page, searchTerm]);
@@ -48,7 +49,9 @@ const Users = () => {
             await api.put(`/users/${userId}/role`, { role: roleEnum });
             showNotification('success', 'User role updated');
             fetchUsers(); // Refresh to ensure state sync
-        } catch { showNotification('error', 'Failed to update role'); }
+        } catch { 
+            // showNotification('error', 'Failed to update role'); // Handled globally
+        }
     };
 
     const toggleBan = async () => {
@@ -58,7 +61,9 @@ const Users = () => {
             showNotification('success', `User ${selectedUser.isBlacklisted ? 'unbanned' : 'banned'}`);
             setIsBanModalOpen(false);
             fetchUsers();
-        } catch { showNotification('error', 'Failed to update ban status'); }
+        } catch { 
+            // showNotification('error', 'Failed to update ban status'); // Handled globally
+        }
     };
 
     const openBanModal = (user: User) => {
@@ -100,6 +105,9 @@ const Users = () => {
                             <th className="p-4 font-bold text-sm text-muted-foreground">ID</th>
                             <th className="p-4 font-bold text-sm text-muted-foreground">User</th>
                             <th className="p-4 font-bold text-sm text-muted-foreground">Discord ID</th>
+                            <th className="p-4 font-bold text-sm text-muted-foreground">Total</th>
+                            <th className="p-4 font-bold text-sm text-muted-foreground">API Key</th>
+                            <th className="p-4 font-bold text-sm text-muted-foreground">Web</th>
                             <th className="p-4 font-bold text-sm text-muted-foreground w-48">Role</th>
                             <th className="p-4 font-bold text-sm text-muted-foreground">Status</th>
                             <th className="p-4 font-bold text-sm text-muted-foreground text-right">Actions</th>
@@ -107,12 +115,15 @@ const Users = () => {
                         </thead>
                         <tbody>
                         {loading ? (
-                            [...Array(5)].map((_, i) => <tr key={i}><td colSpan={6} className="p-4"><div className="h-10 bg-muted rounded animate-pulse"/></td></tr>)
+                            [...Array(5)].map((_, i) => <tr key={i}><td colSpan={9} className="p-4"><div className="h-10 bg-muted rounded animate-pulse"/></td></tr>)
                         ) : users.map(user => (
                             <tr key={user.id} className="border-b border-border last:border-0 hover:bg-secondary/30 transition-colors">
                                 <td className="p-4 font-mono text-sm">{user.id}</td>
                                 <td className="p-4 font-bold">{user.name}</td>
                                 <td className="p-4 font-mono text-xs text-muted-foreground">{user.discordId}</td>
+                                <td className="p-4 font-mono text-sm">{user.requestCount?.toLocaleString() || 0}</td>
+                                <td className="p-4 font-mono text-sm text-blue-500">{user.apiKeyRequestCount?.toLocaleString() || 0}</td>
+                                <td className="p-4 font-mono text-sm text-purple-500">{user.jwtRequestCount?.toLocaleString() || 0}</td>
                                 <td className="p-4">
                                     {/* Using your SearchableSelect for consistent look */}
                                     <div className="w-36">

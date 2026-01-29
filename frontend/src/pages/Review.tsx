@@ -29,20 +29,21 @@ const Review = () => {
         setLoading(true);
         try {
             if (tab === 'images') {
-                const { data } = await api.get<PaginatedList<ImageDto>>(`/review/images?page=${page}&pageSize=${pageSize}`);
+                const { data } = await api.get<PaginatedList<ImageDto>>(`/review/images?page=${page}&pageSize=${pageSize}`, { skipGlobalErrorHandler: true });
                 setImages(data.items);
                 setTotalPages(data.totalPages);
             } else if (tab === 'artists') {
-                const { data } = await api.get<PaginatedList<Artist>>(`/review/artists?page=${page}&pageSize=${pageSize}`);
+                const { data } = await api.get<PaginatedList<Artist>>(`/review/artists?page=${page}&pageSize=${pageSize}`, { skipGlobalErrorHandler: true });
                 setArtists(data.items);
                 setTotalPages(data.totalPages);
             } else {
-                const { data } = await api.get<PaginatedList<Tag>>(`/review/tags?page=${page}&pageSize=${pageSize}`);
+                const { data } = await api.get<PaginatedList<Tag>>(`/review/tags?page=${page}&pageSize=${pageSize}`, { skipGlobalErrorHandler: true });
                 setTags(data.items);
                 setTotalPages(data.totalPages);
             }
-        } catch (err: any) { showNotification('error', err.message); }
-        finally { setLoading(false); }
+        } catch (err: any) { 
+            // showNotification('error', err.message); // Handled globally
+        } finally { setLoading(false); }
     };
 
     useEffect(() => {
@@ -59,7 +60,9 @@ const Review = () => {
             if (tab === 'images') setImages(prev => prev.filter(i => i.id !== id));
             else if (tab === 'artists') setArtists(prev => prev.filter(a => a.id !== id));
             else setTags(prev => prev.filter(t => t.id !== id));
-        } catch (err: any) { showNotification('error', err.message); }
+        } catch (err: any) { 
+            // showNotification('error', err.message); // Handled globally
+        }
     };
 
     const handleUpdateImage = async (data: ImageFormData) => {
@@ -69,14 +72,16 @@ const Review = () => {
                 source: data.source || null,
                 isNsfw: data.isNsfw,
                 userId: data.userId || null,
-                tagIds: data.tagIds,
-                artistIds: data.artistIds
+                tags: data.tags,
+                artists: data.artists
             };
             await api.put(`/images/${editingImage.id}`, payload);
             showNotification('success', 'Image updated');
             setEditingImage(null);
             fetchData();
-        } catch (err: any) { showNotification('error', err.message); }
+        } catch (err: any) { 
+            // showNotification('error', err.message); // Handled globally
+        }
     };
 
     const handleUpdateArtist = async (data: ArtistFormData) => {
@@ -86,7 +91,9 @@ const Review = () => {
             showNotification('success', 'Artist updated');
             setEditingArtist(null);
             fetchData();
-        } catch (err: any) { showNotification('error', err.message); }
+        } catch (err: any) { 
+            // showNotification('error', err.message); // Handled globally
+        }
     };
 
     const handleUpdateTag = async (data: TagFormData) => {
@@ -96,7 +103,9 @@ const Review = () => {
             showNotification('success', 'Tag updated');
             setEditingTag(null);
             fetchData();
-        } catch (err: any) { showNotification('error', err.message); }
+        } catch (err: any) { 
+            // showNotification('error', err.message); // Handled globally
+        }
     };
 
     return (
@@ -165,7 +174,7 @@ const Review = () => {
                                                 {img.tags.map(tag => (
                                                     <Link
                                                         key={tag.id}
-                                                        to={`/gallery?includedTags=${encodeURIComponent(tag.name)}`}
+                                                        to={`/gallery?includedTags=${encodeURIComponent(tag.slug)}`}
                                                         className={`text-xs px-2 py-1 rounded flex items-center gap-1 hover:bg-primary/10 transition-colors max-w-full ${tag.reviewStatus === 0 ? 'bg-orange-500/10 text-orange-600 border border-orange-500/20' : 'bg-secondary'}`}
                                                         title={tag.reviewStatus === 0 ? "Tag Pending Review" : "View Tag in Gallery"}
                                                     >
@@ -224,7 +233,7 @@ const Review = () => {
                                         <div className="flex-1 min-w-0">
                                             <h3 className="font-bold text-lg truncate" title={tag.name}>
                                                 {/* Link to Gallery filtered by Tag */}
-                                                <Link to={`/gallery?includedTags=${encodeURIComponent(tag.name)}`} className="hover:underline hover:text-primary transition-colors">
+                                                <Link to={`/gallery?includedTags=${encodeURIComponent(tag.slug)}`} className="hover:underline hover:text-primary transition-colors">
                                                     {tag.name}
                                                 </Link>
                                             </h3>

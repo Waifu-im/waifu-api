@@ -1,8 +1,7 @@
 ﻿import { useEffect, useState } from 'react';
-import { useParams, Link, useSearchParams, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import ImageCard from '../components/ImageCard';
-import { ImageDto, PaginatedList, AlbumDto, ImageFormData, Role } from '../types';
+import { ImageDto, PaginatedList, AlbumDto, ImageFormData, Role, ImageSort } from '../types';
 import { ChevronLeft, FolderOpen, Edit2, Trash2, FolderMinus, SlidersHorizontal } from 'lucide-react';
 import { useNotification } from '../context/NotificationContext';
 import { useAuth } from '../context/AuthContext';
@@ -10,13 +9,12 @@ import Modal from '../components/Modal';
 import ImageModal from '../components/modals/ImageModal';
 import ConfirmModal from '../components/modals/ConfirmModal';
 import FilterSidebar from '../components/FilterSidebar';
-import { useRequireAuth } from '../hooks/useRequireAuth';
+import ImageGrid from '../components/ImageGrid';
 
 const AlbumPage = () => {
     const { id } = useParams<{ id: string }>();
-    const user = useRequireAuth();
+    const { user } = useAuth();
     const navigate = useNavigate();
-    const location = useLocation();
     const [searchParams, setSearchParams] = useSearchParams();
     const { showNotification } = useNotification();
 
@@ -37,6 +35,15 @@ const AlbumPage = () => {
 
     const isAdminOrModerator = user && (user.role === Role.Admin || user.role === Role.Moderator);
 
+    useEffect(() => {
+        if (!searchParams.has('orderBy')) {
+            setSearchParams(prev => {
+                prev.set('orderBy', ImageSort.ADDED_TO_ALBUM);
+                return prev;
+            }, { replace: true });
+        }
+    }, [searchParams, setSearchParams]);
+
     const fetchAlbumData = async () => {
         if (!id || !user) return;
         setLoading(true);
@@ -56,7 +63,7 @@ const AlbumPage = () => {
             }
         } catch (error) {
             console.error(error);
-            showNotification('error', 'Failed to load album');
+            // showNotification('error', 'Failed to load album'); // Handled globally
             setImages([]);
         } finally {
             setLoading(false);
@@ -64,9 +71,7 @@ const AlbumPage = () => {
     };
 
     useEffect(() => {
-        if (user) {
-            fetchAlbumData();
-        }
+        fetchAlbumData();
     }, [id, searchParams, user]);
 
     const handleRemoveImage = async () => {
@@ -77,7 +82,7 @@ const AlbumPage = () => {
             showNotification('success', 'Image removed from album');
             setImageToRemove(null);
         } catch(e) {
-            showNotification('error', 'Failed to remove image');
+            // Error handled globally
         }
     };
 
@@ -89,7 +94,7 @@ const AlbumPage = () => {
             setIsDeleteAlbumOpen(false);
             navigate('/albums');
         } catch (e) {
-            showNotification('error', 'Failed to delete album');
+            // Error handled globally
         }
     };
 
@@ -101,7 +106,7 @@ const AlbumPage = () => {
             setIsEditAlbumOpen(false);
             showNotification('success', 'Album updated');
         } catch (e) {
-            showNotification('error', 'Failed to update album');
+            // Error handled globally
         }
     };
 
@@ -112,6 +117,8 @@ const AlbumPage = () => {
                 source: data.source || null,
                 isNsfw: data.isNsfw,
                 userId: data.userId || null,
+                tags: data.tags || [],
+                artists: data.artists || []
             };
             const { data: updatedImage } = await api.put<ImageDto>(`/images/${editingImage.id}`, payload);
             setImages(prev => prev.map(img => img.id === updatedImage.id ? updatedImage : img));
@@ -119,18 +126,18 @@ const AlbumPage = () => {
             setIsEditImageOpen(false);
             setEditingImage(null);
         } catch (err) {
-            showNotification('error', 'Failed to update image');
+            // Error handled globally
         }
     };
 
     const sortOptions = [
-        { id: 'ADDED_AT', name: 'Date Added' },
-        { id: 'UPLOADED_AT', name: 'Newest Upload' },
-        { id: 'FAVORITES', name: 'Most Popular' },
-        { id: 'RANDOM', name: 'Random Shuffle' },
+        { id: ImageSort.ADDED_TO_ALBUM, name: 'Date Added' },
+        { id: ImageSort.UPLOADED_AT, name: 'Newest Upload' },
+        { id: ImageSort.FAVORITES, name: 'Most Popular' },
+        { id: ImageSort.RANDOM, name: 'Random Shuffle' },
     ];
 
-    if (!user) return null;
+    if (!user) return <div className="p-10 text-center">Please log in.</div>;
     if (loading && !album) return <div className="p-10 text-center">Loading album...</div>;
 
     return (
@@ -165,7 +172,6 @@ const AlbumPage = () => {
                         </div>
                     </div>
 
-                    {/* Toggle Filters Button */}
                     <button
                         onClick={() => setShowFilters(!showFilters)}
                         className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg text-sm font-medium shadow-sm hover:bg-secondary transition-colors self-start md:self-auto"
@@ -175,24 +181,21 @@ const AlbumPage = () => {
                     </button>
                 </div>
 
-                {(!images || images.length === 0) && !loading ? (
-                    <div className="flex flex-col items-center justify-center h-64 text-muted-foreground border-2 border-dashed border-border rounded-xl bg-card/50">
-                        <p className="text-lg font-medium">This album is empty.</p>
-                        <Link to="/gallery" className="mt-2 text-primary font-bold hover:underline">Browse Gallery to add images</Link>
-                    </div>
-                ) : (
-                    <div className="columns-2 sm:columns-3 md:columns-4 xl:columns-5 gap-4 space-y-4 pb-10">
-                        {images?.map((img) => (
-                            <div key={img.id} className="break-inside-avoid relative group">
-                                <ImageCard
-                                    image={img}
-                                    onRemove={(id) => setImageToRemove(id)}
-                                    onEdit={isAdminOrModerator ? (img) => { setEditingImage(img); setIsEditImageOpen(true); } : undefined}
-                                />
-                            </div>
-                        ))}
-                    </div>
-                )}
+                <ImageGrid
+                    images={images}
+                    isLoading={loading && !album}
+                    page={1} // Pagination handled by parent for now or simplified
+                    totalPages={1} // Simplified for album view as it loads all or handles differently
+                    setPage={() => {}} // No-op for now if single page or infinite scroll
+                    onRemove={(id) => setImageToRemove(id)}
+                    onEdit={isAdminOrModerator ? (img) => { setEditingImage(img); setIsEditImageOpen(true); } : undefined}
+                    emptyState={
+                        <div className="flex flex-col items-center justify-center h-64 text-muted-foreground border-2 border-dashed border-border rounded-xl bg-card/50">
+                            <p className="text-lg font-medium">This album is empty.</p>
+                            <Link to="/gallery" className="mt-2 text-primary font-bold hover:underline">Browse Gallery to add images</Link>
+                        </div>
+                    }
+                />
             </div>
 
             <FilterSidebar
@@ -203,7 +206,6 @@ const AlbumPage = () => {
                 sortOptions={sortOptions}
             />
 
-            {/* Modals */}
             <Modal isOpen={isEditAlbumOpen} onClose={() => setIsEditAlbumOpen(false)} title="Edit Album Details">
                 <div className="space-y-4">
                     <div><label className="font-bold block mb-1">Name</label><input value={editAlbumFormData.name} onChange={e => setEditAlbumFormData({...editAlbumFormData, name: e.target.value})} className="w-full p-3 bg-secondary rounded-lg outline-none"/></div>

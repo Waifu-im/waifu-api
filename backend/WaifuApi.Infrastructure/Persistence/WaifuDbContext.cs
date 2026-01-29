@@ -19,6 +19,8 @@ public class WaifuDbContext : DbContext, IWaifuDbContext
     public DbSet<Album> Albums { get; set; }
     public DbSet<AlbumItem> AlbumItems { get; set; }
     public DbSet<Report> Reports { get; set; }
+    public DbSet<DailyStat> DailyStats { get; set; }
+    public DbSet<GlobalStat> GlobalStats { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -123,6 +125,17 @@ public class WaifuDbContext : DbContext, IWaifuDbContext
                 .WithMany()
                 .HasForeignKey(e => e.ImageId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<DailyStat>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.Date).IsUnique();
+        });
+
+        modelBuilder.Entity<GlobalStat>(entity =>
+        {
+            entity.HasKey(e => e.Key);
         });
     }
 }

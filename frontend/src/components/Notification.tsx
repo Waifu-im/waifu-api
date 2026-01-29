@@ -23,14 +23,14 @@ const Notification = ({ id, type, message, onClose, duration = 5000 }: Notificat
   const icons = {
     success: <CheckCircle className="w-5 h-5 text-green-500" />,
     error: <AlertCircle className="w-5 h-5 text-red-500" />,
-    warning: <AlertTriangle className="w-5 h-5 text-yellow-500" />,
+    warning: <AlertTriangle className="w-5 h-5 text-orange-500" />,
     info: <Info className="w-5 h-5 text-blue-500" />
   };
 
   const bgColors = {
     success: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-900',
     error: 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-900',
-    warning: 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-900',
+    warning: 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-900',
     info: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-900'
   };
 

@@ -36,13 +36,20 @@ const TagModal = ({ isOpen, onClose, onSubmit, initialData, title, isReviewMode,
 
     useEffect(() => {
         if (isOpen) {
+            const initialName = initialData?.name || '';
+            const initialSlug = initialData?.slug || '';
+            
+            // If we have a name but no slug (e.g. creating from dropdown), generate the slug automatically
+            const derivedSlug = initialSlug || (initialName ? slugify(initialName) : '');
+
             setFormData({
-                name: initialData?.name || '',
-                slug: initialData?.slug || '',
+                name: initialName,
+                slug: derivedSlug,
                 description: initialData?.description || ''
             });
             setIsSubmitting(false);
-            setIsSlugManuallyEdited(!!initialData?.slug);
+            // Only consider it manually edited if an explicit slug was passed in
+            setIsSlugManuallyEdited(!!initialSlug);
         }
     }, [isOpen, initialData]);
 

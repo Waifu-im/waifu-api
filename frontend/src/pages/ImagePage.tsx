@@ -37,7 +37,7 @@ const ImagePage = () => {
     try {
       if (!silent) setIsLoading(true);
       const userId = user?.id || 0;
-      const { data } = await api.get<ImageDto>(`/images/${id}?userId=${userId}`);
+      const { data } = await api.get<ImageDto>(`/images/${id}?userId=${userId}`, { skipGlobalErrorHandler: true });
       setImage(data);
 
       if (data.isNsfw && !silent) {
@@ -79,11 +79,11 @@ const ImagePage = () => {
       return;
     }
     try {
-      const { data } = await api.get<PaginatedList<AlbumDto>>('/users/me/albums', { params: { pageSize: 100 } });
+      const { data } = await api.get<PaginatedList<AlbumDto>>('/users/me/albums', { params: { pageSize: 100 }, skipGlobalErrorHandler: true });
       setUserAlbums(data.items);
       setIsAlbumMenuOpen(true);
     } catch (e) {
-      showNotification('error', 'Failed to load albums');
+      // showNotification('error', 'Failed to load albums'); // Handled globally
     }
   };
 
@@ -127,7 +127,7 @@ const ImagePage = () => {
         });
       }
     } catch (e) {
-      showNotification('error', `Failed to ${isInAlbum ? 'remove from' : 'add to'} album`);
+      // showNotification('error', `Failed to ${isInAlbum ? 'remove from' : 'add to'} album`); // Handled globally
     }
   };
 
@@ -154,10 +154,10 @@ const ImagePage = () => {
     if (!image) return;
     try {
       if (image.likedAt) {
-        await api.delete(`/users/${user.id}/albums/favorites/images/${image.id}`);
+        await api.delete(`/users/${user.id}/albums/favorites/images/${image.id}`, { skipGlobalErrorHandler: true });
         setImage(prev => prev ? { ...prev, likedAt: undefined, favorites: prev.favorites - 1 } : null);
       } else {
-        await api.post(`/users/${user.id}/albums/favorites/images/${image.id}`);
+        await api.post(`/users/${user.id}/albums/favorites/images/${image.id}`, {}, { skipGlobalErrorHandler: true });
         setImage(prev => prev ? { ...prev, likedAt: new Date().toISOString(), favorites: prev.favorites + 1 } : null);
       }
       // Silently refresh to update the "Favorites" checkmark in the dropdown
@@ -172,16 +172,21 @@ const ImagePage = () => {
         source: data.source || null,
         isNsfw: data.isNsfw,
         userId: data.userId || null,
-        tagIds: data.tagIds || [],
-        artistIds: data.artistIds || []
+        tags: data.tags || [],
+        artists: data.artists || []
       };
       const { data: updatedImage } = await api.put<ImageDto>(`/images/${id}`, payload);
-      setImage(updatedImage);
+      
+      setImage(updatedImage); 
       setShowEditModal(false);
       showNotification('success', 'Image updated successfully');
+      
+      // Fetch fresh data to be sure
+      fetchImage(true);
+
     } catch (err) {
       console.error('Failed to update image', err);
-      showNotification('error', 'Failed to update image');
+      // showNotification('error', 'Failed to update image'); // Handled globally
     }
   };
 
@@ -192,7 +197,7 @@ const ImagePage = () => {
       showNotification('success', 'Report submitted');
       setIsReportModalOpen(false);
     } catch (err) {
-      showNotification('error', 'Failed to submit report');
+      // showNotification('error', 'Failed to submit report'); // Handled globally
     }
   };
 
@@ -346,19 +351,17 @@ const ImagePage = () => {
                 )}
               </div>
 
-              {image.artists && image.artists.length > 0 && (
-                  <p className="flex items-center gap-2">
-                    Artist{image.artists.length > 1 ? 's' : ''}:
-                    {image.artists.map((artist, index) => (
-                        <span key={artist.id}>
-                            <Link to={`/gallery?includedArtists=${artist.name}`} className="text-primary hover:underline font-bold text-base">
-                              {artist.name}
-                            </Link>
-                            {index < image.artists.length - 1 && ", "}
-                        </span>
-                    ))}
-                  </p>
-              )}
+              <p className="flex items-center gap-2">
+                Artist{image.artists.length > 1 ? 's' : ''}:
+                {image.artists.map((artist, index) => (
+                    <span key={artist.id}>
+                      <Link to={`/gallery?includedArtists=${artist.id}`} className="text-primary hover:underline font-bold text-base">
+                        {artist.name}
+                      </Link>
+                      {index < image.artists.length - 1 && ", "}
+                    </span>
+                ))}
+              </p>
 
               {image.source && (
                   <p>Source: <a href={image.source} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate inline-block max-w-[200px] align-bottom">{image.source}</a></p>
@@ -371,7 +374,7 @@ const ImagePage = () => {
                 {image.tags.map(tag => (
                     <Link
                         key={tag.id}
-                        to={`/gallery?includedTags=${encodeURIComponent(tag.name)}`}
+                        to={`/gallery?includedTags=${encodeURIComponent(tag.slug)}`}
                         className="bg-secondary hover:bg-primary hover:text-primary-foreground text-secondary-foreground px-3 py-1.5 rounded-full text-sm font-medium transition-colors"
                     >
                       {tag.name}

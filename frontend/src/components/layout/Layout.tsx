@@ -4,9 +4,10 @@ import { useAuth } from '../../context/AuthContext';
 import {
     Sun, Moon, Menu, X, LogOut, Upload as UploadIcon,
     Home, Image as ImageIcon, Tag as TagIcon, ChevronRight, PanelLeft,
-    User as UserIcon, Library, ChevronDown, Palette, Key, FileCheck, Users as UsersIcon, Shield, Flag
+    User as UserIcon, Library, ChevronDown, Palette, Key, FileCheck, Users as UsersIcon, Shield, Flag, BarChart
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
+import GlobalErrorHandler from '../GlobalErrorHandler';
 
 const Layout = () => {
     const { theme, toggleTheme } = useTheme();
@@ -48,6 +49,7 @@ const Layout = () => {
 
     return (
         <div className="min-h-screen bg-background text-foreground flex flex-col">
+            <GlobalErrorHandler />
 
             {/* 1. TOP NAVBAR */}
             <header className="sticky top-0 z-50 w-full h-16 border-b border-border bg-card/95 backdrop-blur flex items-center justify-between px-4 lg:px-6 shadow-sm">
@@ -130,9 +132,14 @@ const Layout = () => {
                                                     <Flag size={16} className="text-red-500" /> Reports
                                                 </Link>
                                                 {isAdmin && (
-                                                    <Link to="/users" onClick={() => setIsUserMenuOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-secondary text-sm font-medium transition-colors">
-                                                        <UsersIcon size={16} className="text-blue-500" /> User Management
-                                                    </Link>
+                                                    <>
+                                                        <Link to="/users" onClick={() => setIsUserMenuOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-secondary text-sm font-medium transition-colors">
+                                                            <UsersIcon size={16} className="text-blue-500" /> User Management
+                                                        </Link>
+                                                        <Link to="/stats" onClick={() => setIsUserMenuOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-secondary text-sm font-medium transition-colors">
+                                                            <BarChart size={16} className="text-purple-500" /> Statistics
+                                                        </Link>
+                                                    </>
                                                 )}
                                             </div>
                                         </>

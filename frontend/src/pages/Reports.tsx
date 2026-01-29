@@ -21,12 +21,13 @@ const Reports = () => {
         setLoading(true);
         try {
             const { data } = await api.get<PaginatedList<Report>>('/reports', {
-                params: { page, pageSize, isResolved: false }
+                params: { page, pageSize, isResolved: false },
+                skipGlobalErrorHandler: true
             });
             setReports(data.items);
             setTotalPages(data.totalPages);
         } catch (err: any) {
-            showNotification('error', 'Failed to load reports');
+            // showNotification('error', 'Failed to load reports'); // Handled globally
         } finally {
             setLoading(false);
         }
@@ -42,7 +43,7 @@ const Reports = () => {
             showNotification('success', 'Report resolved');
             setReports(prev => prev.filter(r => r.id !== id));
         } catch (err: any) {
-            showNotification('error', 'Failed to resolve report');
+            // showNotification('error', 'Failed to resolve report'); // Handled globally
         }
     };
 
@@ -58,7 +59,7 @@ const Reports = () => {
             setIsDeleteModalOpen(false);
             setReportToDelete(null);
         } catch (err: any) {
-            showNotification('error', 'Failed to delete image');
+            // showNotification('error', 'Failed to delete image'); // Handled globally
         }
     };
 

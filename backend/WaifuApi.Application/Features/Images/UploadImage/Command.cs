@@ -24,7 +24,7 @@ public record UploadImageCommand(
     string FileName,
     string ContentType,
     List<long> ArtistIds,
-    List<long> TagIds,
+    List<string> TagSlugs, // Changed from IDs to Slugs
     string? Source,
     bool IsNsfw
 ) : ICommand<ImageDto>;
@@ -57,7 +57,6 @@ public class UploadImageCommandHandler : ICommandHandler<UploadImageCommand, Ima
 
         var targetHash = BitArrayHelper.FromHex(metadata.PerceptualHash);
 
-        // Check duplicates using pgvector HammingDistance
         var duplicate = await _context.Images
             .Where(i => i.PerceptualHash.HammingDistance(targetHash) <= HammingDistanceThreshold)
             .Select(i => new { i.Id })
@@ -85,17 +84,17 @@ public class UploadImageCommandHandler : ICommandHandler<UploadImageCommand, Ima
         }
 
         var tags = new List<Tag>();
-        if (request.TagIds.Any())
+        if (request.TagSlugs.Any())
         {
             var foundTags = await _context.Tags
-                .Where(t => request.TagIds.Contains(t.Id))
+                .Where(t => request.TagSlugs.Contains(t.Slug))
                 .ToListAsync(cancellationToken);
 
-            if (foundTags.Count != request.TagIds.Count)
+            if (foundTags.Count != request.TagSlugs.Count)
             {
-                var foundIds = foundTags.Select(t => t.Id).ToList();
-                var missingIds = request.TagIds.Except(foundIds).ToList();
-                throw new KeyNotFoundException($"Tags with IDs {string.Join(", ", missingIds)} not found.");
+                var foundSlugs = foundTags.Select(t => t.Slug).ToList();
+                var missingSlugs = request.TagSlugs.Except(foundSlugs).ToList();
+                throw new KeyNotFoundException($"Tags with slugs {string.Join(", ", missingSlugs)} not found.");
             }
             tags = foundTags;
         }
@@ -107,7 +106,7 @@ public class UploadImageCommandHandler : ICommandHandler<UploadImageCommand, Ima
             PerceptualHash = targetHash,
             Extension = metadata.Extension,
             DominantColor = metadata.DominantColor,
-            Source = request.Source.ToNullIfEmpty(), // Clean input
+            Source = request.Source.ToNullIfEmpty(),
             Artists = artists,
             UploaderId = request.UserId,
             UploadedAt = DateTime.UtcNow,
@@ -131,7 +130,6 @@ public class UploadImageCommandHandler : ICommandHandler<UploadImageCommand, Ima
         }
         catch
         {
-            // Rollback DB if S3 fails
             _context.Images.Remove(image);
             await _context.SaveChangesAsync(cancellationToken);
             throw;

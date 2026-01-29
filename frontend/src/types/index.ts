@@ -42,6 +42,11 @@ export interface User {
   id: number;
   name: string;
   role: Role;
+  discordId?: string;
+  isBlacklisted: boolean;
+  requestCount?: number;
+  apiKeyRequestCount?: number;
+  jwtRequestCount?: number;
 }
 
 export interface AlbumDto {
@@ -54,10 +59,10 @@ export interface AlbumDto {
 export interface ApiKeyDto {
   id: number;
   keyPrefix: string;
-  label: string;
+  description: string; // Changed from label to match backend
   createdAt: string;
   lastUsedAt?: string;
-  expiresAt?: string;
+  expirationDate?: string; // Changed from expiresAt to match backend
 }
 
 export interface Report {
@@ -84,6 +89,13 @@ export enum ReviewStatus {
   Rejected = 2
 }
 
+export enum ImageSort {
+  ADDED_TO_ALBUM = 'ADDED_TO_ALBUM',
+  UPLOADED_AT = 'UPLOADED_AT',
+  FAVORITES = 'FAVORITES',
+  RANDOM = 'RANDOM'
+}
+
 export interface PaginatedList<T> {
   items: T[];
   pageNumber: number;
@@ -96,7 +108,14 @@ export interface PaginatedList<T> {
 export interface ImageFormData {
   source?: string;
   isNsfw: boolean;
-  tagIds: number[];
-  artistIds: number[];
+  tags: string[];
+  artists: number[];
   userId?: number;
+}
+
+export interface PublicStats {
+    totalRequests: number;
+    totalImages: number;
+    totalTags: number;
+    totalArtists: number;
 }

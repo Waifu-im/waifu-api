@@ -1,18 +1,22 @@
 ﻿import { useState, useEffect, useRef } from 'react';
-import { X, Plus, ChevronDown, Check } from 'lucide-react';
+import { X, Plus, ChevronDown, Check, Loader2 } from 'lucide-react';
+import { useDebounce } from '../hooks/useDebounce';
 
-interface Option {
+export interface Option {
     id: number | string;
     name: string;
     description?: string;
+    slug?: string;
+    [key: string]: any;
 }
 
 interface SearchableSelectProps {
-    options: Option[];
+    options?: Option[];
     selectedOptions: Option[];
     onSelect: (option: Option) => void;
     onRemove: (option: Option) => void;
     onCreate?: (name: string) => void;
+    loadOptions?: (query: string) => Promise<Option[]>;
     placeholder?: string;
     label?: string;
     isMulti?: boolean;
@@ -20,11 +24,12 @@ interface SearchableSelectProps {
 }
 
 const SearchableSelect = ({
-                              options,
+                              options = [],
                               selectedOptions,
                               onSelect,
                               onRemove,
                               onCreate,
+                              loadOptions,
                               placeholder = "Select...",
                               label,
                               isMulti = true,
@@ -32,8 +37,12 @@ const SearchableSelect = ({
                           }: SearchableSelectProps) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const [asyncOptions, setAsyncOptions] = useState<Option[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
     const wrapperRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+
+    const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -45,12 +54,32 @@ const SearchableSelect = ({
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const filteredOptions = options.filter(option =>
-        option.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    useEffect(() => {
+        if (!loadOptions || !isOpen) return;
+
+        let isMounted = true;
+        const fetchOptions = async () => {
+            setIsLoading(true);
+            try {
+                const results = await loadOptions(debouncedSearchTerm);
+                if (isMounted) setAsyncOptions(results);
+            } catch (error) {
+                console.error("Failed to load options", error);
+            } finally {
+                if (isMounted) setIsLoading(false);
+            }
+        };
+
+        fetchOptions();
+
+        return () => { isMounted = false; };
+    }, [debouncedSearchTerm, loadOptions, isOpen]);
+
+    const displayedOptions = loadOptions
+        ? asyncOptions
+        : options.filter(option => option.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
     const handleOptionClick = (option: Option) => {
-        // Fix: Check by ID first, then by Name (handles case where selected comes from URL string and option comes from API object)
         const isSelected = selectedOptions.some(selected =>
             selected.id === option.id || selected.name === option.name
         );
@@ -101,13 +130,13 @@ const SearchableSelect = ({
                 />
 
                 <div className="mr-1 text-muted-foreground">
-                    <ChevronDown size={16} />
+                    {isLoading ? <Loader2 size={16} className="animate-spin" /> : <ChevronDown size={16} />}
                 </div>
             </div>
 
             {isOpen && (
                 <div className="absolute z-50 w-full mt-2 bg-popover border border-border rounded-xl shadow-xl max-h-60 overflow-auto py-1 animate-in fade-in slide-in-from-top-2">
-                    {filteredOptions.map(option => {
+                    {displayedOptions.map(option => {
                         const isSelected = selectedOptions.some(s => s.id === option.id || s.name === option.name);
                         return (
                             <div
@@ -137,8 +166,12 @@ const SearchableSelect = ({
                         </div>
                     )}
 
-                    {filteredOptions.length === 0 && !searchTerm && (
+                    {displayedOptions.length === 0 && !searchTerm && !isLoading && (
                         <div className="px-4 py-8 text-center text-muted-foreground text-sm">No options found.</div>
+                    )}
+                    
+                    {isLoading && displayedOptions.length === 0 && (
+                         <div className="px-4 py-8 text-center text-muted-foreground text-sm">Loading...</div>
                     )}
                 </div>
             )}

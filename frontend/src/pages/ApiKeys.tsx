@@ -26,8 +26,9 @@ const ApiKeys = () => {
         try {
             const { data } = await api.get<ApiKeyDto[]>('/auth/api-keys');
             setKeys(data);
-        } catch (err: any) { showNotification('error', err.message); }
-        finally { setLoading(false); }
+        } catch (err: any) { 
+            // showNotification('error', err.message); // Handled globally
+        } finally { setLoading(false); }
     };
 
     useEffect(() => { fetchKeys(); }, []);
@@ -41,7 +42,9 @@ const ApiKeys = () => {
             setCreatedKey(data.key || data.token || "Error: Token not received");
             fetchKeys();
             setKeyFormData({ description: '', expirationDate: '' });
-        } catch (err: any) { showNotification('error', err.message); }
+        } catch (err: any) { 
+            // showNotification('error', err.message); // Handled globally
+        }
     };
 
     const handleEdit = async () => {
@@ -57,7 +60,9 @@ const ApiKeys = () => {
             showNotification('success', 'API Key updated');
             setIsEditOpen(false);
             fetchKeys();
-        } catch (err: any) { showNotification('error', err.message); }
+        } catch (err: any) { 
+            // showNotification('error', err.message); // Handled globally
+        }
     };
 
     const handleRevoke = async () => {
@@ -67,7 +72,9 @@ const ApiKeys = () => {
             showNotification('success', 'API Key revoked');
             setIsRevokeOpen(false);
             fetchKeys();
-        } catch (err: any) { showNotification('error', err.message); }
+        } catch (err: any) { 
+            // showNotification('error', err.message); // Handled globally
+        }
     };
 
     const copyToClipboard = (text: string) => {
@@ -91,7 +98,7 @@ const ApiKeys = () => {
                     <h1 className="text-3xl font-black flex items-center gap-3 text-foreground"><Key className="text-primary" size={32}/> API Keys</h1>
                     <p className="text-muted-foreground mt-1">Manage access tokens for external applications.</p>
                 </div>
-                <button onClick={() => { setCreatedKey(null); setKeyFormData({description:'', expirationDate:''}); setIsCreateOpen(true); }} className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-bold hover:opacity-90 shadow-lg transition-all"><Plus size={20} /> Generate Key</button>
+                <button onClick={() => { setCreatedKey(null); setKeyFormData({description:'', expirationDate:''}); setIsCreateOpen(true); }} className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-bold hover:opacity-90 shadow-lg transition-all whitespace-nowrap"><Plus size={20} /> <span className="hidden sm:inline">Generate Key</span></button>
             </div>
 
             <div className="grid gap-4">
