@@ -38,7 +38,6 @@ public class LoginWithDiscordCommandHandler : ICommandHandler<LoginWithDiscordCo
             {
                 DiscordId = discordUser.Id,
                 Name = discordUser.Username,
-                Email = discordUser.Email,
                 Role = Role.User
             };
             _context.Users.Add(user);
@@ -57,7 +56,6 @@ public class LoginWithDiscordCommandHandler : ICommandHandler<LoginWithDiscordCo
         {
             // Update info if needed
             user.Name = discordUser.Username;
-            user.Email = discordUser.Email;
         }
 
         await _context.SaveChangesAsync(cancellationToken);

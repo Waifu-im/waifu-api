@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -48,6 +49,13 @@ public class GetImageByIdQueryHandler : IQueryHandler<GetImageByIdQuery, ImageDt
                 .FirstOrDefaultAsync(cancellationToken)
             : null;
 
+        var albums = request.UserId > 0
+            ? await _context.AlbumItems
+                .Where(ai => ai.ImageId == image.Id && ai.Album.UserId == request.UserId)
+                .Select(ai => new AlbumDto { Id = ai.Album.Id, Name = ai.Album.Name, UserId = ai.Album.UserId, IsDefault = ai.Album.IsDefault })
+                .ToListAsync(cancellationToken)
+            : new List<AlbumDto>();
+
         return new ImageDto
         {
             Id = image.Id,
@@ -66,7 +74,8 @@ public class GetImageByIdQueryHandler : IQueryHandler<GetImageByIdQuery, ImageDt
             Url = $"{_cdnBaseUrl}/{image.Id}{image.Extension}",
             Tags = image.Tags.Where(t => t.ReviewStatus == ReviewStatus.Accepted).ToList(),
             Favorites = favorites,
-            LikedAt = likedAt
+            LikedAt = likedAt,
+            Albums = albums
         };
     }
 

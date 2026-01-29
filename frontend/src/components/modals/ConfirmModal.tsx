@@ -1,5 +1,5 @@
 ﻿import Modal from '../Modal';
-import { Trash2, AlertTriangle } from 'lucide-react';
+import { Trash2, AlertTriangle, LucideIcon } from 'lucide-react';
 
 interface ConfirmModalProps {
     isOpen: boolean;
@@ -9,7 +9,8 @@ interface ConfirmModalProps {
     message: React.ReactNode;
     confirmText?: string;
     cancelText?: string;
-    variant?: 'destructive' | 'warning';
+    variant?: 'destructive' | 'warning' | 'info';
+    icon?: LucideIcon; // Permet de passer une icône personnalisée (ex: FolderMinus)
 }
 
 const ConfirmModal = ({
@@ -20,13 +21,31 @@ const ConfirmModal = ({
                           message,
                           confirmText = "Confirm",
                           cancelText = "Cancel",
-                          variant = 'destructive'
+                          variant = 'destructive',
+                          icon: Icon
                       }: ConfirmModalProps) => {
+
+    // Choix de l'icône : Icon perso > Variant
+    const DisplayIcon = Icon || (variant === 'destructive' ? Trash2 : AlertTriangle);
+
+    // Choix des couleurs
+    const colorClass = variant === 'destructive'
+        ? 'bg-destructive/10 text-destructive'
+        : variant === 'warning'
+            ? 'bg-orange-500/10 text-orange-500'
+            : 'bg-blue-500/10 text-blue-500';
+
+    const buttonClass = variant === 'destructive'
+        ? 'bg-destructive hover:bg-destructive/90 text-destructive-foreground'
+        : variant === 'warning'
+            ? 'bg-orange-500 hover:bg-orange-600 text-white'
+            : 'bg-primary hover:bg-primary/90 text-primary-foreground';
+
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={title}>
             <div className="text-center space-y-4">
-                <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto ${variant === 'destructive' ? 'bg-destructive/10 text-destructive' : 'bg-orange-500/10 text-orange-500'}`}>
-                    {variant === 'destructive' ? <Trash2 size={32} /> : <AlertTriangle size={32} />}
+                <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto ${colorClass}`}>
+                    <DisplayIcon size={32} />
                 </div>
                 <div className="text-muted-foreground">
                     {message}
@@ -37,7 +56,7 @@ const ConfirmModal = ({
                     </button>
                     <button
                         onClick={onConfirm}
-                        className={`flex-1 py-3 text-white rounded-lg font-bold transition-colors ${variant === 'destructive' ? 'bg-destructive hover:bg-destructive/90' : 'bg-orange-500 hover:bg-orange-600'}`}
+                        className={`flex-1 py-3 rounded-lg font-bold transition-colors ${buttonClass}`}
                     >
                         {confirmText}
                     </button>

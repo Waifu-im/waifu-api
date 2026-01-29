@@ -3,11 +3,12 @@ import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom'
 import api from '../services/api';
 import ImageCard from '../components/ImageCard';
 import { ImageDto, PaginatedList, AlbumDto, ImageFormData, Role } from '../types';
-import { ChevronLeft, FolderOpen, SlidersHorizontal, Edit2, Trash2 } from 'lucide-react';
+import { ChevronLeft, FolderOpen, Edit2, Trash2, FolderMinus } from 'lucide-react'; // Ajout FolderMinus
 import { useNotification } from '../context/NotificationContext';
 import { useAuth } from '../context/AuthContext';
 import Modal from '../components/Modal';
 import ImageModal from '../components/modals/ImageModal';
+import ConfirmModal from '../components/modals/ConfirmModal';
 import FilterSidebar from '../components/FilterSidebar';
 
 const AlbumPage = () => {
@@ -22,8 +23,13 @@ const AlbumPage = () => {
     const [loading, setLoading] = useState(true);
     const [showFilters, setShowFilters] = useState(false);
 
+    // Modals
     const [isEditAlbumOpen, setIsEditAlbumOpen] = useState(false);
     const [editAlbumFormData, setEditAlbumFormData] = useState({ name: '', description: '' });
+    const [isDeleteAlbumOpen, setIsDeleteAlbumOpen] = useState(false);
+
+    // Image Actions
+    const [imageToRemove, setImageToRemove] = useState<number | null>(null);
     const [editingImage, setEditingImage] = useState<ImageDto | null>(null);
     const [isEditImageOpen, setIsEditImageOpen] = useState(false);
 
@@ -59,25 +65,24 @@ const AlbumPage = () => {
         fetchAlbumData();
     }, [id, searchParams, user]);
 
-    const removeImage = async (imageId: number) => {
-        if (!id) return;
-        if(confirm("Remove image from album?")) {
-            try {
-                await api.delete(`/users/me/albums/${id}/images/${imageId}`);
-                setImages(prev => prev.filter(img => img.id !== imageId));
-                showNotification('success', 'Image removed');
-            } catch(e) {
-                showNotification('error', 'Failed to remove image');
-            }
+    const handleRemoveImage = async () => {
+        if (!id || !imageToRemove) return;
+        try {
+            await api.delete(`/users/me/albums/${id}/images/${imageToRemove}`);
+            setImages(prev => prev.filter(img => img.id !== imageToRemove));
+            showNotification('success', 'Image removed from album');
+            setImageToRemove(null);
+        } catch(e) {
+            showNotification('error', 'Failed to remove image');
         }
     };
 
     const handleDeleteAlbum = async () => {
         if (!album) return;
-        if (!confirm(`Are you sure you want to delete album "${album.name}"? This cannot be undone.`)) return;
         try {
             await api.delete(`/users/me/albums/${album.id}`);
             showNotification('success', 'Album deleted');
+            setIsDeleteAlbumOpen(false);
             navigate('/albums');
         } catch (e) {
             showNotification('error', 'Failed to delete album');
@@ -145,7 +150,7 @@ const AlbumPage = () => {
                                     <Edit2 size={16} />
                                 </button>
                                 <button
-                                    onClick={handleDeleteAlbum}
+                                    onClick={() => setIsDeleteAlbumOpen(true)}
                                     className="p-1.5 rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
                                     title="Delete Album"
                                 >
@@ -155,9 +160,7 @@ const AlbumPage = () => {
                             <p className="text-muted-foreground mt-1">{album?.description || `${images?.length || 0} images`}</p>
                         </div>
                     </div>
-                    <button onClick={() => setShowFilters(!showFilters)} className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg text-sm font-medium shadow-sm hover:bg-secondary transition-colors self-start md:self-auto">
-                        <SlidersHorizontal size={16} /> Filters
-                    </button>
+                    {/* Le bouton Filters a été supprimé ici s'il n'est pas utilisé, sinon le remettre */}
                 </div>
 
                 {(!images || images.length === 0) && !loading ? (
@@ -171,7 +174,7 @@ const AlbumPage = () => {
                             <div key={img.id} className="break-inside-avoid relative group">
                                 <ImageCard
                                     image={img}
-                                    onDelete={(id) => removeImage(id)}
+                                    onRemove={(id) => setImageToRemove(id)} // Uniquement onRemove ici !
                                     onEdit={isAdminOrModerator ? (img) => { setEditingImage(img); setIsEditImageOpen(true); } : undefined}
                                 />
                             </div>
@@ -188,29 +191,43 @@ const AlbumPage = () => {
                 sortOptions={sortOptions}
             />
 
+            {/* Modals */}
             <Modal isOpen={isEditAlbumOpen} onClose={() => setIsEditAlbumOpen(false)} title="Edit Album Details">
+                {/* Formulaire Edit Album (simplifié) */}
                 <div className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-bold mb-1">Name</label>
-                        <input
-                            value={editAlbumFormData.name}
-                            onChange={e => setEditAlbumFormData({...editAlbumFormData, name: e.target.value})}
-                            className="w-full p-3 bg-secondary rounded-lg outline-none focus:ring-1 focus:ring-primary text-foreground"
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-bold mb-1">Description</label>
-                        <textarea
-                            value={editAlbumFormData.description}
-                            onChange={e => setEditAlbumFormData({...editAlbumFormData, description: e.target.value})}
-                            className="w-full p-3 bg-secondary rounded-lg outline-none h-24 resize-none text-foreground"
-                        />
-                    </div>
-                    <button onClick={handleEditAlbum} className="w-full py-3 bg-primary text-primary-foreground font-bold rounded-lg mt-2">
-                        Save Changes
-                    </button>
+                    <div><label className="font-bold block mb-1">Name</label><input value={editAlbumFormData.name} onChange={e => setEditAlbumFormData({...editAlbumFormData, name: e.target.value})} className="w-full p-3 bg-secondary rounded-lg outline-none"/></div>
+                    <div><label className="font-bold block mb-1">Description</label><textarea value={editAlbumFormData.description} onChange={e => setEditAlbumFormData({...editAlbumFormData, description: e.target.value})} className="w-full p-3 bg-secondary rounded-lg outline-none h-24"/></div>
+                    <button onClick={handleEditAlbum} className="w-full py-3 bg-primary text-primary-foreground font-bold rounded-lg">Save</button>
                 </div>
             </Modal>
+
+            {/* Confirm Remove Image - Avec l'icône FolderMinus */}
+            <ConfirmModal
+                isOpen={!!imageToRemove}
+                onClose={() => setImageToRemove(null)}
+                onConfirm={handleRemoveImage}
+                title="Remove Image"
+                message="Remove this image from the album? It will remain in the gallery."
+                confirmText="Remove"
+                variant="warning"
+                icon={FolderMinus} // Icône personnalisée
+            />
+
+            {/* Confirm Delete Album */}
+            <ConfirmModal
+                isOpen={isDeleteAlbumOpen}
+                onClose={() => setIsDeleteAlbumOpen(false)}
+                onConfirm={handleDeleteAlbum}
+                title="Delete Album"
+                message={
+                    <div>
+                        <p>Are you sure you want to delete the album <strong>{album?.name}</strong>?</p>
+                        <p className="text-sm text-muted-foreground mt-1">The images inside will NOT be deleted from the gallery.</p>
+                    </div>
+                }
+                confirmText="Delete Album"
+                variant="destructive"
+            />
 
             {editingImage && (
                 <ImageModal

@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { ImageDto, Artist, Tag, ImageFormData } from '../types';
 import { useNotification } from '../context/NotificationContext';
@@ -16,7 +17,6 @@ const Review = () => {
     const [artists, setArtists] = useState<Artist[]>([]);
     const [tags, setTags] = useState<Tag[]>([]);
 
-    // Edit State
     const [editingImage, setEditingImage] = useState<ImageDto | null>(null);
     const [editingArtist, setEditingArtist] = useState<Artist | null>(null);
     const [editingTag, setEditingTag] = useState<Tag | null>(null);
@@ -113,8 +113,13 @@ const Review = () => {
                                 {images.map(img => (
                                     <div key={img.id} className="bg-card border border-border rounded-xl overflow-hidden flex flex-col shadow-sm">
                                         <div className="aspect-[2/3] relative bg-muted group">
-                                            <img src={img.url} alt={`Review ${img.id}`} className="w-full h-full object-cover" loading="lazy" />
-                                            <a href={img.url} target="_blank" rel="noreferrer" className="absolute top-2 right-2 p-1.5 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                                            {/* Link to Image Page */}
+                                            <Link to={`/images/${img.id}`} className="block w-full h-full">
+                                                <img src={img.url} alt={`Review ${img.id}`} className="w-full h-full object-cover" loading="lazy" />
+                                            </Link>
+
+                                            {/* External Link Overlay */}
+                                            <a href={img.url} target="_blank" rel="noreferrer" className="absolute top-2 right-2 p-1.5 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:bg-black/70">
                                                 <ExternalLink size={14}/>
                                             </a>
                                         </div>
@@ -122,29 +127,29 @@ const Review = () => {
                                         <div className="p-3 border-t border-border space-y-2">
                                             {/* Metadata Section */}
                                             <div className="flex flex-wrap gap-1">
-                                                {/* Artist */}
+                                                {/* Artist Link */}
                                                 {img.artist ? (
-                                                    <div
-                                                        className={`text-xs px-2 py-1 rounded flex items-center gap-1 cursor-pointer ${img.artist.reviewStatus === 0 ? 'bg-orange-500/10 text-orange-600 border border-orange-500/20' : 'bg-secondary'}`}
-                                                        onClick={() => img.artist!.reviewStatus === 0 && setTab('artists')}
-                                                        title={img.artist.reviewStatus === 0 ? "Artist Pending Review" : ""}
+                                                    <Link
+                                                        to={`/gallery?artistId=${img.artist.id}`}
+                                                        className={`text-xs px-2 py-1 rounded flex items-center gap-1 hover:bg-primary/10 transition-colors ${img.artist.reviewStatus === 0 ? 'bg-orange-500/10 text-orange-600 border border-orange-500/20' : 'bg-secondary'}`}
+                                                        title={img.artist.reviewStatus === 0 ? "Artist Pending Review" : "View Artist in Gallery"}
                                                     >
                                                         {img.artist.reviewStatus === 0 && <Clock size={10} />}
                                                         {img.artist.name}
-                                                    </div>
+                                                    </Link>
                                                 ) : <span className="text-xs text-muted-foreground italic">No Artist</span>}
 
-                                                {/* Tags */}
+                                                {/* Tags Links */}
                                                 {img.tags.map(tag => (
-                                                    <div
+                                                    <Link
                                                         key={tag.id}
-                                                        className={`text-xs px-2 py-1 rounded flex items-center gap-1 cursor-pointer ${tag.reviewStatus === 0 ? 'bg-orange-500/10 text-orange-600 border border-orange-500/20' : 'bg-secondary'}`}
-                                                        onClick={() => tag.reviewStatus === 0 && setTab('tags')}
-                                                        title={tag.reviewStatus === 0 ? "Tag Pending Review" : ""}
+                                                        to={`/gallery?includedTags=${encodeURIComponent(tag.name)}`}
+                                                        className={`text-xs px-2 py-1 rounded flex items-center gap-1 hover:bg-primary/10 transition-colors ${tag.reviewStatus === 0 ? 'bg-orange-500/10 text-orange-600 border border-orange-500/20' : 'bg-secondary'}`}
+                                                        title={tag.reviewStatus === 0 ? "Tag Pending Review" : "View Tag in Gallery"}
                                                     >
                                                         {tag.reviewStatus === 0 && <Clock size={10} />}
                                                         {tag.name}
-                                                    </div>
+                                                    </Link>
                                                 ))}
                                             </div>
 
@@ -159,14 +164,19 @@ const Review = () => {
                             </div>
                     )}
 
-                    {/* Artists Tab (Same as previous turn + edit button) */}
+                    {/* Artists Tab */}
                     {tab === 'artists' && (
                         artists.length === 0 ? <EmptyState type="artists"/> :
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {artists.map(artist => (
                                     <div key={artist.id} className="bg-card border border-border p-6 rounded-xl flex justify-between items-center gap-4">
                                         <div className="overflow-hidden">
-                                            <h3 className="font-bold text-lg truncate">{artist.name}</h3>
+                                            <h3 className="font-bold text-lg truncate">
+                                                {/* Link to Gallery filtered by Artist */}
+                                                <Link to={`/gallery?artistId=${artist.id}`} className="hover:underline hover:text-primary transition-colors">
+                                                    {artist.name}
+                                                </Link>
+                                            </h3>
                                             <div className="flex flex-wrap gap-2 mt-2 text-xs text-muted-foreground">
                                                 {artist.twitter && <span className="bg-secondary px-2 py-1 rounded">TW</span>}
                                                 {artist.pixiv && <span className="bg-secondary px-2 py-1 rounded">PX</span>}
@@ -182,14 +192,19 @@ const Review = () => {
                             </div>
                     )}
 
-                    {/* Tags Tab (Same as previous turn + edit button) */}
+                    {/* Tags Tab */}
                     {tab === 'tags' && (
                         tags.length === 0 ? <EmptyState type="tags"/> :
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {tags.map(tag => (
                                     <div key={tag.id} className="bg-card border border-border p-6 rounded-xl flex justify-between items-center gap-4">
                                         <div>
-                                            <h3 className="font-bold text-lg">{tag.name}</h3>
+                                            <h3 className="font-bold text-lg">
+                                                {/* Link to Gallery filtered by Tag */}
+                                                <Link to={`/gallery?includedTags=${encodeURIComponent(tag.name)}`} className="hover:underline hover:text-primary transition-colors">
+                                                    {tag.name}
+                                                </Link>
+                                            </h3>
                                             <p className="text-sm text-muted-foreground line-clamp-2">{tag.description}</p>
                                         </div>
                                         <div className="flex gap-2 shrink-0">
@@ -205,7 +220,7 @@ const Review = () => {
             )}
 
             {/* Edit Modals */}
-            {editingImage && <ImageModal isOpen={!!editingImage} onClose={() => setEditingImage(null)} onSubmit={handleUpdateImage} initialData={editingImage} title="Edit Image" />}
+            {editingImage && <ImageModal isOpen={!!editingImage} onClose={() => setEditingImage(null)} onSubmit={handleUpdateImage} initialData={editingImage} />}
             {editingArtist && <ArtistModal isOpen={!!editingArtist} onClose={() => setEditingArtist(null)} onSubmit={handleUpdateArtist} initialData={editingArtist} title="Edit Artist" />}
             {editingTag && <TagModal isOpen={!!editingTag} onClose={() => setEditingTag(null)} onSubmit={handleUpdateTag} initialData={editingTag} title="Edit Tag" />}
         </div>

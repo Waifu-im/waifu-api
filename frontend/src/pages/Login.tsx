@@ -9,7 +9,7 @@ const Login = () => {
 
         const clientId = import.meta.env.VITE_DISCORD_CLIENT_ID;
         const redirectUri = encodeURIComponent(import.meta.env.VITE_DISCORD_REDIRECT_URI);
-        const scope = encodeURIComponent('identify email');
+        const scope = encodeURIComponent('identify');
         const url = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}`;
         window.location.href = url;
     };

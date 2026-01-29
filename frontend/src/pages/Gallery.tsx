@@ -1,15 +1,15 @@
 ﻿import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useImages } from '../hooks/useImages';
-import { SlidersHorizontal, RefreshCw, Trash2, Search } from 'lucide-react';
+import { SlidersHorizontal, RefreshCw, Search } from 'lucide-react';
 import ImageCard from '../components/ImageCard';
 import api from '../services/api';
-import Modal from '../components/Modal';
 import { ImageDto, Role, ImageFormData } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 import ImageModal from '../components/modals/ImageModal';
 import FilterSidebar from '../components/FilterSidebar';
+import ConfirmModal from '../components/modals/ConfirmModal';
 
 const Gallery = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -34,7 +34,6 @@ const Gallery = () => {
   const includedTags = searchParams.getAll('includedTags');
   const excludedTags = searchParams.getAll('excludedTags');
 
-  // Extract Artist ID
   const artistIdStr = searchParams.get('artistId');
   const artistId = artistIdStr ? parseInt(artistIdStr) : undefined;
 
@@ -156,18 +155,16 @@ const Gallery = () => {
             sortOptions={sortOptions}
         />
 
-        <Modal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} title="Delete Image">
-          <div className="text-center space-y-4">
-            <div className="w-16 h-16 bg-destructive/10 text-destructive rounded-full flex items-center justify-center mx-auto">
-              <Trash2 size={32} />
-            </div>
-            <p className="text-muted-foreground">Confirm deletion?</p>
-            <div className="flex gap-3 mt-6">
-              <button onClick={() => setIsDeleteModalOpen(false)} className="flex-1 py-3 bg-secondary rounded-lg font-bold">Cancel</button>
-              <button onClick={handleRealDelete} className="flex-1 py-3 bg-destructive text-destructive-foreground rounded-lg font-bold">Delete</button>
-            </div>
-          </div>
-        </Modal>
+        {/* Updated Deletion Message to match ImagePage */}
+        <ConfirmModal
+            isOpen={isDeleteModalOpen}
+            onClose={() => setIsDeleteModalOpen(false)}
+            onConfirm={handleRealDelete}
+            title="Delete Image"
+            message="Permanently delete this image? This cannot be undone."
+            confirmText="Delete"
+            variant="destructive"
+        />
 
         {editingImage && (
             <ImageModal

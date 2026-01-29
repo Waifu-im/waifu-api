@@ -169,6 +169,24 @@ public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList
                 .ToDictionaryAsync(x => x.ImageId, x => x.AddedAt, cancellationToken)
             : new Dictionary<long, DateTime>();
 
+        var userAlbumsMap = new Dictionary<long, List<AlbumDto>>();
+        if (request.UserId > 0)
+        {
+            var userAlbums = await _context.AlbumItems
+                .Where(ai => imageIdsForStats.Contains(ai.ImageId) && ai.Album.UserId == request.UserId)
+                .Select(ai => new { ai.ImageId, Album = new AlbumDto { Id = ai.Album.Id, Name = ai.Album.Name, UserId = ai.Album.UserId, IsDefault = ai.Album.IsDefault } })
+                .ToListAsync(cancellationToken);
+
+             foreach (var item in userAlbums)
+             {
+                 if (!userAlbumsMap.ContainsKey(item.ImageId))
+                 {
+                     userAlbumsMap[item.ImageId] = new List<AlbumDto>();
+                 }
+                 userAlbumsMap[item.ImageId].Add(item.Album);
+             }
+        }
+
         var imageDtos = images.Select(image => new ImageDto
         {
             Id = image.Id,
@@ -188,7 +206,8 @@ public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList
             Tags = image.Tags.Where(t => t.ReviewStatus == ReviewStatus.Accepted).ToList(),
             Favorites = favoritesCounts.TryGetValue(image.Id, out var count) ? count : 0,
             LikedAt = likedStatus.TryGetValue(image.Id, out var date) ? (DateTime?)date : null,
-            AddedToAlbumAt = addedToAlbumMap.TryGetValue(image.Id, out var addedAt) ? addedAt : null
+            AddedToAlbumAt = addedToAlbumMap.TryGetValue(image.Id, out var addedAt) ? addedAt : null,
+            Albums = userAlbumsMap.TryGetValue(image.Id, out var albums) ? albums : new List<AlbumDto>()
         }).ToList();
 
         return new PaginatedList<ImageDto>(imageDtos, totalCount, request.Page, pageSize);

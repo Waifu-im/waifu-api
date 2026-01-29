@@ -26,4 +26,5 @@ public class ImageDto
     public long Favorites { get; set; }
     public DateTime? LikedAt { get; set; }
     public DateTime? AddedToAlbumAt { get; set; }
+    public List<AlbumDto> Albums { get; set; } = new();
 }

@@ -13,6 +13,7 @@
   byteSize: number;
   url: string;
   tags: Tag[];
+  albums?: AlbumDto[]; // Keeps your previous request
   favorites: number;
   likedAt?: string;
   uploaderId: number;
@@ -25,18 +26,19 @@ export interface Artist {
   pixiv?: string;
   twitter?: string;
   deviantArt?: string;
+  reviewStatus?: number; // Added to fix TS2339 in Review.tsx
 }
 
 export interface Tag {
   id: number;
   name: string;
   description: string;
+  reviewStatus?: number; // Added to fix TS2339 in Review.tsx
 }
 
 export interface User {
   id: number;
   name: string;
-  email?: string;
   role: Role;
 }
 
@@ -72,7 +74,6 @@ export interface PaginatedList<T> {
   hasNextPage: boolean;
 }
 
-// Added to resolve TS2322 and S2741 errors
 export interface ImageFormData {
   source?: string;
   isNsfw: boolean;

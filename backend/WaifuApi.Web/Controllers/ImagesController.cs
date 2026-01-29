@@ -13,6 +13,7 @@ using WaifuApi.Application.Features.Images.DeleteImage;
 using WaifuApi.Application.Features.Images.UpdateImage;
 using WaifuApi.Application.Features.Images.UploadImage;
 using WaifuApi.Domain.Entities;
+using WaifuApi.Domain.Enums;
 
 namespace WaifuApi.Web.Controllers;
 

@@ -60,8 +60,7 @@ public class DiscordService : IDiscordService
         return new DiscordUserDto
         {
             Id = user!.Id,
-            Username = user.Username,
-            Email = user.Email
+            Username = user.Username
         };
     }
 
@@ -77,7 +76,5 @@ public class DiscordService : IDiscordService
         public string Id { get; set; } = string.Empty;
         [System.Text.Json.Serialization.JsonPropertyName("username")]
         public string Username { get; set; } = string.Empty;
-        [System.Text.Json.Serialization.JsonPropertyName("email")]
-        public string? Email { get; set; }
     }
 }
