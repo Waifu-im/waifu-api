@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using WaifuApi.Application.Common.Exceptions;
 using WaifuApi.Application.Common.Models;
+using WaifuApi.Application.Common.Utilities;
 using WaifuApi.Application.Interfaces;
 using WaifuApi.Domain.Entities;
 using WaifuApi.Domain.Enums;
@@ -108,7 +109,7 @@ public class UpdateImageCommandHandler : ICommandHandler<UpdateImageCommand, Ima
             Width = image.Width,
             Height = image.Height,
             ByteSize = image.ByteSize,
-            Url = $"{_cdnBaseUrl}/{image.Id}{image.Extension}",
+            Url = CdnUrlHelper.GetImageUrl(_cdnBaseUrl, image.Id, image.Extension),
             Tags = image.Tags,
             Favorites = 0, // Not calculating favorites for update response
             LikedAt = null

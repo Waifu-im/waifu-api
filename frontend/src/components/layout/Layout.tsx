@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import {
     Sun, Moon, Menu, X, LogOut, Upload as UploadIcon,
     Home, Image as ImageIcon, Tag as TagIcon, ChevronRight, PanelLeft,
-    User as UserIcon, Library, ChevronDown, Palette, Key, FileCheck, Users as UsersIcon, Shield
+    User as UserIcon, Library, ChevronDown, Palette, Key, FileCheck, Users as UsersIcon, Shield, Flag
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
@@ -126,6 +126,9 @@ const Layout = () => {
                                                 <Link to="/review" onClick={() => setIsUserMenuOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-secondary text-sm font-medium transition-colors">
                                                     <FileCheck size={16} className="text-orange-500" /> Moderation Queue
                                                 </Link>
+                                                <Link to="/reports" onClick={() => setIsUserMenuOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-secondary text-sm font-medium transition-colors">
+                                                    <Flag size={16} className="text-red-500" /> Reports
+                                                </Link>
                                                 {isAdmin && (
                                                     <Link to="/users" onClick={() => setIsUserMenuOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-secondary text-sm font-medium transition-colors">
                                                         <UsersIcon size={16} className="text-blue-500" /> User Management
@@ -210,7 +213,7 @@ const Layout = () => {
                 {isMobileMenuOpen && (
                     <div className="fixed inset-0 z-50 lg:hidden">
                         <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)} />
-                        <div className="absolute inset-y-0 left-0 w-64 bg-background border-r border-border shadow-2xl flex flex-col p-4 animate-in slide-in-from-left">
+                        <div className="absolute inset-y-0 left-0 w-full sm:w-80 bg-background border-r border-border shadow-2xl flex flex-col p-4 animate-in slide-in-from-left">
                             <div className="flex justify-between items-center mb-8">
                                 <span className="font-bold text-xl">Menu</span>
                                 <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 hover:bg-secondary rounded-lg"><X size={24} /></button>

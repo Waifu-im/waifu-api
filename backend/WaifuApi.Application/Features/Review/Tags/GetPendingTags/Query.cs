@@ -1,30 +1,54 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using WaifuApi.Application.Common.Models;
 using WaifuApi.Application.Interfaces;
 using WaifuApi.Domain.Entities;
 using WaifuApi.Domain.Enums;
 
 namespace WaifuApi.Application.Features.Review.Tags.GetPendingTags;
 
-public record GetPendingTagsQuery : IQuery<List<Tag>>;
+public class GetPendingTagsQuery : IQuery<PaginatedList<Tag>>
+{
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; }
 
-public class GetPendingTagsQueryHandler : IQueryHandler<GetPendingTagsQuery, List<Tag>>
+    public GetPendingTagsQuery(int page, int pageSize)
+    {
+        Page = page;
+        PageSize = pageSize;
+    }
+    
+    public GetPendingTagsQuery() { }
+}
+
+public class GetPendingTagsQueryHandler : IQueryHandler<GetPendingTagsQuery, PaginatedList<Tag>>
 {
     private readonly IWaifuDbContext _context;
+    private readonly int _defaultPageSize;
+    private readonly int _maxPageSize;
 
-    public GetPendingTagsQueryHandler(IWaifuDbContext context)
+    public GetPendingTagsQueryHandler(IWaifuDbContext context, IConfiguration configuration)
     {
         _context = context;
+        _defaultPageSize = int.Parse(configuration["Review:DefaultPageSize"] ?? throw new InvalidOperationException("Review:DefaultPageSize is required."));
+        _maxPageSize = int.Parse(configuration["Review:MaxPageSize"] ?? throw new InvalidOperationException("Review:MaxPageSize is required."));
     }
 
-    public async ValueTask<List<Tag>> Handle(GetPendingTagsQuery request, CancellationToken cancellationToken)
+    public async ValueTask<PaginatedList<Tag>> Handle(GetPendingTagsQuery request, CancellationToken cancellationToken)
     {
-        return await _context.Tags
+        var pageSize = request.PageSize == 0 ? _defaultPageSize : request.PageSize;
+        if (_maxPageSize > 0 && pageSize > _maxPageSize) pageSize = _maxPageSize;
+
+        var query = _context.Tags
             .Where(t => t.ReviewStatus == ReviewStatus.Pending)
-            .ToListAsync(cancellationToken);
+            .OrderBy(t => t.Id);
+
+        return await PaginatedList<Tag>.CreateAsync(query, request.Page, pageSize, cancellationToken);
     }
 }

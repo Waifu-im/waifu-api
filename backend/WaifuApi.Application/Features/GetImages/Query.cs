@@ -10,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using WaifuApi.Application.Common.Extensions;
 using WaifuApi.Application.Common.Models;
+using WaifuApi.Application.Common.Utilities;
 using WaifuApi.Application.Interfaces;
 using WaifuApi.Domain.Entities;
 using WaifuApi.Domain.Enums;
@@ -107,14 +108,18 @@ public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList
             {
                 joined = joined.OrderByDescending(x => x.ai.AddedAt);
             }
-            else if (request.OrderBy == "RANDOM")
+            else if (request.OrderBy == "UPLOADED_AT")
             {
-                joined = joined.OrderBy(x => EF.Functions.Random());
+                joined = joined.OrderByDescending(x => x.i.UploadedAt);
+            }
+            else if (request.OrderBy == "FAVORITES")
+            {
+                joined = joined.OrderByDescending(x => _context.AlbumItems.Count(ai => ai.ImageId == x.i.Id && ai.Album.IsDefault));
             }
             else
             {
-                // Default sort by UploadedAt if not specified or unknown
-                joined = joined.OrderByDescending(x => x.i.UploadedAt);
+                // Default to RANDOM if not specified or unknown
+                joined = joined.OrderBy(x => EF.Functions.Random());
             }
 
             totalCount = await joined.CountAsync(cancellationToken);
@@ -136,13 +141,18 @@ public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList
         else
         {
             // Standard path
-            if (request.OrderBy == "RANDOM")
+            if (request.OrderBy == "UPLOADED_AT")
             {
-                query = query.OrderBy(i => EF.Functions.Random());
+                query = query.OrderByDescending(i => i.UploadedAt);
+            }
+            else if (request.OrderBy == "FAVORITES")
+            {
+                 query = query.OrderByDescending(i => _context.AlbumItems.Count(ai => ai.ImageId == i.Id && ai.Album.IsDefault));
             }
             else
             {
-                query = query.OrderByDescending(i => i.UploadedAt);
+                // Default to RANDOM
+                query = query.OrderBy(i => EF.Functions.Random());
             }
 
             totalCount = await query.CountAsync(cancellationToken);
@@ -202,7 +212,7 @@ public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList
             Width = image.Width,
             Height = image.Height,
             ByteSize = image.ByteSize,
-            Url = $"{_cdnBaseUrl}/{image.Id}{image.Extension}",
+            Url = CdnUrlHelper.GetImageUrl(_cdnBaseUrl, image.Id, image.Extension),
             Tags = image.Tags.Where(t => t.ReviewStatus == ReviewStatus.Accepted).ToList(),
             Favorites = favoritesCounts.TryGetValue(image.Id, out var count) ? count : 0,
             LikedAt = likedStatus.TryGetValue(image.Id, out var date) ? (DateTime?)date : null,

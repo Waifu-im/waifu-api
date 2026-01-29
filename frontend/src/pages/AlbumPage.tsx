@@ -3,7 +3,7 @@ import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom'
 import api from '../services/api';
 import ImageCard from '../components/ImageCard';
 import { ImageDto, PaginatedList, AlbumDto, ImageFormData, Role } from '../types';
-import { ChevronLeft, FolderOpen, Edit2, Trash2, FolderMinus } from 'lucide-react'; // Ajout FolderMinus
+import { ChevronLeft, FolderOpen, Edit2, Trash2, FolderMinus, SlidersHorizontal } from 'lucide-react';
 import { useNotification } from '../context/NotificationContext';
 import { useAuth } from '../context/AuthContext';
 import Modal from '../components/Modal';
@@ -160,7 +160,15 @@ const AlbumPage = () => {
                             <p className="text-muted-foreground mt-1">{album?.description || `${images?.length || 0} images`}</p>
                         </div>
                     </div>
-                    {/* Le bouton Filters a été supprimé ici s'il n'est pas utilisé, sinon le remettre */}
+
+                    {/* Toggle Filters Button */}
+                    <button
+                        onClick={() => setShowFilters(!showFilters)}
+                        className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg text-sm font-medium shadow-sm hover:bg-secondary transition-colors self-start md:self-auto"
+                    >
+                        <SlidersHorizontal size={16} />
+                        <span className="hidden sm:inline">{showFilters ? 'Hide' : 'Filters'}</span>
+                    </button>
                 </div>
 
                 {(!images || images.length === 0) && !loading ? (
@@ -174,7 +182,7 @@ const AlbumPage = () => {
                             <div key={img.id} className="break-inside-avoid relative group">
                                 <ImageCard
                                     image={img}
-                                    onRemove={(id) => setImageToRemove(id)} // Uniquement onRemove ici !
+                                    onRemove={(id) => setImageToRemove(id)}
                                     onEdit={isAdminOrModerator ? (img) => { setEditingImage(img); setIsEditImageOpen(true); } : undefined}
                                 />
                             </div>
@@ -193,7 +201,6 @@ const AlbumPage = () => {
 
             {/* Modals */}
             <Modal isOpen={isEditAlbumOpen} onClose={() => setIsEditAlbumOpen(false)} title="Edit Album Details">
-                {/* Formulaire Edit Album (simplifié) */}
                 <div className="space-y-4">
                     <div><label className="font-bold block mb-1">Name</label><input value={editAlbumFormData.name} onChange={e => setEditAlbumFormData({...editAlbumFormData, name: e.target.value})} className="w-full p-3 bg-secondary rounded-lg outline-none"/></div>
                     <div><label className="font-bold block mb-1">Description</label><textarea value={editAlbumFormData.description} onChange={e => setEditAlbumFormData({...editAlbumFormData, description: e.target.value})} className="w-full p-3 bg-secondary rounded-lg outline-none h-24"/></div>
@@ -201,7 +208,6 @@ const AlbumPage = () => {
                 </div>
             </Modal>
 
-            {/* Confirm Remove Image - Avec l'icône FolderMinus */}
             <ConfirmModal
                 isOpen={!!imageToRemove}
                 onClose={() => setImageToRemove(null)}
@@ -210,10 +216,9 @@ const AlbumPage = () => {
                 message="Remove this image from the album? It will remain in the gallery."
                 confirmText="Remove"
                 variant="warning"
-                icon={FolderMinus} // Icône personnalisée
+                icon={FolderMinus}
             />
 
-            {/* Confirm Delete Album */}
             <ConfirmModal
                 isOpen={isDeleteAlbumOpen}
                 onClose={() => setIsDeleteAlbumOpen(false)}

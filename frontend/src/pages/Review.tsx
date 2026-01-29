@@ -1,9 +1,9 @@
 ﻿import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
-import { ImageDto, Artist, Tag, ImageFormData } from '../types';
+import { ImageDto, Artist, Tag, ImageFormData, PaginatedList } from '../types';
 import { useNotification } from '../context/NotificationContext';
-import { Check, X, FileCheck, Edit2, ExternalLink, Clock } from 'lucide-react';
+import { Check, X, FileCheck, Edit2, ExternalLink, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 import ImageModal from '../components/modals/ImageModal';
 import ArtistModal, { ArtistFormData } from '../components/modals/ArtistModal';
 import TagModal, { TagFormData } from '../components/modals/TagModal';
@@ -17,6 +17,10 @@ const Review = () => {
     const [artists, setArtists] = useState<Artist[]>([]);
     const [tags, setTags] = useState<Tag[]>([]);
 
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const pageSize = 30; // Updated to match backend default
+
     const [editingImage, setEditingImage] = useState<ImageDto | null>(null);
     const [editingArtist, setEditingArtist] = useState<Artist | null>(null);
     const [editingTag, setEditingTag] = useState<Tag | null>(null);
@@ -25,20 +29,27 @@ const Review = () => {
         setLoading(true);
         try {
             if (tab === 'images') {
-                const { data } = await api.get<ImageDto[]>('/review/images');
-                setImages(data);
+                const { data } = await api.get<PaginatedList<ImageDto>>(`/review/images?page=${page}&pageSize=${pageSize}`);
+                setImages(data.items);
+                setTotalPages(data.totalPages);
             } else if (tab === 'artists') {
-                const { data } = await api.get<Artist[]>('/review/artists');
-                setArtists(data);
+                const { data } = await api.get<PaginatedList<Artist>>(`/review/artists?page=${page}&pageSize=${pageSize}`);
+                setArtists(data.items);
+                setTotalPages(data.totalPages);
             } else {
-                const { data } = await api.get<Tag[]>('/review/tags');
-                setTags(data);
+                const { data } = await api.get<PaginatedList<Tag>>(`/review/tags?page=${page}&pageSize=${pageSize}`);
+                setTags(data.items);
+                setTotalPages(data.totalPages);
             }
         } catch (err: any) { showNotification('error', err.message); }
         finally { setLoading(false); }
     };
 
-    useEffect(() => { fetchData(); }, [tab]);
+    useEffect(() => {
+        setPage(1);
+    }, [tab]);
+
+    useEffect(() => { fetchData(); }, [tab, page]);
 
     const handleReview = async (id: number, accepted: boolean) => {
         try {
@@ -131,11 +142,11 @@ const Review = () => {
                                                 {img.artist ? (
                                                     <Link
                                                         to={`/gallery?artistId=${img.artist.id}`}
-                                                        className={`text-xs px-2 py-1 rounded flex items-center gap-1 hover:bg-primary/10 transition-colors ${img.artist.reviewStatus === 0 ? 'bg-orange-500/10 text-orange-600 border border-orange-500/20' : 'bg-secondary'}`}
+                                                        className={`text-xs px-2 py-1 rounded flex items-center gap-1 hover:bg-primary/10 transition-colors max-w-full ${img.artist.reviewStatus === 0 ? 'bg-orange-500/10 text-orange-600 border border-orange-500/20' : 'bg-secondary'}`}
                                                         title={img.artist.reviewStatus === 0 ? "Artist Pending Review" : "View Artist in Gallery"}
                                                     >
-                                                        {img.artist.reviewStatus === 0 && <Clock size={10} />}
-                                                        {img.artist.name}
+                                                        {img.artist.reviewStatus === 0 && <Clock size={10} className="shrink-0" />}
+                                                        <span className="truncate">{img.artist.name}</span>
                                                     </Link>
                                                 ) : <span className="text-xs text-muted-foreground italic">No Artist</span>}
 
@@ -144,11 +155,11 @@ const Review = () => {
                                                     <Link
                                                         key={tag.id}
                                                         to={`/gallery?includedTags=${encodeURIComponent(tag.name)}`}
-                                                        className={`text-xs px-2 py-1 rounded flex items-center gap-1 hover:bg-primary/10 transition-colors ${tag.reviewStatus === 0 ? 'bg-orange-500/10 text-orange-600 border border-orange-500/20' : 'bg-secondary'}`}
+                                                        className={`text-xs px-2 py-1 rounded flex items-center gap-1 hover:bg-primary/10 transition-colors max-w-full ${tag.reviewStatus === 0 ? 'bg-orange-500/10 text-orange-600 border border-orange-500/20' : 'bg-secondary'}`}
                                                         title={tag.reviewStatus === 0 ? "Tag Pending Review" : "View Tag in Gallery"}
                                                     >
-                                                        {tag.reviewStatus === 0 && <Clock size={10} />}
-                                                        {tag.name}
+                                                        {tag.reviewStatus === 0 && <Clock size={10} className="shrink-0" />}
+                                                        <span className="truncate">{tag.name}</span>
                                                     </Link>
                                                 ))}
                                             </div>
@@ -170,8 +181,8 @@ const Review = () => {
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {artists.map(artist => (
                                     <div key={artist.id} className="bg-card border border-border p-6 rounded-xl flex justify-between items-center gap-4">
-                                        <div className="overflow-hidden">
-                                            <h3 className="font-bold text-lg truncate">
+                                        <div className="overflow-hidden flex-1 min-w-0">
+                                            <h3 className="font-bold text-lg truncate" title={artist.name}>
                                                 {/* Link to Gallery filtered by Artist */}
                                                 <Link to={`/gallery?artistId=${artist.id}`} className="hover:underline hover:text-primary transition-colors">
                                                     {artist.name}
@@ -198,8 +209,8 @@ const Review = () => {
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {tags.map(tag => (
                                     <div key={tag.id} className="bg-card border border-border p-6 rounded-xl flex justify-between items-center gap-4">
-                                        <div>
-                                            <h3 className="font-bold text-lg">
+                                        <div className="flex-1 min-w-0">
+                                            <h3 className="font-bold text-lg truncate" title={tag.name}>
                                                 {/* Link to Gallery filtered by Tag */}
                                                 <Link to={`/gallery?includedTags=${encodeURIComponent(tag.name)}`} className="hover:underline hover:text-primary transition-colors">
                                                     {tag.name}
@@ -215,6 +226,29 @@ const Review = () => {
                                     </div>
                                 ))}
                             </div>
+                    )}
+
+                    {/* Pagination Controls */}
+                    {totalPages > 1 && (
+                        <div className="flex justify-center items-center gap-4 mt-8 pb-4">
+                            <button
+                                onClick={() => setPage(p => Math.max(1, p - 1))}
+                                disabled={page === 1}
+                                className="p-2 rounded-full bg-secondary hover:bg-secondary/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                                <ChevronLeft size={20} />
+                            </button>
+                            <span className="text-sm font-medium">
+                                Page {page} of {totalPages}
+                            </span>
+                            <button
+                                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                                disabled={page === totalPages}
+                                className="p-2 rounded-full bg-secondary hover:bg-secondary/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                                <ChevronRight size={20} />
+                            </button>
+                        </div>
                     )}
                 </div>
             )}

@@ -13,6 +13,7 @@ import Layout from './components/layout/Layout'
 import Review from './pages/Review'
 import Users from './pages/Users'
 import ApiKeys from './pages/ApiKeys'
+import Reports from "@/pages/Reports.tsx";
 
 function App() {
     return (
@@ -28,6 +29,7 @@ function App() {
                 <Route path="login" element={<Login />} />
                 <Route path="upload" element={<Upload />} />
                 <Route path="review" element={<Review />} />
+                <Route path="reports" element={<Reports />} />
                 <Route path="users" element={<Users />} />
                 <Route path="api-keys" element={<ApiKeys />} />
                 <Route path="auth/callback" element={<Callback />} />

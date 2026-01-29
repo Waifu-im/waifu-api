@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useImages } from '../hooks/useImages';
-import { SlidersHorizontal, RefreshCw, Search } from 'lucide-react';
+import { SlidersHorizontal, RefreshCw, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import ImageCard from '../components/ImageCard';
 import api from '../services/api';
 import { ImageDto, Role, ImageFormData } from '../types';
@@ -25,7 +25,7 @@ const Gallery = () => {
 
   // Extract Params
   const isNsfw = searchParams.get('isNsfw') || '0';
-  const orderBy = searchParams.get('orderBy') || 'UPLOADED_AT';
+  const orderBy = searchParams.get('orderBy') || 'RANDOM';
   const orientation = searchParams.get('orientation') || '';
   const isAnimatedStr = searchParams.get('isAnimated');
   const height = searchParams.get('height') || '';
@@ -33,6 +33,8 @@ const Gallery = () => {
   const byteSize = searchParams.get('byteSize') || '';
   const includedTags = searchParams.getAll('includedTags');
   const excludedTags = searchParams.getAll('excludedTags');
+  const pageStr = searchParams.get('page');
+  const page = pageStr ? parseInt(pageStr) : 1;
 
   const artistIdStr = searchParams.get('artistId');
   const artistId = artistIdStr ? parseInt(artistIdStr) : undefined;
@@ -51,11 +53,12 @@ const Gallery = () => {
     includedTags,
     excludedTags,
     artistId,
-    page: 1,
+    page: page,
     pageSize: 50
   });
 
   const images = paginatedImages?.items || [];
+  const totalPages = paginatedImages?.totalPages || 1;
 
   useEffect(() => {
     if (isNsfw !== '0' && !localStorage.getItem('nsfw-consent')) {
@@ -99,10 +102,17 @@ const Gallery = () => {
     }
   };
 
+  const setPage = (newPage: number) => {
+      setSearchParams(prev => {
+          prev.set('page', newPage.toString());
+          return prev;
+      });
+  };
+
   const sortOptions = [
+    { id: 'RANDOM', name: 'Random Shuffle' },
     { id: 'UPLOADED_AT', name: 'Newest First' },
-    { id: 'FAVORITES', name: 'Most Popular' },
-    { id: 'RANDOM', name: 'Random Shuffle' }
+    { id: 'FAVORITES', name: 'Most Popular' }
   ];
 
   return (
@@ -145,6 +155,26 @@ const Gallery = () => {
                 <button onClick={() => { setSearchParams({}); refetch(); }} className="mt-6 px-6 py-2 bg-secondary text-foreground rounded-lg font-bold">Clear All Filters</button>
               </div>
           )}
+
+          {!isLoading && totalPages > 1 && (
+              <div className="flex justify-center items-center gap-4 mt-10 pb-10">
+                  <button
+                      disabled={page === 1}
+                      onClick={() => setPage(Math.max(1, page - 1))}
+                      className="p-2 rounded-full bg-secondary disabled:opacity-50 hover:bg-secondary/80"
+                  >
+                      <ChevronLeft size={20} />
+                  </button>
+                  <span className="text-sm font-bold">Page {page} of {totalPages}</span>
+                  <button
+                      disabled={page === totalPages}
+                      onClick={() => setPage(Math.min(totalPages, page + 1))}
+                      className="p-2 rounded-full bg-secondary disabled:opacity-50 hover:bg-secondary/80"
+                  >
+                      <ChevronRight size={20} />
+                  </button>
+              </div>
+          )}
         </div>
 
         <FilterSidebar
@@ -155,7 +185,6 @@ const Gallery = () => {
             sortOptions={sortOptions}
         />
 
-        {/* Updated Deletion Message to match ImagePage */}
         <ConfirmModal
             isOpen={isDeleteModalOpen}
             onClose={() => setIsDeleteModalOpen(false)}

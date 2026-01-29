@@ -9,7 +9,7 @@ public class Report
     public User User { get; set; } = null!;
     public long ImageId { get; set; }
     public Image Image { get; set; } = null!;
-    public string? Description { get; set; }
+    public required string Description { get; set; }
     public DateTime CreatedAt { get; set; }
     public bool IsResolved { get; set; }
 }

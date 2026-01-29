@@ -1,5 +1,6 @@
 using System.Reflection;
 using FluentValidation;
+using Mediator;
 using Microsoft.Extensions.DependencyInjection;
 using WaifuApi.Application.Common.Behaviors;
 
@@ -16,10 +17,8 @@ public static class DependencyInjection
         
         services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
         
-        // Register behaviors manually or via Mediator options if supported differently
-        // Mediator supports pipeline behaviors via partial class extension or interface implementation
-        // For now, let's stick to basic registration. 
-        // Mediator.SourceGenerator handles pipelines differently (IPipelineBehavior).
+        // Register the ValidationBehavior for all requests
+        services.AddScoped(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
 
         return services;
     }

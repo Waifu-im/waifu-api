@@ -1,5 +1,4 @@
 ﻿import { useEffect, useState } from 'react';
-import { X } from 'lucide-react';
 import SearchableSelect from './SearchableSelect';
 import api from '../services/api';
 import { PaginatedList, Tag } from '../types';
@@ -14,7 +13,7 @@ interface FilterSidebarProps {
     setSearchParams: (params: URLSearchParams | ((prev: URLSearchParams) => URLSearchParams)) => void;
     showFilters: boolean;
     setShowFilters: (show: boolean) => void;
-    sortOptions: Option[]; // Added prop to support custom sort options
+    sortOptions: Option[];
 }
 
 const FilterSidebar = ({ searchParams, setSearchParams, showFilters, setShowFilters, sortOptions }: FilterSidebarProps) => {
@@ -78,19 +77,19 @@ const FilterSidebar = ({ searchParams, setSearchParams, showFilters, setShowFilt
     ];
 
     return (
-        <aside className={`
-            fixed inset-y-0 right-0 z-40 w-80 max-w-[85vw] bg-card border-l border-border shadow-2xl 
-            transform transition-transform duration-300 ease-in-out h-full flex flex-col
-            ${showFilters ? 'translate-x-0' : 'translate-x-full'}
-            md:relative md:shadow-none md:translate-x-0
-            ${!showFilters && 'hidden md:block md:w-0 md:border-none md:overflow-hidden'} 
-        `}>
-            <div className="p-5 border-b border-border flex justify-between items-center bg-card/95 backdrop-blur">
-                <h3 className="font-bold">Filters</h3>
-                <button onClick={() => setShowFilters(false)} className="md:hidden"><X size={20} /></button>
-            </div>
-
-            <div className="flex-1 p-5 overflow-y-auto space-y-6 w-80 scrollbar-thin">
+        <aside
+            className={`
+                fixed inset-y-0 right-0 z-[60] bg-card border-l border-border shadow-2xl h-full flex flex-col
+                transition-all duration-300 ease-in-out
+                ${showFilters
+                ? 'translate-x-0 w-full md:w-80 md:translate-x-0'
+                : 'translate-x-full md:translate-x-0 md:w-0 md:border-l-0 md:overflow-hidden'
+            }
+                md:relative md:z-40 md:shadow-none
+            `}
+        >
+            {/* Scrollable content area */}
+            <div className="flex-1 p-5 overflow-y-auto space-y-6 w-full md:w-80 min-w-[20rem] scrollbar-thin pt-10 md:pt-6">
                 <SearchableSelect
                     label="Sort By"
                     options={sortOptions}
@@ -181,7 +180,8 @@ const FilterSidebar = ({ searchParams, setSearchParams, showFilters, setShowFilt
                 />
             </div>
 
-            <div className="p-4 border-t border-border md:hidden">
+            {/* Bottom button for mobile */}
+            <div className="p-4 border-t border-border md:hidden bg-card">
                 <button onClick={() => setShowFilters(false)} className="w-full py-3 bg-primary text-primary-foreground rounded-xl font-bold">Done</button>
             </div>
         </aside>

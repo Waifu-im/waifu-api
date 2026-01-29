@@ -24,7 +24,7 @@ public class CreateReportCommandHandler : ICommandHandler<CreateReportCommand, R
         {
             UserId = request.UserId,
             ImageId = request.ImageId,
-            Description = request.Description,
+            Description = request.Description!, // Validated by FluentValidation
             CreatedAt = DateTime.UtcNow,
             IsResolved = false
         };

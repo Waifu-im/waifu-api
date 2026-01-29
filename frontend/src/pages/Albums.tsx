@@ -1,10 +1,10 @@
 ﻿import { useEffect, useState } from 'react';
 import api from '../services/api';
 import { Link } from 'react-router-dom';
-import { Folder, Plus, Edit2, Trash2, Library } from 'lucide-react';
+import { Folder, Plus, Edit2, Trash2, Library, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
-import { AlbumDto } from '../types';
+import { AlbumDto, PaginatedList } from '../types';
 import AlbumModal, { AlbumFormData } from '../components/modals/AlbumModal';
 import ConfirmModal from '../components/modals/ConfirmModal';
 
@@ -13,6 +13,10 @@ const Albums = () => {
     const { showNotification } = useNotification();
     const [albums, setAlbums] = useState<AlbumDto[]>([]);
     const [loading, setLoading] = useState(true);
+
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const pageSize = 20;
 
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
@@ -23,15 +27,16 @@ const Albums = () => {
         if(!user) return;
         setLoading(true);
         try {
-            const { data } = await api.get<any>(`/users/me/albums`);
-            if (Array.isArray(data)) setAlbums(data);
-            else if (data?.items) setAlbums(data.items);
-            else setAlbums([]);
+            const { data } = await api.get<PaginatedList<AlbumDto>>(`/users/me/albums`, {
+                params: { page, pageSize }
+            });
+            setAlbums(data.items);
+            setTotalPages(data.totalPages);
         } catch { showNotification('error', 'Failed to load albums'); }
         finally { setLoading(false); }
     };
 
-    useEffect(() => { fetchAlbums(); }, [user]);
+    useEffect(() => { fetchAlbums(); }, [user, page]);
 
     const handleCreate = async (data: AlbumFormData) => {
         try {
@@ -94,6 +99,26 @@ const Albums = () => {
                     </div>
                 ))}
             </div>
+
+            {!loading && totalPages > 1 && (
+                <div className="flex justify-center items-center gap-4 mt-10">
+                    <button
+                        disabled={page === 1}
+                        onClick={() => setPage(p => Math.max(1, p - 1))}
+                        className="p-2 rounded-full bg-secondary disabled:opacity-50 hover:bg-secondary/80"
+                    >
+                        <ChevronLeft size={20} />
+                    </button>
+                    <span className="text-sm font-bold">Page {page} of {totalPages}</span>
+                    <button
+                        disabled={page === totalPages}
+                        onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                        className="p-2 rounded-full bg-secondary disabled:opacity-50 hover:bg-secondary/80"
+                    >
+                        <ChevronRight size={20} />
+                    </button>
+                </div>
+            )}
 
             <AlbumModal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} onSubmit={handleCreate} title="Create New Album" submitLabel="Create" />
             <AlbumModal isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} onSubmit={handleEdit} initialData={selectedAlbum || undefined} title="Edit Album" submitLabel="Save" />

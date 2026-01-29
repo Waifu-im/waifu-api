@@ -8,6 +8,7 @@ using Mediator;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using WaifuApi.Application.Common.Models;
+using WaifuApi.Application.Common.Utilities;
 using WaifuApi.Application.Interfaces;
 using WaifuApi.Domain.Enums;
 
@@ -71,7 +72,7 @@ public class GetImageByIdQueryHandler : IQueryHandler<GetImageByIdQuery, ImageDt
             Width = image.Width,
             Height = image.Height,
             ByteSize = image.ByteSize,
-            Url = $"{_cdnBaseUrl}/{image.Id}{image.Extension}",
+            Url = CdnUrlHelper.GetImageUrl(_cdnBaseUrl, image.Id, image.Extension),
             Tags = image.Tags.Where(t => t.ReviewStatus == ReviewStatus.Accepted).ToList(),
             Favorites = favorites,
             LikedAt = likedAt,

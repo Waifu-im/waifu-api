@@ -11,6 +11,7 @@ using Microsoft.Extensions.Configuration;
 using Pgvector.EntityFrameworkCore;
 using WaifuApi.Application.Common.Exceptions;
 using WaifuApi.Application.Common.Models;
+using WaifuApi.Application.Common.Utilities;
 using WaifuApi.Application.Interfaces;
 using WaifuApi.Domain.Entities;
 using WaifuApi.Domain.Enums;
@@ -143,7 +144,7 @@ public class UploadImageCommandHandler : ICommandHandler<UploadImageCommand, Ima
             Width = image.Width,
             Height = image.Height,
             ByteSize = image.ByteSize,
-            Url = $"{_cdnBaseUrl}/{image.Id}{image.Extension}",
+            Url = CdnUrlHelper.GetImageUrl(_cdnBaseUrl, image.Id, image.Extension),
             Tags = image.Tags,
             Favorites = 0,
             LikedAt = null

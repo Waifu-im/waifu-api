@@ -80,7 +80,9 @@ void ValidateConfiguration(IConfiguration configuration)
         "Album:DefaultPageSize",
         "Album:MaxPageSize",
         "User:DefaultPageSize",
-        "User:MaxPageSize"
+        "User:MaxPageSize",
+        "Review:DefaultPageSize",
+        "Review:MaxPageSize"
     };
 
     var missingKeys = new List<string>();

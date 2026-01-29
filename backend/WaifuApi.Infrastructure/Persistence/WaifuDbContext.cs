@@ -107,6 +107,7 @@ public class WaifuDbContext : DbContext, IWaifuDbContext
         modelBuilder.Entity<Report>(entity =>
         {
             entity.HasKey(e => e.Id);
+            entity.Property(e => e.Description).IsRequired();
             entity.HasOne(e => e.User)
                 .WithMany()
                 .HasForeignKey(e => e.UserId)

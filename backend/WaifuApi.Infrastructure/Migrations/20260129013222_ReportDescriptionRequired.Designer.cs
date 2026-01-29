@@ -3,6 +3,7 @@ using System;
 using System.Collections;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using WaifuApi.Infrastructure.Persistence;
@@ -12,9 +13,11 @@ using WaifuApi.Infrastructure.Persistence;
 namespace WaifuApi.Infrastructure.Migrations
 {
     [DbContext(typeof(WaifuDbContext))]
-    partial class WaifuDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260129013222_ReportDescriptionRequired")]
+    partial class ReportDescriptionRequired
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

@@ -2,11 +2,12 @@
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
 import { ImageDto, Role, ImageFormData, AlbumDto, PaginatedList } from '../types';
-import { Heart, Trash2, Edit, AlertTriangle, FolderPlus, ChevronDown, Check } from 'lucide-react';
+import { Heart, Trash2, Edit, AlertTriangle, FolderPlus, ChevronDown, Check, Flag } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 import ImageModal from '../components/modals/ImageModal';
 import ConfirmModal from '../components/modals/ConfirmModal';
+import ReportModal from '../components/modals/ReportModal';
 
 const ImagePage = () => {
   const { id } = useParams<{ id: string }>();
@@ -22,6 +23,7 @@ const ImagePage = () => {
   // Modals
   const [showEditModal, setShowEditModal] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
   // Album Dropdown
   const [userAlbums, setUserAlbums] = useState<AlbumDto[]>([]);
@@ -180,6 +182,17 @@ const ImagePage = () => {
     }
   };
 
+  const handleReport = async (description: string) => {
+    if (!image) return;
+    try {
+      await api.post('/reports', { imageId: image.id, description });
+      showNotification('success', 'Report submitted');
+      setIsReportModalOpen(false);
+    } catch (err) {
+      showNotification('error', 'Failed to submit report');
+    }
+  };
+
   if (isLoading) return <div className="p-10 text-center">Loading...</div>;
   if (error || !image) return <div className="p-10 text-center text-destructive">{error || "Not Found"}</div>;
 
@@ -264,6 +277,23 @@ const ImagePage = () => {
                 )}
               </div>
 
+              {/* Report Button */}
+              <button
+                  onClick={() => {
+                      if (!user) {
+                          showNotification('warning', 'You must be logged in to report images.');
+                          navigate('/login');
+                          return;
+                      }
+                      setIsReportModalOpen(true);
+                  }}
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-secondary hover:bg-secondary/80 text-secondary-foreground transition-colors font-medium text-sm"
+                  title="Report"
+              >
+                  <Flag size={18} />
+                  <span className="hidden sm:inline">Report</span>
+              </button>
+
               {isAdminOrModerator && (
                   <>
                     <div className="h-8 w-px bg-border mx-1 hidden sm:block"></div>
@@ -338,6 +368,12 @@ const ImagePage = () => {
             onClose={() => setShowEditModal(false)}
             initialData={image}
             onSubmit={handleSaveEdit}
+        />
+
+        <ReportModal
+            isOpen={isReportModalOpen}
+            onClose={() => setIsReportModalOpen(false)}
+            onSubmit={handleReport}
         />
       </div>
   );

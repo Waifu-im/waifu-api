@@ -58,6 +58,17 @@ export interface ApiKeyDto {
   expiresAt?: string;
 }
 
+export interface Report {
+  id: number;
+  userId: number;
+  user?: User;
+  imageId: number;
+  image?: ImageDto;
+  description?: string;
+  isResolved: boolean;
+  createdAt: string;
+}
+
 export enum Role {
   User = 0,
   TrustedUser = 1,

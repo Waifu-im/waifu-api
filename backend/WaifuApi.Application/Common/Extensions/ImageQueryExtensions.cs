@@ -40,6 +40,23 @@ public static class ImageQueryExtensions
             }
         }
 
+        // Orientation Logic
+        if (!string.IsNullOrEmpty(filters.Orientation))
+        {
+            if (filters.Orientation.Equals("LANDSCAPE", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(i => i.Width > i.Height);
+            }
+            else if (filters.Orientation.Equals("PORTRAIT", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(i => i.Height > i.Width);
+            }
+            else if (filters.Orientation.Equals("SQUARE", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(i => i.Width == i.Height);
+            }
+        }
+
         if (filters.IncludedTags.Any())
         {
             foreach (var tag in filters.IncludedTags)

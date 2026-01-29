@@ -30,9 +30,9 @@ public class ReviewController : ControllerBase
     /// </summary>
     /// <returns>A list of pending images.</returns>
     [HttpGet("images")]
-    public async Task<ActionResult<List<ImageDto>>> GetPendingImages()
+    public async Task<ActionResult<PaginatedList<ImageDto>>> GetPendingImages([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
-        var images = await _mediator.Send(new GetPendingImagesQuery());
+        var images = await _mediator.Send(new GetPendingImagesQuery(page, pageSize));
         return Ok(images);
     }
 
@@ -54,9 +54,9 @@ public class ReviewController : ControllerBase
     /// </summary>
     /// <returns>A list of pending artists.</returns>
     [HttpGet("artists")]
-    public async Task<ActionResult<List<Artist>>> GetPendingArtists()
+    public async Task<ActionResult<PaginatedList<Artist>>> GetPendingArtists([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
-        var artists = await _mediator.Send(new GetPendingArtistsQuery());
+        var artists = await _mediator.Send(new GetPendingArtistsQuery(page, pageSize));
         return Ok(artists);
     }
 
@@ -78,9 +78,9 @@ public class ReviewController : ControllerBase
     /// </summary>
     /// <returns>A list of pending tags.</returns>
     [HttpGet("tags")]
-    public async Task<ActionResult<List<Tag>>> GetPendingTags()
+    public async Task<ActionResult<PaginatedList<Tag>>> GetPendingTags([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
-        var tags = await _mediator.Send(new GetPendingTagsQuery());
+        var tags = await _mediator.Send(new GetPendingTagsQuery(page, pageSize));
         return Ok(tags);
     }
 

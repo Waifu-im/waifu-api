@@ -1,36 +1,105 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using WaifuApi.Application.Common.Models;
+using WaifuApi.Application.Common.Utilities;
 using WaifuApi.Application.Interfaces;
 using WaifuApi.Domain.Entities;
 
 namespace WaifuApi.Application.Features.Reports.GetReports;
 
-public record GetReportsQuery(bool? IsResolved = null) : IQuery<List<Report>>;
+public class GetReportsQuery : IQuery<PaginatedList<ReportDto>>
+{
+    public bool? IsResolved { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; }
 
-public class GetReportsQueryHandler : IQueryHandler<GetReportsQuery, List<Report>>
+    public GetReportsQuery(bool? isResolved, int page, int pageSize)
+    {
+        IsResolved = isResolved;
+        Page = page;
+        PageSize = pageSize;
+    }
+    
+    public GetReportsQuery() { }
+}
+
+public class GetReportsQueryHandler : IQueryHandler<GetReportsQuery, PaginatedList<ReportDto>>
 {
     private readonly IWaifuDbContext _context;
+    private readonly string _cdnBaseUrl;
+    private readonly int _defaultPageSize;
+    private readonly int _maxPageSize;
 
-    public GetReportsQueryHandler(IWaifuDbContext context)
+    public GetReportsQueryHandler(IWaifuDbContext context, IConfiguration configuration)
     {
         _context = context;
+        _cdnBaseUrl = configuration["Cdn:BaseUrl"] ?? throw new InvalidOperationException("Cdn:BaseUrl is required.");
+        _defaultPageSize = int.Parse(configuration["Review:DefaultPageSize"] ?? "30");
+        _maxPageSize = int.Parse(configuration["Review:MaxPageSize"] ?? "-1");
     }
 
-    public async ValueTask<List<Report>> Handle(GetReportsQuery request, CancellationToken cancellationToken)
+    public async ValueTask<PaginatedList<ReportDto>> Handle(GetReportsQuery request, CancellationToken cancellationToken)
     {
-        var query = _context.Reports.AsQueryable();
+        var pageSize = request.PageSize == 0 ? _defaultPageSize : request.PageSize;
+        if (_maxPageSize > 0 && pageSize > _maxPageSize) pageSize = _maxPageSize;
+
+        var query = _context.Reports
+            .Include(r => r.User)
+            .Include(r => r.Image)
+            .AsQueryable();
 
         if (request.IsResolved.HasValue)
         {
             query = query.Where(r => r.IsResolved == request.IsResolved.Value);
         }
+        
+        query = query.OrderByDescending(r => r.CreatedAt);
 
-        return await query
-            .OrderByDescending(r => r.CreatedAt)
-            .ToListAsync(cancellationToken);
+        var paginatedReports = await PaginatedList<Report>.CreateAsync(query, request.Page, pageSize, cancellationToken);
+
+        var reportDtos = paginatedReports.Items.Select(report => new ReportDto
+        {
+            Id = report.Id,
+            UserId = report.UserId,
+            User = report.User != null ? new UserDto { Id = report.User.Id, Name = report.User.Name } : null,
+            ImageId = report.ImageId,
+            Image = report.Image != null ? new ImageDto
+            {
+                Id = report.Image.Id,
+                PerceptualHash = BitArrayToHex(report.Image.PerceptualHash),
+                Extension = report.Image.Extension,
+                DominantColor = report.Image.DominantColor,
+                Source = report.Image.Source,
+                Artist = report.Image.Artist,
+                UploaderId = report.Image.UploaderId,
+                UploadedAt = report.Image.UploadedAt,
+                IsNsfw = report.Image.IsNsfw,
+                IsAnimated = report.Image.IsAnimated,
+                Width = report.Image.Width,
+                Height = report.Image.Height,
+                ByteSize = report.Image.ByteSize,
+                Url = CdnUrlHelper.GetImageUrl(_cdnBaseUrl, report.Image.Id, report.Image.Extension),
+                Tags = report.Image.Tags
+            } : null,
+            Description = report.Description,
+            IsResolved = report.IsResolved,
+            CreatedAt = report.CreatedAt
+        }).ToList();
+
+        return new PaginatedList<ReportDto>(reportDtos, paginatedReports.TotalCount, paginatedReports.PageNumber, pageSize);
+    }
+
+    private static string BitArrayToHex(BitArray bits)
+    {
+        var bytes = new byte[(bits.Length + 7) / 8];
+        bits.CopyTo(bytes, 0);
+        return Convert.ToHexString(bytes).ToLowerInvariant();
     }
 }
