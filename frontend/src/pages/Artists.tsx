@@ -7,6 +7,7 @@ import { useNotification } from '../context/NotificationContext';
 import { Plus, Edit2, Trash2, User as UserIcon, ChevronLeft, ChevronRight, Search, ExternalLink } from 'lucide-react';
 import ArtistModal, { ArtistFormData } from '../components/modals/ArtistModal';
 import ConfirmModal from '../components/modals/ConfirmModal';
+import { useDebounce } from '../hooks/useDebounce';
 
 const Artists = () => {
     const { user } = useAuth();
@@ -21,7 +22,7 @@ const Artists = () => {
     const pageSize = 50;
 
     const [search, setSearch] = useState('');
-    const [searchTerm, setSearchTerm] = useState('');
+    const debouncedSearch = useDebounce(search, 500);
 
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
@@ -32,7 +33,7 @@ const Artists = () => {
         setLoading(true);
         try {
             const params: any = { page, pageSize };
-            if (searchTerm) params.search = searchTerm;
+            if (debouncedSearch) params.search = debouncedSearch;
 
             const { data } = await api.get<PaginatedList<Artist>>('/artists', { params });
             setArtists(data.items);
@@ -41,13 +42,11 @@ const Artists = () => {
         finally { setLoading(false); }
     };
 
-    useEffect(() => { fetchArtists(); }, [page, searchTerm]);
-
-    const handleSearch = (e: React.FormEvent) => {
-        e.preventDefault();
-        setSearchTerm(search);
+    useEffect(() => {
         setPage(1);
-    };
+    }, [debouncedSearch]);
+
+    useEffect(() => { fetchArtists(); }, [page, debouncedSearch]);
 
     const handleOpenCreate = () => {
         if (!user) {
@@ -103,7 +102,7 @@ const Artists = () => {
                 </div>
 
                 <div className="flex gap-3 w-full md:w-auto">
-                    <form onSubmit={handleSearch} className="relative w-full md:w-64">
+                    <div className="relative w-full md:w-64">
                         <Search className="absolute left-3 top-3 text-muted-foreground" size={18} />
                         <input
                             type="text"
@@ -112,7 +111,7 @@ const Artists = () => {
                             onChange={(e) => setSearch(e.target.value)}
                             className="w-full pl-10 p-3 bg-card border border-border rounded-xl outline-none focus:ring-2 focus:ring-primary"
                         />
-                    </form>
+                    </div>
                     <button onClick={handleOpenCreate} className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-bold hover:opacity-90 shadow-lg transition-all whitespace-nowrap">
                         <Plus size={20} /> <span className="hidden sm:inline">New</span>
                     </button>

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { ImageDto, Artist, Tag, ImageFormData, PaginatedList } from '../types';
 import { useNotification } from '../context/NotificationContext';
-import { Check, X, FileCheck, Edit2, ExternalLink, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Check, X, FileCheck, Edit2, ExternalLink, Clock, ChevronLeft, ChevronRight, User as UserIcon, Tag as TagIcon } from 'lucide-react';
 import ImageModal from '../components/modals/ImageModal';
 import ArtistModal, { ArtistFormData } from '../components/modals/ArtistModal';
 import TagModal, { TagFormData } from '../components/modals/TagModal';
@@ -154,6 +154,7 @@ const Review = () => {
                                                             className={`text-xs px-2 py-1 rounded flex items-center gap-1 hover:bg-primary/10 transition-colors max-w-full ${artist.reviewStatus === 0 ? 'bg-orange-500/10 text-orange-600 border border-orange-500/20' : 'bg-secondary'}`}
                                                             title={artist.reviewStatus === 0 ? "Artist Pending Review" : "View Artist in Gallery"}
                                                         >
+                                                            <UserIcon size={10} className="shrink-0" />
                                                             {artist.reviewStatus === 0 && <Clock size={10} className="shrink-0" />}
                                                             <span className="truncate">{artist.name}</span>
                                                         </Link>
@@ -168,6 +169,7 @@ const Review = () => {
                                                         className={`text-xs px-2 py-1 rounded flex items-center gap-1 hover:bg-primary/10 transition-colors max-w-full ${tag.reviewStatus === 0 ? 'bg-orange-500/10 text-orange-600 border border-orange-500/20' : 'bg-secondary'}`}
                                                         title={tag.reviewStatus === 0 ? "Tag Pending Review" : "View Tag in Gallery"}
                                                     >
+                                                        <TagIcon size={10} className="shrink-0" />
                                                         {tag.reviewStatus === 0 && <Clock size={10} className="shrink-0" />}
                                                         <span className="truncate">{tag.name}</span>
                                                     </Link>

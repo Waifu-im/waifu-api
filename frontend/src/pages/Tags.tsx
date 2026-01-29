@@ -6,7 +6,8 @@ import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 import Modal from '../components/Modal';
 import TagModal, { TagFormData } from '../components/modals/TagModal';
-import { Plus, Edit2, Trash2, Tag as TagIcon, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
+import { Plus, Edit2, Trash2, Tag as TagIcon, ChevronLeft, ChevronRight, ExternalLink, Search } from 'lucide-react';
+import { useDebounce } from '../hooks/useDebounce';
 
 const Tags = () => {
     const { user } = useAuth();
@@ -21,6 +22,9 @@ const Tags = () => {
     const [totalPages, setTotalPages] = useState(1);
     const pageSize = 50;
 
+    const [search, setSearch] = useState('');
+    const debouncedSearch = useDebounce(search, 500);
+
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
@@ -31,9 +35,10 @@ const Tags = () => {
     const fetchTags = async () => {
         setLoading(true);
         try {
-            const { data } = await api.get<PaginatedList<Tag>>('/tags', {
-                params: { page, pageSize }
-            });
+            const params: any = { page, pageSize };
+            if (debouncedSearch) params.search = debouncedSearch;
+
+            const { data } = await api.get<PaginatedList<Tag>>('/tags', { params });
             setTags(data.items);
             setTotalPages(data.totalPages);
         } catch (error) {
@@ -45,8 +50,12 @@ const Tags = () => {
     };
 
     useEffect(() => {
+        setPage(1);
+    }, [debouncedSearch]);
+
+    useEffect(() => {
         fetchTags();
-    }, [page]);
+    }, [page, debouncedSearch]);
 
     const handleOpenCreate = () => {
         if (!user) {
@@ -116,19 +125,32 @@ const Tags = () => {
 
     return (
         <div className="container mx-auto p-6 md:p-10">
-            <div className="flex justify-between items-center mb-10">
+            <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-4">
                 <div>
                     <h1 className="text-3xl font-black flex items-center gap-3 text-foreground">
                         <TagIcon className="text-primary" size={32}/> Tags
                     </h1>
                     <p className="text-muted-foreground mt-1">Browse and manage image tags.</p>
                 </div>
-                <button
-                    onClick={handleOpenCreate}
-                    className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-bold hover:opacity-90 shadow-lg transition-all"
-                >
-                    <Plus size={20} /> New Tag
-                </button>
+
+                <div className="flex gap-3 w-full md:w-auto">
+                    <div className="relative w-full md:w-64">
+                        <Search className="absolute left-3 top-3 text-muted-foreground" size={18} />
+                        <input
+                            type="text"
+                            placeholder="Search tags..."
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            className="w-full pl-10 p-3 bg-card border border-border rounded-xl outline-none focus:ring-2 focus:ring-primary"
+                        />
+                    </div>
+                    <button
+                        onClick={handleOpenCreate}
+                        className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-bold hover:opacity-90 shadow-lg transition-all whitespace-nowrap"
+                    >
+                        <Plus size={20} /> <span className="hidden sm:inline">New</span>
+                    </button>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">

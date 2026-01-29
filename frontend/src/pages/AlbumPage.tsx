@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState } from 'react';
-import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom';
+import { useParams, Link, useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import api from '../services/api';
 import ImageCard from '../components/ImageCard';
 import { ImageDto, PaginatedList, AlbumDto, ImageFormData, Role } from '../types';
@@ -10,11 +10,13 @@ import Modal from '../components/Modal';
 import ImageModal from '../components/modals/ImageModal';
 import ConfirmModal from '../components/modals/ConfirmModal';
 import FilterSidebar from '../components/FilterSidebar';
+import { useRequireAuth } from '../hooks/useRequireAuth';
 
 const AlbumPage = () => {
     const { id } = useParams<{ id: string }>();
-    const { user } = useAuth();
+    const user = useRequireAuth();
     const navigate = useNavigate();
+    const location = useLocation();
     const [searchParams, setSearchParams] = useSearchParams();
     const { showNotification } = useNotification();
 
@@ -62,7 +64,9 @@ const AlbumPage = () => {
     };
 
     useEffect(() => {
-        fetchAlbumData();
+        if (user) {
+            fetchAlbumData();
+        }
     }, [id, searchParams, user]);
 
     const handleRemoveImage = async () => {
@@ -126,7 +130,7 @@ const AlbumPage = () => {
         { id: 'RANDOM', name: 'Random Shuffle' },
     ];
 
-    if (!user) return <div className="p-10 text-center">Please log in.</div>;
+    if (!user) return null;
     if (loading && !album) return <div className="p-10 text-center">Loading album...</div>;
 
     return (

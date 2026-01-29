@@ -9,6 +9,7 @@ import { useNotification } from '../context/NotificationContext';
 import { useAuth } from '../context/AuthContext';
 import TagModal, { TagFormData } from '../components/modals/TagModal';
 import ArtistModal, { ArtistFormData } from '../components/modals/ArtistModal';
+import { useRequireAuth } from '../hooks/useRequireAuth';
 
 interface UploadForm {
   file: FileList;
@@ -23,11 +24,11 @@ interface Option {
 }
 
 const Upload = () => {
+  const user = useRequireAuth('/login', 'You must be logged in to upload images.');
   const { register, handleSubmit, watch, formState: { errors } } = useForm<UploadForm>();
   const navigate = useNavigate();
   const location = useLocation();
   const { showNotification } = useNotification();
-  const { user } = useAuth();
 
   const [tags, setTags] = useState<Option[]>([]);
   const [artists, setArtists] = useState<Option[]>([]);
@@ -55,11 +56,7 @@ const Upload = () => {
   }, [fileList]);
 
   useEffect(() => {
-    if (!user) {
-      showNotification('warning', 'You must be logged in to upload images.');
-      navigate('/login', { state: { from: location } });
-      return;
-    }
+    if (!user) return;
 
     const fetchData = async () => {
       try {

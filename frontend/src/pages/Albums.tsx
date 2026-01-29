@@ -2,14 +2,14 @@
 import api from '../services/api';
 import { Link } from 'react-router-dom';
 import { Folder, Plus, Edit2, Trash2, Library, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 import { AlbumDto, PaginatedList } from '../types';
 import AlbumModal, { AlbumFormData } from '../components/modals/AlbumModal';
 import ConfirmModal from '../components/modals/ConfirmModal';
+import { useRequireAuth } from '../hooks/useRequireAuth';
 
 const Albums = () => {
-    const { user } = useAuth();
+    const user = useRequireAuth();
     const { showNotification } = useNotification();
     const [albums, setAlbums] = useState<AlbumDto[]>([]);
     const [loading, setLoading] = useState(true);
@@ -36,7 +36,11 @@ const Albums = () => {
         finally { setLoading(false); }
     };
 
-    useEffect(() => { fetchAlbums(); }, [user, page]);
+    useEffect(() => {
+        if (user) {
+            fetchAlbums();
+        }
+    }, [user, page]);
 
     const handleCreate = async (data: AlbumFormData) => {
         try {
@@ -67,7 +71,7 @@ const Albums = () => {
         } catch { showNotification('error', 'Failed to delete album'); }
     };
 
-    if (!user) return <div className="p-10 text-center text-muted-foreground">Please log in.</div>;
+    if (!user) return null;
 
     return (
         <div className="container mx-auto p-6 md:p-10">
