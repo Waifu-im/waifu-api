@@ -231,6 +231,19 @@ const Layout = () => {
                                         <item.icon size={20} /> {item.name}
                                     </Link>
                                 ))}
+
+                                <div className="my-2 border-t border-border opacity-50"></div>
+
+                                {/* ADDED: Upload Button for Mobile */}
+                                <Link
+                                    to="/upload"
+                                    onClick={() => setIsMobileMenuOpen(false)}
+                                    className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium ${
+                                        isActive('/upload') ? 'bg-secondary text-foreground' : 'text-muted-foreground'
+                                    }`}
+                                >
+                                    <UploadIcon size={20} /> Upload
+                                </Link>
                             </nav>
                         </div>
                     </div>

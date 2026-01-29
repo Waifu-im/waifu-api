@@ -39,7 +39,6 @@ public class GetImageByIdQueryHandler : IQueryHandler<GetImageByIdQuery, ImageDt
 
         if (image == null) throw new KeyNotFoundException($"Image with ID {request.Id} not found.");
 
-        // ... (Stats Logic inchangée)
         var favorites = await _context.AlbumItems.CountAsync(ai => ai.ImageId == image.Id && ai.Album.IsDefault, cancellationToken);
         var likedAt = request.UserId > 0 ? await _context.AlbumItems.Where(ai => ai.ImageId == image.Id && ai.Album.UserId == request.UserId && ai.Album.IsDefault).Select(ai => (DateTime?)ai.AddedAt).FirstOrDefaultAsync(cancellationToken) : null;
         var albums = request.UserId > 0 ? await _context.AlbumItems.Where(ai => ai.ImageId == image.Id && ai.Album.UserId == request.UserId).Select(ai => new AlbumDto { Id = ai.Album.Id, Name = ai.Album.Name, UserId = ai.Album.UserId, IsDefault = ai.Album.IsDefault }).ToListAsync(cancellationToken) : new List<AlbumDto>();
@@ -51,7 +50,16 @@ public class GetImageByIdQueryHandler : IQueryHandler<GetImageByIdQuery, ImageDt
             Extension = image.Extension,
             DominantColor = image.DominantColor,
             Source = image.Source,
-            Artists = image.Artists.Where(a => a.ReviewStatus == ReviewStatus.Accepted).ToList(),
+            Artists = image.Artists.Select(a => new ArtistDto
+            {
+                Id = a.Id,
+                Name = a.Name,
+                Patreon = a.Patreon,
+                Pixiv = a.Pixiv,
+                Twitter = a.Twitter,
+                DeviantArt = a.DeviantArt,
+                ReviewStatus = a.ReviewStatus
+            }).ToList(),
             UploaderId = image.UploaderId,
             UploadedAt = image.UploadedAt,
             IsNsfw = image.IsNsfw,
@@ -60,7 +68,6 @@ public class GetImageByIdQueryHandler : IQueryHandler<GetImageByIdQuery, ImageDt
             Height = image.Height,
             ByteSize = image.ByteSize,
             Url = CdnUrlHelper.GetImageUrl(_cdnBaseUrl, image.Id, image.Extension),
-            // Mapping Tag -> TagDto
             Tags = image.Tags.Where(t => t.ReviewStatus == ReviewStatus.Accepted).Select(t => new TagDto 
             { 
                 Id = t.Id, 
@@ -69,6 +76,7 @@ public class GetImageByIdQueryHandler : IQueryHandler<GetImageByIdQuery, ImageDt
                 Description = t.Description, 
                 ReviewStatus = t.ReviewStatus 
             }).ToList(),
+            ReviewStatus = image.ReviewStatus,
             Favorites = favorites,
             LikedAt = likedAt,
             Albums = albums

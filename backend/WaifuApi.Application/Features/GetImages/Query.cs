@@ -24,8 +24,8 @@ public class GetImagesQuery : IQuery<PaginatedList<ImageDto>>
     public List<string> ExcludedTags { get; set; } = new();
     public List<string> IncludedArtists { get; set; } = new();
     public List<string> ExcludedArtists { get; set; } = new();
-    public List<string> IncludedFiles { get; set; } = new();
-    public List<string> ExcludedFiles { get; set; } = new();
+    public List<string> IncludedIds { get; set; } = new();
+    public List<string> ExcludedIds { get; set; } = new();
     public bool? IsAnimated { get; set; }
     public string OrderBy { get; set; } = string.Empty;
     public string Orientation { get; set; } = string.Empty;
@@ -66,7 +66,6 @@ public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList
 
     public async ValueTask<PaginatedList<ImageDto>> Handle(GetImagesQuery request, CancellationToken cancellationToken)
     {
-        // ... (Logique pagination et filtrage inchangée)
         var pageSize = request.PageSize == 0 ? _defaultPageSize : request.PageSize;
         if (_maxPageSize > 0 && pageSize > _maxPageSize) pageSize = _maxPageSize;
         
@@ -77,8 +76,8 @@ public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList
             ExcludedTags = request.ExcludedTags,
             IncludedArtists = request.IncludedArtists,
             ExcludedArtists = request.ExcludedArtists,
-            IncludedFiles = request.IncludedFiles,
-            ExcludedFiles = request.ExcludedFiles,
+            IncludedIds = request.IncludedIds,
+            ExcludedIds = request.ExcludedIds,
             IsAnimated = request.IsAnimated,
             OrderBy = request.OrderBy,
             Orientation = request.Orientation,
@@ -96,11 +95,8 @@ public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList
         int totalCount;
         Dictionary<long, DateTime> addedToAlbumMap = new();
 
-        // ... (Bloc Album logic identique, omis pour brièveté, mais doit être présent)
-        if (filters.AlbumId.HasValue) { /* ... */  
-             // Dans ce bloc, lors du fetch des images finales, s'assurer d'inclure les tags
-             // images = ... .Include(i => i.Tags).Include(i => i.Artist)...
-             // Je remets le code de fallback standard pour l'exemple
+        if (filters.AlbumId.HasValue) 
+        {
              var joined = query.Join(_context.AlbumItems, i => i.Id, ai => ai.ImageId, (i, ai) => new { i, ai })
                 .Where(x => x.ai.AlbumId == filters.AlbumId.Value);
              if (request.OrderBy == "ADDED_TO_ALBUM") joined = joined.OrderByDescending(x => x.ai.AddedAt);
@@ -126,7 +122,6 @@ public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList
             images = await query.Include(i => i.Tags).Include(i => i.Artists).Skip((request.Page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
         }
 
-        // ... (Logic Favorites et UserAlbums inchangée)
         var imageIdsForStats = images.Select(i => i.Id).ToList();
         var favoritesCounts = await _context.AlbumItems.Where(ai => imageIdsForStats.Contains(ai.ImageId) && ai.Album.IsDefault).GroupBy(ai => ai.ImageId).Select(g => new { ImageId = g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.ImageId, x => x.Count, cancellationToken);
         var likedStatus = request.UserId > 0 ? await _context.AlbumItems.Where(ai => imageIdsForStats.Contains(ai.ImageId) && ai.Album.UserId == request.UserId && ai.Album.IsDefault).Select(ai => new { ai.ImageId, ai.AddedAt }).ToDictionaryAsync(x => x.ImageId, x => x.AddedAt, cancellationToken) : new Dictionary<long, DateTime>();
@@ -143,7 +138,18 @@ public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList
             Extension = image.Extension,
             DominantColor = image.DominantColor,
             Source = image.Source,
-            Artists = image.Artists.Where(a => a.ReviewStatus == ReviewStatus.Accepted).ToList(),
+            Artists = image.Artists
+                .Where(a => a.ReviewStatus == ReviewStatus.Accepted)
+                .Select(a => new ArtistDto 
+                {
+                    Id = a.Id,
+                    Name = a.Name,
+                    Patreon = a.Patreon,
+                    Pixiv = a.Pixiv,
+                    Twitter = a.Twitter,
+                    DeviantArt = a.DeviantArt,
+                    ReviewStatus = a.ReviewStatus
+                }).ToList(),
             UploaderId = image.UploaderId,
             UploadedAt = image.UploadedAt,
             IsNsfw = image.IsNsfw,
@@ -152,7 +158,6 @@ public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList
             Height = image.Height,
             ByteSize = image.ByteSize,
             Url = CdnUrlHelper.GetImageUrl(_cdnBaseUrl, image.Id, image.Extension),
-            // Mapping Tag -> TagDto
             Tags = image.Tags.Where(t => t.ReviewStatus == ReviewStatus.Accepted).Select(t => new TagDto 
             { 
                 Id = t.Id, 
@@ -161,6 +166,7 @@ public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList
                 Description = t.Description, 
                 ReviewStatus = t.ReviewStatus 
             }).ToList(),
+            ReviewStatus = image.ReviewStatus,
             Favorites = favoritesCounts.TryGetValue(image.Id, out var count) ? count : 0,
             LikedAt = likedStatus.TryGetValue(image.Id, out var date) ? (DateTime?)date : null,
             AddedToAlbumAt = addedToAlbumMap.TryGetValue(image.Id, out var addedAt) ? addedAt : null,

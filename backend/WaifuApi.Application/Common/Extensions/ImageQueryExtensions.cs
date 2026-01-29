@@ -94,6 +94,28 @@ public static class ImageQueryExtensions
             }
         }
 
+        if (filters.IncludedIds.Any())
+        {
+            foreach (var idInput in filters.IncludedIds)
+            {
+                if (long.TryParse(idInput, out var id))
+                {
+                    query = query.Where(i => i.Id == id);
+                }
+            }
+        }
+
+        if (filters.ExcludedIds.Any())
+        {
+            foreach (var idInput in filters.ExcludedIds)
+            {
+                if (long.TryParse(idInput, out var id))
+                {
+                    query = query.Where(i => i.Id != id);
+                }
+            }
+        }
+
         query = ApplyRangeFilter(query, filters.Width, i => i.Width);
         query = ApplyRangeFilter(query, filters.Height, i => i.Height);
         query = ApplyRangeFilter(query, filters.ByteSize, i => i.ByteSize);

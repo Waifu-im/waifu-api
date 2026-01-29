@@ -9,6 +9,8 @@ export interface ImageFilters {
   excludedTags?: string[];
   includedArtists?: string[];
   excludedArtists?: string[];
+  includedIds?: string[];
+  excludedIds?: string[];
   isAnimated?: boolean;
   orientation?: string;
   orderBy?: string;
@@ -44,6 +46,9 @@ export const useImages = (filters: ImageFilters) => {
       
       filters.includedArtists?.forEach(artist => params.append('includedArtists', artist));
       filters.excludedArtists?.forEach(artist => params.append('excludedArtists', artist));
+
+      filters.includedIds?.forEach(id => params.append('includedIds', id));
+      filters.excludedIds?.forEach(id => params.append('excludedIds', id));
 
       const { data } = await api.get<PaginatedList<ImageDto>>('/images', { params });
       return data;

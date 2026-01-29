@@ -35,6 +35,8 @@ const Gallery = () => {
   const excludedTags = searchParams.getAll('excludedTags');
   const includedArtists = searchParams.getAll('includedArtists');
   const excludedArtists = searchParams.getAll('excludedArtists');
+  const includedIds = searchParams.getAll('includedIds');
+  const excludedIds = searchParams.getAll('excludedIds');
   const pageStr = searchParams.get('page');
   const page = pageStr ? parseInt(pageStr) : 1;
 
@@ -53,6 +55,8 @@ const Gallery = () => {
     excludedTags,
     includedArtists,
     excludedArtists,
+    includedIds,
+    excludedIds,
     page: page,
     pageSize: 50
   });

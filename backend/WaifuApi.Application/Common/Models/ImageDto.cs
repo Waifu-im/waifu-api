@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using WaifuApi.Domain.Entities;
+using WaifuApi.Domain.Enums;
 
 namespace WaifuApi.Application.Common.Models;
 
@@ -12,7 +11,7 @@ public class ImageDto
     public string Extension { get; set; } = string.Empty;
     public string DominantColor { get; set; } = string.Empty;
     public string? Source { get; set; }
-    public List<Artist> Artists { get; set; } = new();
+    public List<ArtistDto> Artists { get; set; } = new();
     public long UploaderId { get; set; }
     public DateTime UploadedAt { get; set; }
     public bool IsNsfw { get; set; }
@@ -22,6 +21,7 @@ public class ImageDto
     public long ByteSize { get; set; }
     public string Url { get; set; } = string.Empty;
     public List<TagDto> Tags { get; set; } = new();
+    public ReviewStatus ReviewStatus { get; set; }
     
     // Dynamic properties
     public long Favorites { get; set; }

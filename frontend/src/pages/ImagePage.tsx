@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
-import { ImageDto, Role, ImageFormData, AlbumDto, PaginatedList } from '../types';
+import { ImageDto, Role, ImageFormData, AlbumDto, PaginatedList, ReviewStatus } from '../types';
 import { Heart, Trash2, Edit, AlertTriangle, FolderPlus, ChevronDown, Check, Flag } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
@@ -196,6 +196,24 @@ const ImagePage = () => {
     }
   };
 
+  const getReviewStatusLabel = (status: number) => {
+      switch (status) {
+          case ReviewStatus.Pending: return 'Pending';
+          case ReviewStatus.Accepted: return 'Accepted';
+          case ReviewStatus.Rejected: return 'Rejected';
+          default: return 'Unknown';
+      }
+  };
+
+  const getReviewStatusColor = (status: number) => {
+      switch (status) {
+          case ReviewStatus.Pending: return 'text-yellow-500';
+          case ReviewStatus.Accepted: return 'text-green-500';
+          case ReviewStatus.Rejected: return 'text-red-500';
+          default: return 'text-muted-foreground';
+      }
+  };
+
   if (isLoading) return <div className="p-10 text-center">Loading...</div>;
   if (error || !image) return <div className="p-10 text-center text-destructive">{error || "Not Found"}</div>;
 
@@ -323,6 +341,9 @@ const ImagePage = () => {
                 <p>Uploaded: <span className="text-foreground font-medium">{new Date(image.uploadedAt).toLocaleDateString()}</span></p>
                 <p>Size: <span className="text-foreground font-medium">{(image.byteSize / (1024 * 1024)).toFixed(2)} MB</span></p>
                 <p>Dims: <span className="text-foreground font-medium">{image.width}x{image.height}</span></p>
+                {isAdminOrModerator && (
+                    <p>Status: <span className={`font-medium ${getReviewStatusColor(image.reviewStatus)}`}>{getReviewStatusLabel(image.reviewStatus)}</span></p>
+                )}
               </div>
 
               {image.artists && image.artists.length > 0 && (
@@ -330,7 +351,7 @@ const ImagePage = () => {
                     Artist{image.artists.length > 1 ? 's' : ''}:
                     {image.artists.map((artist, index) => (
                         <span key={artist.id}>
-                            <Link to={`/gallery?includedArtists=${artist.id}`} className="text-primary hover:underline font-bold text-base">
+                            <Link to={`/gallery?includedArtists=${artist.name}`} className="text-primary hover:underline font-bold text-base">
                               {artist.name}
                             </Link>
                             {index < image.artists.length - 1 && ", "}

@@ -75,7 +75,16 @@ public class GetReportsQueryHandler : IQueryHandler<GetReportsQuery, PaginatedLi
                 Extension = report.Image.Extension,
                 DominantColor = report.Image.DominantColor,
                 Source = report.Image.Source,
-                Artists = report.Image.Artists,
+                Artists = report.Image.Artists.Select(a => new ArtistDto
+                {
+                    Id = a.Id,
+                    Name = a.Name,
+                    Patreon = a.Patreon,
+                    Pixiv = a.Pixiv,
+                    Twitter = a.Twitter,
+                    DeviantArt = a.DeviantArt,
+                    ReviewStatus = a.ReviewStatus
+                }).ToList(),
                 UploaderId = report.Image.UploaderId,
                 UploadedAt = report.Image.UploadedAt,
                 IsNsfw = report.Image.IsNsfw,

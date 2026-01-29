@@ -11,6 +11,7 @@ using WaifuApi.Application.Common.Models;
 using WaifuApi.Application.Common.Utilities;
 using WaifuApi.Application.Interfaces;
 using WaifuApi.Domain.Entities;
+using WaifuApi.Domain.Enums;
 
 namespace WaifuApi.Application.Features.Images.UpdateImage;
 
@@ -109,7 +110,17 @@ public class UpdateImageCommandHandler : ICommandHandler<UpdateImageCommand, Ima
             Extension = image.Extension,
             DominantColor = image.DominantColor,
             Source = image.Source,
-            Artists = image.Artists,
+            Artists = image.Artists
+                .Select(a => new ArtistDto 
+                {
+                    Id = a.Id,
+                    Name = a.Name,
+                    Patreon = a.Patreon,
+                    Pixiv = a.Pixiv,
+                    Twitter = a.Twitter,
+                    DeviantArt = a.DeviantArt,
+                    ReviewStatus = a.ReviewStatus
+                }).ToList(),
             UploaderId = image.UploaderId,
             UploadedAt = image.UploadedAt,
             IsNsfw = image.IsNsfw,

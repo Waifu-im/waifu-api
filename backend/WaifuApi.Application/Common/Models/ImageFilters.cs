@@ -10,8 +10,8 @@ public class ImageFilters
     public List<string> ExcludedTags { get; set; } = new();
     public List<string> IncludedArtists { get; set; } = new();
     public List<string> ExcludedArtists { get; set; } = new();
-    public List<string> IncludedFiles { get; set; } = new();
-    public List<string> ExcludedFiles { get; set; } = new();
+    public List<string> IncludedIds { get; set; } = new();
+    public List<string> ExcludedIds { get; set; } = new();
     public bool? IsAnimated { get; set; }
     public string OrderBy { get; set; } = string.Empty;
     public string Orientation { get; set; } = string.Empty;

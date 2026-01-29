@@ -2,6 +2,7 @@
 import SearchableSelect from './SearchableSelect';
 import api from '../services/api';
 import { PaginatedList, Tag, Artist } from '../types';
+import { X } from 'lucide-react';
 
 interface Option {
     id: string;
@@ -19,6 +20,8 @@ interface FilterSidebarProps {
 const FilterSidebar = ({ searchParams, setSearchParams, showFilters, setShowFilters, sortOptions }: FilterSidebarProps) => {
     const [allTags, setAllTags] = useState<{ id: number, name: string }[]>([]);
     const [allArtists, setAllArtists] = useState<{ id: number, name: string }[]>([]);
+    const [includedIdInput, setIncludedIdInput] = useState('');
+    const [excludedIdInput, setExcludedIdInput] = useState('');
 
     useEffect(() => {
         api.get<PaginatedList<Tag>>('/tags', { params: { pageSize: 1000 } })
@@ -68,6 +71,29 @@ const FilterSidebar = ({ searchParams, setSearchParams, showFilters, setShowFilt
         });
     };
 
+    const handleIdChange = (key: 'includedIds' | 'excludedIds', id: string, action: 'add' | 'remove') => {
+        setSearchParams(prev => {
+            const current = prev.getAll(key);
+            prev.delete(key);
+            if (action === 'add' && !current.includes(id)) {
+                [...current, id].forEach(t => prev.append(key, t));
+            } else if (action === 'remove') {
+                current.filter(t => t !== id).forEach(t => prev.append(key, t));
+            } else {
+                current.forEach(t => prev.append(key, t));
+            }
+            return prev;
+        });
+    };
+
+    const handleIdKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, key: 'includedIds' | 'excludedIds', input: string, setInput: (val: string) => void) => {
+        if (e.key === 'Enter' && input.trim()) {
+            e.preventDefault();
+            handleIdChange(key, input.trim(), 'add');
+            setInput('');
+        }
+    };
+
     const orderBy = searchParams.get('orderBy') || 'UPLOADED_AT';
     const isNsfw = searchParams.get('isNsfw') || '0';
     const orientation = searchParams.get('orientation') || '';
@@ -76,6 +102,8 @@ const FilterSidebar = ({ searchParams, setSearchParams, showFilters, setShowFilt
     const excludedTags = searchParams.getAll('excludedTags');
     const includedArtists = searchParams.getAll('includedArtists');
     const excludedArtists = searchParams.getAll('excludedArtists');
+    const includedIds = searchParams.getAll('includedIds');
+    const excludedIds = searchParams.getAll('excludedIds');
     const width = searchParams.get('width') || '';
     const height = searchParams.get('height') || '';
     const byteSize = searchParams.get('byteSize') || '';
@@ -222,6 +250,48 @@ const FilterSidebar = ({ searchParams, setSearchParams, showFilters, setShowFilt
                     onRemove={(o) => handleArtistChange('excludedArtists', o.name, 'remove')}
                     isMulti={true}
                 />
+
+                <div className="border-t border-border"></div>
+
+                <div>
+                    <label className="block text-xs font-bold uppercase text-muted-foreground mb-1">Included IDs</label>
+                    <div className="flex flex-wrap gap-2 mb-2">
+                        {includedIds.map(id => (
+                            <span key={id} className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded text-xs font-medium">
+                                {id}
+                                <button onClick={() => handleIdChange('includedIds', id, 'remove')} className="hover:text-destructive"><X size={12} /></button>
+                            </span>
+                        ))}
+                    </div>
+                    <input
+                        type="text"
+                        placeholder="Press Enter to add ID..."
+                        value={includedIdInput}
+                        onChange={e => setIncludedIdInput(e.target.value)}
+                        onKeyDown={e => handleIdKeyDown(e, 'includedIds', includedIdInput, setIncludedIdInput)}
+                        className="w-full p-2 rounded bg-secondary text-sm border-transparent focus:ring-1 focus:ring-primary outline-none"
+                    />
+                </div>
+
+                <div>
+                    <label className="block text-xs font-bold uppercase text-muted-foreground mb-1">Excluded IDs</label>
+                    <div className="flex flex-wrap gap-2 mb-2">
+                        {excludedIds.map(id => (
+                            <span key={id} className="inline-flex items-center gap-1 px-2 py-1 bg-destructive/10 text-destructive rounded text-xs font-medium">
+                                {id}
+                                <button onClick={() => handleIdChange('excludedIds', id, 'remove')} className="hover:text-destructive"><X size={12} /></button>
+                            </span>
+                        ))}
+                    </div>
+                    <input
+                        type="text"
+                        placeholder="Press Enter to add ID..."
+                        value={excludedIdInput}
+                        onChange={e => setExcludedIdInput(e.target.value)}
+                        onKeyDown={e => handleIdKeyDown(e, 'excludedIds', excludedIdInput, setExcludedIdInput)}
+                        className="w-full p-2 rounded bg-secondary text-sm border-transparent focus:ring-1 focus:ring-primary outline-none"
+                    />
+                </div>
             </div>
 
             {/* Bottom button for mobile */}

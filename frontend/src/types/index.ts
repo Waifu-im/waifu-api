@@ -18,6 +18,7 @@
   favorites: number;
   likedAt?: string;
   uploaderId: number;
+  reviewStatus: ReviewStatus;
 }
 
 export interface Artist {
@@ -27,7 +28,7 @@ export interface Artist {
   pixiv?: string;
   twitter?: string;
   deviantArt?: string;
-  reviewStatus?: number;
+  reviewStatus?: ReviewStatus;
 }
 
 export interface Tag {
@@ -35,7 +36,7 @@ export interface Tag {
   name: string;
   slug: string;
   description: string;
-  reviewStatus?: number;
+  reviewStatus?: ReviewStatus;
 }
 export interface User {
   id: number;
@@ -75,6 +76,12 @@ export enum Role {
   TrustedUser = 1,
   Moderator = 2,
   Admin = 3
+}
+
+export enum ReviewStatus {
+  Pending = 0,
+  Accepted = 1,
+  Rejected = 2
 }
 
 export interface PaginatedList<T> {

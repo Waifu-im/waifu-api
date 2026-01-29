@@ -58,7 +58,16 @@ public class GetPendingImagesQueryHandler : IQueryHandler<GetPendingImagesQuery,
             Extension = image.Extension,
             DominantColor = image.DominantColor,
             Source = image.Source,
-            Artists = image.Artists,
+            Artists = image.Artists.Select(a => new ArtistDto
+            {
+                Id = a.Id,
+                Name = a.Name,
+                Patreon = a.Patreon,
+                Pixiv = a.Pixiv,
+                Twitter = a.Twitter,
+                DeviantArt = a.DeviantArt,
+                ReviewStatus = a.ReviewStatus
+            }).ToList(),
             UploaderId = image.UploaderId,
             UploadedAt = image.UploadedAt,
             IsNsfw = image.IsNsfw,
