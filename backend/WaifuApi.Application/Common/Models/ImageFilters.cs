@@ -20,4 +20,5 @@ public class ImageFilters
     public string ByteSize { get; set; } = string.Empty;
     public long UserId { get; set; }
     public long? AlbumId { get; set; }
+    public ReviewStatus? ReviewStatus { get; set; }
 }

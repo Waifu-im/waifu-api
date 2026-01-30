@@ -1,7 +1,9 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Mediator;
+using Microsoft.EntityFrameworkCore;
 using WaifuApi.Application.Common.Models;
 using WaifuApi.Application.Interfaces;
 
@@ -20,7 +22,9 @@ public class GetAlbumByIdQueryHandler : IQueryHandler<GetAlbumByIdQuery, AlbumDt
 
     public async ValueTask<AlbumDto> Handle(GetAlbumByIdQuery request, CancellationToken cancellationToken)
     {
-        var album = await _context.Albums.FindAsync(new object[] { request.AlbumId }, cancellationToken);
+        var album = await _context.Albums
+            .Include(a => a.Items) // Changed from AlbumItems to Items
+            .FirstOrDefaultAsync(a => a.Id == request.AlbumId, cancellationToken);
 
         if (album == null)
         {
@@ -33,7 +37,8 @@ public class GetAlbumByIdQueryHandler : IQueryHandler<GetAlbumByIdQuery, AlbumDt
             Name = album.Name,
             Description = album.Description,
             IsDefault = album.IsDefault,
-            UserId = album.UserId
+            UserId = album.UserId,
+            ImageCount = album.Items.Count // Changed from AlbumItems to Items
         };
     }
 }

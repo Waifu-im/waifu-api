@@ -1,15 +1,19 @@
 ﻿import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
-import { ImageDto, Artist, Tag, ImageFormData, PaginatedList } from '../types';
+import { ImageDto, Artist, Tag, ImageFormData, PaginatedList, Role } from '../types';
 import { useNotification } from '../context/NotificationContext';
-import { Check, X, FileCheck, Edit2, ExternalLink, Clock, ChevronLeft, ChevronRight, User as UserIcon, Tag as TagIcon } from 'lucide-react';
+import { Check, FileCheck, Edit2, ExternalLink, ChevronLeft, ChevronRight, Link as LinkIcon, Trash2 } from 'lucide-react';
 import ImageModal from '../components/modals/ImageModal';
 import ArtistModal, { ArtistFormData } from '../components/modals/ArtistModal';
 import TagModal, { TagFormData } from '../components/modals/TagModal';
+import ConfirmModal from '../components/modals/ConfirmModal';
+import ImageGrid from '../components/ImageGrid';
+import { useAuth } from '../context/AuthContext';
 
 const Review = () => {
     const { showNotification } = useNotification();
+    const { user } = useAuth();
     const [tab, setTab] = useState<'images' | 'artists' | 'tags'>('images');
     const [loading, setLoading] = useState(false);
 
@@ -19,11 +23,17 @@ const Review = () => {
 
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
-    const pageSize = 30; // Updated to match backend default
+    const pageSize = 30;
 
     const [editingImage, setEditingImage] = useState<ImageDto | null>(null);
     const [editingArtist, setEditingArtist] = useState<Artist | null>(null);
     const [editingTag, setEditingTag] = useState<Tag | null>(null);
+
+    const [deletingImage, setDeletingImage] = useState<ImageDto | null>(null);
+    const [deletingArtist, setDeletingArtist] = useState<Artist | null>(null);
+    const [deletingTag, setDeletingTag] = useState<Tag | null>(null);
+
+    const isAdmin = user?.role === Role.Admin;
 
     const fetchData = async () => {
         setLoading(true);
@@ -52,19 +62,6 @@ const Review = () => {
 
     useEffect(() => { fetchData(); }, [tab, page]);
 
-    const handleReview = async (id: number, accepted: boolean) => {
-        try {
-            await api.post(`/review/${tab}/${id}`, { accepted });
-            showNotification('success', accepted ? 'Approved' : 'Rejected');
-
-            if (tab === 'images') setImages(prev => prev.filter(i => i.id !== id));
-            else if (tab === 'artists') setArtists(prev => prev.filter(a => a.id !== id));
-            else setTags(prev => prev.filter(t => t.id !== id));
-        } catch (err: any) { 
-            // showNotification('error', err.message); // Handled globally
-        }
-    };
-
     const handleUpdateImage = async (data: ImageFormData) => {
         if (!editingImage) return;
         try {
@@ -73,7 +70,8 @@ const Review = () => {
                 isNsfw: data.isNsfw,
                 userId: data.userId || null,
                 tags: data.tags,
-                artists: data.artists
+                artists: data.artists,
+                reviewStatus: data.reviewStatus
             };
             await api.put(`/images/${editingImage.id}`, payload);
             showNotification('success', 'Image updated');
@@ -108,6 +106,45 @@ const Review = () => {
         }
     };
 
+    const handleDeleteImage = async () => {
+        if (!deletingImage) return;
+        try {
+            await api.delete(`/images/${deletingImage.id}`);
+            showNotification('success', 'Image deleted');
+            setDeletingImage(null);
+            setEditingImage(null);
+            fetchData();
+        } catch (err: any) {
+            // showNotification('error', err.message); // Handled globally
+        }
+    };
+
+    const handleDeleteArtist = async () => {
+        if (!deletingArtist) return;
+        try {
+            await api.delete(`/artists/${deletingArtist.id}`);
+            showNotification('success', 'Artist deleted');
+            setDeletingArtist(null);
+            setEditingArtist(null);
+            fetchData();
+        } catch (err: any) {
+            // showNotification('error', err.message); // Handled globally
+        }
+    };
+
+    const handleDeleteTag = async () => {
+        if (!deletingTag) return;
+        try {
+            await api.delete(`/tags/${deletingTag.id}`);
+            showNotification('success', 'Tag deleted');
+            setDeletingTag(null);
+            setEditingTag(null);
+            fetchData();
+        } catch (err: any) {
+            // showNotification('error', err.message); // Handled globally
+        }
+    };
+
     return (
         <div className="container mx-auto p-6 md:p-10 h-full flex flex-col">
             <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
@@ -135,89 +172,83 @@ const Review = () => {
                 <div className="flex-1 overflow-y-auto">
                     {/* Images Tab */}
                     {tab === 'images' && (
-                        images.length === 0 ? <EmptyState type="images"/> :
-                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-                                {images.map(img => (
-                                    <div key={img.id} className="bg-card border border-border rounded-xl overflow-hidden flex flex-col shadow-sm">
-                                        <div className="aspect-[2/3] relative bg-muted group">
-                                            {/* Link to Image Page */}
-                                            <Link to={`/images/${img.id}`} className="block w-full h-full">
-                                                <img src={img.url} alt={`Review ${img.id}`} className="w-full h-full object-cover" loading="lazy" />
-                                            </Link>
-
-                                            {/* External Link Overlay */}
-                                            <a href={img.url} target="_blank" rel="noreferrer" className="absolute top-2 right-2 p-1.5 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:bg-black/70">
-                                                <ExternalLink size={14}/>
-                                            </a>
-                                        </div>
-
-                                        <div className="p-3 border-t border-border space-y-2">
-                                            {/* Metadata Section */}
-                                            <div className="flex flex-wrap gap-1">
-                                                {/* Artist Link */}
-                                                {img.artists && img.artists.length > 0 ? (
-                                                    img.artists.map(artist => (
-                                                        <Link
-                                                            key={artist.id}
-                                                            to={`/gallery?includedArtists=${artist.id}`}
-                                                            className={`text-xs px-2 py-1 rounded flex items-center gap-1 hover:bg-primary/10 transition-colors max-w-full ${artist.reviewStatus === 0 ? 'bg-orange-500/10 text-orange-600 border border-orange-500/20' : 'bg-secondary'}`}
-                                                            title={artist.reviewStatus === 0 ? "Artist Pending Review" : "View Artist in Gallery"}
-                                                        >
-                                                            <UserIcon size={10} className="shrink-0" />
-                                                            {artist.reviewStatus === 0 && <Clock size={10} className="shrink-0" />}
-                                                            <span className="truncate">{artist.name}</span>
-                                                        </Link>
-                                                    ))
-                                                ) : <span className="text-xs text-muted-foreground italic">No Artist</span>}
-
-                                                {/* Tags Links */}
-                                                {img.tags.map(tag => (
-                                                    <Link
-                                                        key={tag.id}
-                                                        to={`/gallery?includedTags=${encodeURIComponent(tag.slug)}`}
-                                                        className={`text-xs px-2 py-1 rounded flex items-center gap-1 hover:bg-primary/10 transition-colors max-w-full ${tag.reviewStatus === 0 ? 'bg-orange-500/10 text-orange-600 border border-orange-500/20' : 'bg-secondary'}`}
-                                                        title={tag.reviewStatus === 0 ? "Tag Pending Review" : "View Tag in Gallery"}
-                                                    >
-                                                        <TagIcon size={10} className="shrink-0" />
-                                                        {tag.reviewStatus === 0 && <Clock size={10} className="shrink-0" />}
-                                                        <span className="truncate">{tag.name}</span>
-                                                    </Link>
-                                                ))}
-                                            </div>
-
-                                            <div className="flex gap-2 pt-2">
-                                                <button onClick={() => setEditingImage(img)} className="p-2 bg-secondary text-foreground hover:bg-secondary/80 rounded-lg flex-1 flex justify-center"><Edit2 size={18}/></button>
-                                                <button onClick={() => handleReview(img.id, true)} className="p-2 bg-green-500/10 text-green-600 hover:bg-green-500/20 rounded-lg flex-1 flex justify-center"><Check size={18}/></button>
-                                                <button onClick={() => handleReview(img.id, false)} className="p-2 bg-red-500/10 text-red-600 hover:bg-red-500/20 rounded-lg flex-1 flex justify-center"><X size={18}/></button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
+                        <ImageGrid
+                            images={images}
+                            isLoading={loading}
+                            page={page}
+                            totalPages={totalPages}
+                            setPage={setPage}
+                            onEdit={(img) => setEditingImage(img)}
+                            onDelete={isAdmin ? (id) => setDeletingImage(images.find(i => i.id === id) || null) : undefined}
+                            emptyState={<EmptyState type="images"/>}
+                            forceOverlay={true}
+                        />
                     )}
 
                     {/* Artists Tab */}
                     {tab === 'artists' && (
                         artists.length === 0 ? <EmptyState type="artists"/> :
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                                 {artists.map(artist => (
-                                    <div key={artist.id} className="bg-card border border-border p-6 rounded-xl flex justify-between items-center gap-4">
-                                        <div className="overflow-hidden flex-1 min-w-0">
-                                            <h3 className="font-bold text-lg truncate" title={artist.name}>
-                                                {/* Link to Gallery filtered by Artist */}
-                                                <Link to={`/gallery?includedArtists=${artist.id}`} className="hover:underline hover:text-primary transition-colors">
-                                                    {artist.name}
+                                    <div key={artist.id} className="group bg-card border border-border rounded-xl hover:shadow-md hover:border-primary/50 transition-all overflow-hidden p-6 flex flex-col">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <div className="flex flex-col gap-1 overflow-hidden min-w-0">
+                                                <h3 className="font-bold text-lg truncate text-foreground group-hover:text-primary transition-colors">{artist.name}</h3>
+                                                <span className="text-xs font-mono bg-secondary px-2 py-1 rounded text-muted-foreground select-text w-fit">#{artist.id}</span>
+                                            </div>
+                                            
+                                            <div className="flex gap-2 flex-shrink-0 ml-2">
+                                                <Link
+                                                    to={`/gallery?includedArtists=${artist.id}`}
+                                                    className="p-1.5 bg-secondary hover:bg-primary hover:text-primary-foreground rounded text-muted-foreground transition-colors shadow-sm"
+                                                    title="View in Gallery"
+                                                >
+                                                    <ExternalLink size={16} />
                                                 </Link>
-                                            </h3>
-                                            <div className="flex flex-wrap gap-2 mt-2 text-xs text-muted-foreground">
-                                                {artist.twitter && <span className="bg-secondary px-2 py-1 rounded">TW</span>}
-                                                {artist.pixiv && <span className="bg-secondary px-2 py-1 rounded">PX</span>}
+                                                <button
+                                                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditingArtist(artist); }}
+                                                    className="p-1.5 bg-secondary hover:bg-primary hover:text-primary-foreground rounded text-muted-foreground transition-colors shadow-sm"
+                                                    title="Edit"
+                                                >
+                                                    <Edit2 size={16}/>
+                                                </button>
+                                                {isAdmin && (
+                                                    <button
+                                                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDeletingArtist(artist); }}
+                                                        className="p-1.5 bg-secondary hover:bg-destructive hover:text-destructive-foreground rounded text-muted-foreground transition-colors shadow-sm"
+                                                        title="Delete"
+                                                    >
+                                                        <Trash2 size={16}/>
+                                                    </button>
+                                                )}
                                             </div>
                                         </div>
-                                        <div className="flex gap-2 shrink-0">
-                                            <button onClick={() => setEditingArtist(artist)} className="p-3 bg-secondary text-foreground rounded-lg hover:bg-secondary/80"><Edit2 size={20}/></button>
-                                            <button onClick={() => handleReview(artist.id, true)} className="p-3 bg-green-500/10 text-green-600 rounded-lg hover:bg-green-500/20"><Check size={20}/></button>
-                                            <button onClick={() => handleReview(artist.id, false)} className="p-3 bg-red-500/10 text-red-600 rounded-lg hover:bg-red-500/20"><X size={20}/></button>
+
+                                        <div className="flex flex-col gap-2 text-xs text-muted-foreground mt-auto pt-4">
+                                            {artist.twitter && (
+                                                <a href={artist.twitter} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 bg-secondary px-2 py-1 rounded hover:bg-primary hover:text-primary-foreground transition-colors" title={artist.twitter}>
+                                                    <LinkIcon size={14} className="text-muted-foreground shrink-0"/>
+                                                    <span className="truncate">{artist.twitter.replace('https://', '')}</span>
+                                                </a>
+                                            )}
+                                            {artist.pixiv && (
+                                                <a href={artist.pixiv} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 bg-secondary px-2 py-1 rounded hover:bg-primary hover:text-primary-foreground transition-colors" title={artist.pixiv}>
+                                                    <LinkIcon size={14} className="text-muted-foreground shrink-0"/>
+                                                    <span className="truncate">{artist.pixiv.replace('https://', '')}</span>
+                                                </a>
+                                            )}
+                                            {artist.deviantArt && (
+                                                <a href={artist.deviantArt} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 bg-secondary px-2 py-1 rounded hover:bg-primary hover:text-primary-foreground transition-colors" title={artist.deviantArt}>
+                                                    <LinkIcon size={14} className="text-muted-foreground shrink-0"/>
+                                                    <span className="truncate">{artist.deviantArt.replace('https://', '')}</span>
+                                                </a>
+                                            )}
+                                            {artist.patreon && (
+                                                <a href={artist.patreon} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 bg-secondary px-2 py-1 rounded hover:bg-primary hover:text-primary-foreground transition-colors" title={artist.patreon}>
+                                                    <LinkIcon size={14} className="text-muted-foreground shrink-0"/>
+                                                    <span className="truncate">{artist.patreon.replace('https://', '')}</span>
+                                                </a>
+                                            )}
                                         </div>
                                     </div>
                                 ))}
@@ -227,30 +258,53 @@ const Review = () => {
                     {/* Tags Tab */}
                     {tab === 'tags' && (
                         tags.length === 0 ? <EmptyState type="tags"/> :
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                                 {tags.map(tag => (
-                                    <div key={tag.id} className="bg-card border border-border p-6 rounded-xl flex justify-between items-center gap-4">
-                                        <div className="flex-1 min-w-0">
-                                            <h3 className="font-bold text-lg truncate" title={tag.name}>
-                                                {/* Link to Gallery filtered by Tag */}
-                                                <Link to={`/gallery?includedTags=${encodeURIComponent(tag.slug)}`} className="hover:underline hover:text-primary transition-colors">
-                                                    {tag.name}
+                                    <div key={tag.id} className="group bg-card border border-border rounded-xl hover:shadow-md hover:border-primary/50 transition-all overflow-hidden flex flex-col p-6">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <div className="flex flex-col gap-1 min-w-0">
+                                                <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors truncate">{tag.name}</h3>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs font-mono bg-secondary px-2 py-1 rounded text-muted-foreground select-text">#{tag.id}</span>
+                                                    <code className="text-xs text-primary/80 bg-primary/5 px-1.5 py-0.5 rounded select-text truncate" title="API Slug">{tag.slug}</code>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex gap-2 flex-shrink-0 ml-2">
+                                                <Link
+                                                    to={`/gallery?includedTags=${encodeURIComponent(tag.slug)}`}
+                                                    className="p-1.5 bg-secondary hover:bg-primary hover:text-primary-foreground rounded text-muted-foreground transition-colors shadow-sm"
+                                                    title="View in Gallery"
+                                                >
+                                                    <ExternalLink size={16} />
                                                 </Link>
-                                            </h3>
-                                            <p className="text-sm text-muted-foreground line-clamp-2">{tag.description}</p>
+                                                <button
+                                                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditingTag(tag); }}
+                                                    className="p-1.5 bg-secondary hover:bg-primary hover:text-primary-foreground rounded text-muted-foreground transition-colors shadow-sm"
+                                                    title="Edit"
+                                                >
+                                                    <Edit2 size={16}/>
+                                                </button>
+                                                {isAdmin && (
+                                                    <button
+                                                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDeletingTag(tag); }}
+                                                        className="p-1.5 bg-secondary hover:bg-destructive hover:text-destructive-foreground rounded text-muted-foreground transition-colors shadow-sm"
+                                                        title="Delete"
+                                                    >
+                                                        <Trash2 size={16}/>
+                                                    </button>
+                                                )}
+                                            </div>
                                         </div>
-                                        <div className="flex gap-2 shrink-0">
-                                            <button onClick={() => setEditingTag(tag)} className="p-3 bg-secondary text-foreground rounded-lg hover:bg-secondary/80"><Edit2 size={20}/></button>
-                                            <button onClick={() => handleReview(tag.id, true)} className="p-3 bg-green-500/10 text-green-600 rounded-lg hover:bg-green-500/20"><Check size={20}/></button>
-                                            <button onClick={() => handleReview(tag.id, false)} className="p-3 bg-red-500/10 text-red-600 rounded-lg hover:bg-red-500/20"><X size={20}/></button>
-                                        </div>
+
+                                        <p className="text-sm text-muted-foreground line-clamp-3 mt-2">{tag.description || "No description"}</p>
                                     </div>
                                 ))}
                             </div>
                     )}
 
                     {/* Pagination Controls */}
-                    {totalPages > 1 && (
+                    {totalPages > 1 && tab !== 'images' && (
                         <div className="flex justify-center items-center gap-4 mt-8 pb-4">
                             <button
                                 onClick={() => setPage(p => Math.max(1, p - 1))}
@@ -275,9 +329,32 @@ const Review = () => {
             )}
 
             {/* Edit Modals */}
-            {editingImage && <ImageModal isOpen={!!editingImage} onClose={() => setEditingImage(null)} onSubmit={handleUpdateImage} initialData={editingImage} />}
-            {editingArtist && <ArtistModal isOpen={!!editingArtist} onClose={() => setEditingArtist(null)} onSubmit={handleUpdateArtist} initialData={editingArtist} title="Edit Artist" />}
-            {editingTag && <TagModal isOpen={!!editingTag} onClose={() => setEditingTag(null)} onSubmit={handleUpdateTag} initialData={editingTag} title="Edit Tag" />}
+            {editingImage && <ImageModal isOpen={!!editingImage} onClose={() => setEditingImage(null)} onSubmit={handleUpdateImage} initialData={editingImage} onDelete={() => setDeletingImage(editingImage)} />}
+            {editingArtist && <ArtistModal isOpen={!!editingArtist} onClose={() => setEditingArtist(null)} onSubmit={handleUpdateArtist} initialData={editingArtist} title="Edit Artist" onDelete={() => setDeletingArtist(editingArtist)} isReviewMode={true} />}
+            {editingTag && <TagModal isOpen={!!editingTag} onClose={() => setEditingTag(null)} onSubmit={handleUpdateTag} initialData={editingTag} title="Edit Tag" onDelete={() => setDeletingTag(editingTag)} isReviewMode={true} />}
+
+            {/* Delete Confirmation Modals */}
+            <ConfirmModal
+                isOpen={!!deletingImage}
+                onClose={() => setDeletingImage(null)}
+                onConfirm={handleDeleteImage}
+                title="Delete Image"
+                message="Are you sure you want to delete this image? This action cannot be undone."
+            />
+            <ConfirmModal
+                isOpen={!!deletingArtist}
+                onClose={() => setDeletingArtist(null)}
+                onConfirm={handleDeleteArtist}
+                title="Delete Artist"
+                message={`Are you sure you want to delete artist "${deletingArtist?.name}"? This action cannot be undone.`}
+            />
+            <ConfirmModal
+                isOpen={!!deletingTag}
+                onClose={() => setDeletingTag(null)}
+                onConfirm={handleDeleteTag}
+                title="Delete Tag"
+                message={`Are you sure you want to delete tag "${deletingTag?.name}"? This action cannot be undone.`}
+            />
         </div>
     );
 };

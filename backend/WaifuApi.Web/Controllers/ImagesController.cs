@@ -77,12 +77,12 @@ public class ImagesController : ControllerBase
     [HttpPut("{id:long}")]
     public async Task<ActionResult<ImageDto>> Update([FromRoute] long id, [FromBody] UpdateImageRequest request)
     {
-        var command = new UpdateImageCommand(id, request.Source, request.IsNsfw, request.UserId, request.Tags, request.Artists);
+        var command = new UpdateImageCommand(id, request.Source, request.IsNsfw, request.UserId, request.Tags, request.Artists, request.ReviewStatus);
         var image = await _mediator.Send(command);
         return Ok(image);
     }
 
-    [Authorize]
+    [Authorize(Policy = "Admin")]
     [HttpDelete("{id:long}")]
     public async Task<IActionResult> Delete([FromRoute] long id)
     {
@@ -111,4 +111,5 @@ public class UpdateImageRequest
     public long? UserId { get; set; }
     public List<string>? Tags { get; set; } // Slugs
     public List<long>? Artists { get; set; } // IDs
+    public ReviewStatus? ReviewStatus { get; set; }
 }

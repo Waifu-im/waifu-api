@@ -18,6 +18,7 @@ public class GetTagsQuery : IQuery<PaginatedList<TagDto>>
     public string? Search { get; set; }
     public int Page { get; set; } = 1;
     public int PageSize { get; set; }
+    public ReviewStatus? ReviewStatus { get; set; }
 }
 
 public class GetTagsQueryHandler : IQueryHandler<GetTagsQuery, PaginatedList<TagDto>>
@@ -38,13 +39,20 @@ public class GetTagsQueryHandler : IQueryHandler<GetTagsQuery, PaginatedList<Tag
         var pageSize = request.PageSize == 0 ? _defaultPageSize : request.PageSize;
         if (_maxPageSize > 0 && pageSize > _maxPageSize) pageSize = _maxPageSize;
 
-        var query = _context.Tags
-            .AsNoTracking()
-            .Where(t => t.ReviewStatus == ReviewStatus.Accepted);
+        var query = _context.Tags.AsNoTracking();
+
+        if (request.ReviewStatus.HasValue)
+        {
+            query = query.Where(t => t.ReviewStatus == request.ReviewStatus.Value);
+        }
+        else
+        {
+            query = query.Where(t => t.ReviewStatus == ReviewStatus.Accepted);
+        }
 
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
-            query = query.Where(t => t.Name.Contains(request.Search));
+            query = query.Where(t => t.Name.ToLower().Contains(request.Search.ToLower()));
         }
 
         query = query.OrderBy(t => t.Name);

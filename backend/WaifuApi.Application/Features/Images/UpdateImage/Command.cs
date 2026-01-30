@@ -21,7 +21,8 @@ public record UpdateImageCommand(
     bool IsNsfw, 
     long? UserId, 
     List<string>? TagSlugs, // Slugs
-    List<long>? ArtistIds
+    List<long>? ArtistIds,
+    ReviewStatus? ReviewStatus
 ) : ICommand<ImageDto>;
 
 public class UpdateImageCommandHandler : ICommandHandler<UpdateImageCommand, ImageDto>
@@ -47,7 +48,7 @@ public class UpdateImageCommandHandler : ICommandHandler<UpdateImageCommand, Ima
             throw new KeyNotFoundException($"Image with ID {request.Id} not found.");
         }
 
-        image.Source = request.Source.ToNullIfEmpty();
+        image.Source = request.Source.ToNullIfEmpty()?.Trim();
         image.IsNsfw = request.IsNsfw;
 
         // Allow setting UserId to null if 0 or null is passed, or update it if a valid ID is passed
@@ -77,14 +78,15 @@ public class UpdateImageCommandHandler : ICommandHandler<UpdateImageCommand, Ima
             image.Tags.Clear();
             if (request.TagSlugs.Any())
             {
+                var trimmedSlugs = request.TagSlugs.Select(s => s.Trim()).ToList();
                 var foundTags = await _context.Tags
-                    .Where(t => request.TagSlugs.Contains(t.Slug))
+                    .Where(t => trimmedSlugs.Contains(t.Slug))
                     .ToListAsync(cancellationToken);
 
-                if (foundTags.Count != request.TagSlugs.Count)
+                if (foundTags.Count != trimmedSlugs.Count)
                 {
                     var foundSlugs = foundTags.Select(t => t.Slug).ToList();
-                    var missingSlugs = request.TagSlugs.Except(foundSlugs).ToList();
+                    var missingSlugs = trimmedSlugs.Except(foundSlugs).ToList();
                     throw new KeyNotFoundException($"Tags with slugs {string.Join(", ", missingSlugs)} not found.");
                 }
                 image.Tags = foundTags;
@@ -108,6 +110,11 @@ public class UpdateImageCommandHandler : ICommandHandler<UpdateImageCommand, Ima
                 }
                 image.Artists = foundArtists;
             }
+        }
+
+        if (request.ReviewStatus.HasValue)
+        {
+            image.ReviewStatus = request.ReviewStatus.Value;
         }
 
         await _context.SaveChangesAsync(cancellationToken);

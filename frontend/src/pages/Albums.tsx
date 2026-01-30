@@ -80,26 +80,39 @@ const Albums = () => {
 
     if (!user) return null;
 
+    // Calculate total images across all albums
+    const totalImages = albums.reduce((sum, album) => sum + (album.imageCount || 0), 0);
+
     return (
         <div className="container mx-auto p-6 md:p-10">
             <div className="flex justify-between items-center mb-10">
                 <div>
                     <h1 className="text-3xl font-black flex items-center gap-3 text-foreground"><Library className="text-primary" size={32}/> My Albums</h1>
-                    <p className="text-muted-foreground mt-1">Manage your collections.</p>
+                    <div className="flex items-center gap-2 mt-1">
+                        <p className="text-muted-foreground">Manage your collections.</p>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-secondary px-2 py-1 rounded">
+                            Total: {totalImages} image{totalImages !== 1 ? 's' : ''}
+                        </span>
+                    </div>
                 </div>
                 <button onClick={() => setIsCreateOpen(true)} className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-bold hover:opacity-90 shadow-lg transition-all whitespace-nowrap"><Plus size={20} /> <span className="hidden sm:inline">Create Album</span></button>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {loading ? [...Array(4)].map((_,i) => <div key={i} className="h-48 bg-muted rounded-2xl animate-pulse"/>) : albums.map(album => (
-                    <div key={album.id} className="group relative bg-card border border-border rounded-2xl hover:shadow-xl transition-all duration-300 hover:border-primary/30">
+                    <div key={album.id} className="group relative bg-card border border-border rounded-2xl hover:shadow-xl transition-all duration-300 hover:border-primary/30 overflow-hidden">
                         <Link to={`/albums/${album.id}`} className="block p-6 h-full flex flex-col items-center justify-center text-center">
-                            <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-4 transition-transform group-hover:scale-110 ${album.isDefault ? 'bg-rose-500/10 text-rose-500' : 'bg-secondary text-primary'}`}>
+                            <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-4 transition-transform group-hover:scale-110 shrink-0 ${album.isDefault ? 'bg-rose-500/10 text-rose-500' : 'bg-secondary text-primary'}`}>
                                 <Folder size={40} className={album.isDefault ? "fill-current" : ""} />
                             </div>
-                            <h3 className="font-bold text-xl mb-1 text-foreground">{album.name}</h3>
-                            <p className="text-sm text-muted-foreground line-clamp-2 min-h-[2.5em]">{album.description || "No description"}</p>
-                            {album.isDefault && <span className="mt-3 text-[10px] font-bold uppercase tracking-wider text-rose-500 bg-rose-500/10 px-2 py-1 rounded">Default</span>}
+                            <h3 className="font-bold text-xl mb-1 text-foreground w-full truncate px-2" title={album.name}>{album.name}</h3>
+                            <p className="text-sm text-muted-foreground line-clamp-2 min-h-[2.5em] w-full break-words px-2">{album.description || "No description"}</p>
+                            <div className="mt-3 flex items-center gap-2 shrink-0">
+                                {album.isDefault && <span className="text-[10px] font-bold uppercase tracking-wider text-rose-500 bg-rose-500/10 px-2 py-1 rounded">Default</span>}
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-secondary px-2 py-1 rounded">
+                                    {album.imageCount} Image{album.imageCount !== 1 ? 's' : ''}
+                                </span>
+                            </div>
                         </Link>
                         <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
                             <button onClick={() => { setSelectedAlbum(album); setIsEditOpen(true); }} className="p-2 bg-background border border-border rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground shadow-sm"><Edit2 size={14} /></button>

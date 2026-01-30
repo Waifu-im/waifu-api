@@ -86,14 +86,15 @@ public class UploadImageCommandHandler : ICommandHandler<UploadImageCommand, Ima
         var tags = new List<Tag>();
         if (request.TagSlugs.Any())
         {
+            var trimmedSlugs = request.TagSlugs.Select(s => s.Trim()).ToList();
             var foundTags = await _context.Tags
-                .Where(t => request.TagSlugs.Contains(t.Slug))
+                .Where(t => trimmedSlugs.Contains(t.Slug))
                 .ToListAsync(cancellationToken);
 
-            if (foundTags.Count != request.TagSlugs.Count)
+            if (foundTags.Count != trimmedSlugs.Count)
             {
                 var foundSlugs = foundTags.Select(t => t.Slug).ToList();
-                var missingSlugs = request.TagSlugs.Except(foundSlugs).ToList();
+                var missingSlugs = trimmedSlugs.Except(foundSlugs).ToList();
                 throw new KeyNotFoundException($"Tags with slugs {string.Join(", ", missingSlugs)} not found.");
             }
             tags = foundTags;
@@ -106,7 +107,7 @@ public class UploadImageCommandHandler : ICommandHandler<UploadImageCommand, Ima
             PerceptualHash = targetHash,
             Extension = metadata.Extension,
             DominantColor = metadata.DominantColor,
-            Source = request.Source.ToNullIfEmpty(),
+            Source = request.Source.ToNullIfEmpty()?.Trim(),
             Artists = artists,
             UploaderId = request.UserId,
             UploadedAt = DateTime.UtcNow,

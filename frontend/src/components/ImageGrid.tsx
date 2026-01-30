@@ -4,7 +4,7 @@ import ImageCard from './ImageCard';
 import { RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-interface ImageGridProps {
+export interface ImageGridProps {
     images: ImageDto[];
     isLoading: boolean;
     error?: any;
@@ -16,16 +16,18 @@ interface ImageGridProps {
     onDelete?: (id: number) => void;
     onRemove?: (id: number) => void;
     emptyState?: ReactNode;
+    forceOverlay?: boolean;
 }
 
 const ImageGrid = ({ 
     images, isLoading, error, onRetry, 
     page, totalPages, setPage, 
     onEdit, onDelete, onRemove,
-    emptyState
+    emptyState, forceOverlay = false
 }: ImageGridProps) => {
     const { user } = useAuth();
     const isAdminOrModerator = user && (user.role === Role.Admin || user.role === Role.Moderator);
+    const isAdmin = user && user.role === Role.Admin;
 
     if (isLoading) {
         return (
@@ -59,9 +61,10 @@ const ImageGrid = ({
                     <div key={img.id} className="break-inside-avoid relative group">
                         <ImageCard
                             image={img}
-                            onDelete={onDelete}
+                            onDelete={isAdmin ? onDelete : undefined}
                             onRemove={onRemove}
                             onEdit={isAdminOrModerator ? onEdit : undefined}
+                            forceOverlay={forceOverlay}
                         />
                     </div>
                 ))}

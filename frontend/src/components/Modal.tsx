@@ -8,9 +8,10 @@ interface ModalProps {
     children: ReactNode;
     footer?: ReactNode;
     maxWidth?: string;
+    headerContent?: ReactNode;
 }
 
-const Modal = ({ isOpen, onClose, title, children, footer, maxWidth = 'max-w-md' }: ModalProps) => {
+const Modal = ({ isOpen, onClose, title, children, footer, maxWidth = 'max-w-md', headerContent }: ModalProps) => {
     useEffect(() => {
         const handleEsc = (e: KeyboardEvent) => {
             if (e.key === 'Escape') onClose();
@@ -32,7 +33,10 @@ const Modal = ({ isOpen, onClose, title, children, footer, maxWidth = 'max-w-md'
             {/* Content */}
             <div className={`relative w-full ${maxWidth} bg-card border border-border rounded-2xl shadow-2xl flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200`}>
                 <div className="flex items-center justify-between p-6 border-b border-border">
-                    <h3 className="text-xl font-bold">{title}</h3>
+                    <div className="flex items-center gap-3">
+                        <h3 className="text-xl font-bold">{title}</h3>
+                        {headerContent}
+                    </div>
                     <button onClick={onClose} className="p-2 hover:bg-secondary rounded-full transition-colors">
                         <X size={20} />
                     </button>

@@ -42,6 +42,8 @@ public class GetImagesQuery : IQuery<PaginatedList<ImageDto>>
     
     [JsonIgnore]
     public long? AlbumId { get; set; }
+
+    public ReviewStatus? ReviewStatus { get; set; }
 }
 
 public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList<ImageDto>>
@@ -85,7 +87,8 @@ public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList
             Height = request.Height,
             ByteSize = request.ByteSize,
             UserId = request.UserId,
-            AlbumId = request.AlbumId
+            AlbumId = request.AlbumId,
+            ReviewStatus = request.ReviewStatus
         };
 
         IQueryable<Image> query = _context.Images.AsNoTracking();
@@ -139,7 +142,6 @@ public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList
             DominantColor = image.DominantColor,
             Source = image.Source,
             Artists = image.Artists
-                .Where(a => a.ReviewStatus == ReviewStatus.Accepted)
                 .Select(a => new ArtistDto 
                 {
                     Id = a.Id,
@@ -158,7 +160,7 @@ public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList
             Height = image.Height,
             ByteSize = image.ByteSize,
             Url = CdnUrlHelper.GetImageUrl(_cdnBaseUrl, image.Id, image.Extension),
-            Tags = image.Tags.Where(t => t.ReviewStatus == ReviewStatus.Accepted).Select(t => new TagDto 
+            Tags = image.Tags.Select(t => new TagDto
             { 
                 Id = t.Id, 
                 Name = t.Name, 

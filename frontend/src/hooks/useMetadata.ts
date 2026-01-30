@@ -50,7 +50,9 @@ export const useMetadata = (isReviewMode: boolean = false) => {
     // Creators
     const handleCreateTag = async (data: TagFormData) => {
         try {
-            const res = await api.post<Tag>('/tags', data, { skipGlobalErrorHandler: true });
+            // Ensure description is not undefined/null to avoid validation errors if backend requires it
+            const payload = { ...data, description: data.description || '' };
+            const res = await api.post<Tag>('/tags', payload); // Removed skipGlobalErrorHandler: true
             const newOpt = { id: res.data.id, name: res.data.name, slug: res.data.slug, description: res.data.description };
 
             setSelectedTags(p => p.some(t => t.id === newOpt.id) ? p : [...p, newOpt]);
@@ -70,15 +72,14 @@ export const useMetadata = (isReviewMode: boolean = false) => {
                 } catch (fetchErr) {
                     showNotification('error', 'Tag already exists but could not be retrieved.');
                 }
-            } else {
-                showNotification('error', 'Failed to create tag.');
-            }
+            } 
+            // Other errors are now handled by the global error handler because we removed skipGlobalErrorHandler: true
         }
     };
 
     const handleCreateArtist = async (data: ArtistFormData) => {
         try {
-            const res = await api.post<Artist>('/artists', data, { skipGlobalErrorHandler: true });
+            const res = await api.post<Artist>('/artists', data); // Removed skipGlobalErrorHandler: true
             const newOption = { id: res.data.id, name: res.data.name };
             setSelectedArtists(p => p.some(a => a.id === newOption.id) ? p : [...p, newOption]);
             showNotification(isReviewMode ? 'info' : 'success', isReviewMode ? 'Artist submitted for review' : 'Artist created');
@@ -96,9 +97,8 @@ export const useMetadata = (isReviewMode: boolean = false) => {
                 } catch (fetchErr) {
                     showNotification('error', 'Artist exists but could not be retrieved.');
                 }
-            } else {
-                showNotification('error', 'Failed to create artist.');
             }
+            // Other errors are now handled by the global error handler because we removed skipGlobalErrorHandler: true
         }
     };
 

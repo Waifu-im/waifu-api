@@ -9,6 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import TagModal from '../components/modals/TagModal';
 import ArtistModal from '../components/modals/ArtistModal';
 import { useMetadata } from '../hooks/useMetadata';
+import { ImageDto } from '../types';
 
 interface UploadForm {
   file: FileList;
@@ -66,16 +67,16 @@ const Upload = () => {
     formData.append('file', data.file[0]);
 
     // Updated keys: tags (slugs) and artists (ids)
-    selectedTags.forEach(tag => formData.append('tags', tag.slug || slugify(tag.name)));
+    selectedTags.forEach(tag => formData.append('tags', tag.slug || slugify(tag.name.trim())));
     selectedArtists.forEach(artist => formData.append('artists', String(artist.id)));
 
-    if (data.source) formData.append('source', data.source);
+    if (data.source) formData.append('source', data.source.trim());
     formData.append('isNsfw', String(data.isNsfw));
 
     try {
-      await api.post('/images/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const { data: uploadedImage } = await api.post<ImageDto>('/images/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
       showNotification(isReviewMode ? 'info' : 'success', isReviewMode ? 'Upload pending review.' : 'Image uploaded!');
-      navigate('/gallery');
+      navigate(`/images/${uploadedImage.id}`);
     } catch (e) { 
         // showNotification('error', 'Upload failed'); // Handled globally
         setIsUploading(false);
@@ -128,7 +129,7 @@ const Upload = () => {
                     selectedOptions={selectedArtists}
                     onSelect={(o) => setSelectedArtists(p => p.some(a => a.id === o.id) ? p : [...p, o])}
                     onRemove={(o) => setSelectedArtists(p => p.filter(a => a.id !== o.id))}
-                    onCreate={(name) => { setNewArtistName(name); setShowCreateArtistModal(true); }}
+                    onCreate={(name) => { setNewArtistName(name.trim()); setShowCreateArtistModal(true); }}
                     isMulti={true}
                 />
                 <SearchableSelect
@@ -138,7 +139,7 @@ const Upload = () => {
                     selectedOptions={selectedTags}
                     onSelect={(o) => setSelectedTags(p => p.some(t => t.id === o.id) ? p : [...p, o])}
                     onRemove={(o) => setSelectedTags(p => p.filter(t => t.id !== o.id))}
-                    onCreate={(name) => { setNewTagName(name); setShowCreateTagModal(true); }}
+                    onCreate={(name) => { setNewTagName(name.trim()); setShowCreateTagModal(true); }}
                     isMulti={true}
                 />
                 <div>

@@ -32,18 +32,20 @@ public class CreateArtistCommandHandler : ICommandHandler<CreateArtistCommand, A
 
     public async ValueTask<Artist> Handle(CreateArtistCommand request, CancellationToken cancellationToken)
     {
+        var trimmedName = request.Name.Trim();
+        
         // Nettoyage des inputs
-        var patreon = request.Patreon.ToNullIfEmpty();
-        var pixiv = request.Pixiv.ToNullIfEmpty();
-        var twitter = request.Twitter.ToNullIfEmpty();
-        var deviantArt = request.DeviantArt.ToNullIfEmpty();
+        var patreon = request.Patreon.ToNullIfEmpty()?.Trim();
+        var pixiv = request.Pixiv.ToNullIfEmpty()?.Trim();
+        var twitter = request.Twitter.ToNullIfEmpty()?.Trim();
+        var deviantArt = request.DeviantArt.ToNullIfEmpty()?.Trim();
 
         // OPTIMISATION : Une seule requête pour tout vérifier
         // On cherche s'il existe DEJA un artiste qui a SOIT le même nom, SOIT le même lien X, SOIT le même lien Y...
         var existingConflict = await _context.Artists
             .AsNoTracking()
             .Where(a =>
-                a.Name.ToLower() == request.Name.ToLower() ||
+                a.Name.ToLower() == trimmedName.ToLower() ||
                 (patreon != null && a.Patreon == patreon) ||
                 (pixiv != null && a.Pixiv == pixiv) ||
                 (twitter != null && a.Twitter == twitter) ||
@@ -55,8 +57,8 @@ public class CreateArtistCommandHandler : ICommandHandler<CreateArtistCommand, A
         // Si on a trouvé un conflit, on identifie lequel pour l'erreur précise
         if (existingConflict != null)
         {
-            if (string.Equals(existingConflict.Name, request.Name, StringComparison.CurrentCultureIgnoreCase))
-                throw new ConflictException($"Artist with name '{request.Name}' already exists.");
+            if (string.Equals(existingConflict.Name, trimmedName, StringComparison.CurrentCultureIgnoreCase))
+                throw new ConflictException($"Artist with name '{trimmedName}' already exists.");
             
             if (patreon != null && existingConflict.Patreon == patreon)
                 throw new ConflictException($"Artist with Patreon '{patreon}' already exists.");
@@ -75,7 +77,7 @@ public class CreateArtistCommandHandler : ICommandHandler<CreateArtistCommand, A
         
         var artist = new Artist
         {
-            Name = request.Name,
+            Name = trimmedName,
             Patreon = patreon,
             Pixiv = pixiv,
             Twitter = twitter,

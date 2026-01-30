@@ -9,10 +9,11 @@ using WaifuApi.Application.Common.Utilities;
 using WaifuApi.Application.Common.Models;
 using WaifuApi.Application.Interfaces;
 using WaifuApi.Domain.Entities;
+using WaifuApi.Domain.Enums;
 
 namespace WaifuApi.Application.Features.Tags.UpdateTag;
 
-public record UpdateTagCommand(long Id, string Name, string Description, string? Slug) : ICommand<TagDto>;
+public record UpdateTagCommand(long Id, string Name, string Description, string? Slug, ReviewStatus? ReviewStatus) : ICommand<TagDto>;
 
 public class UpdateTagCommandHandler : ICommandHandler<UpdateTagCommand, TagDto>
 {
@@ -51,6 +52,11 @@ public class UpdateTagCommandHandler : ICommandHandler<UpdateTagCommand, TagDto>
                 if (exists) throw new ConflictException($"Tag with slug '{newSlug}' already exists.");
                 tag.Slug = newSlug;
             }
+        }
+
+        if (request.ReviewStatus.HasValue)
+        {
+            tag.ReviewStatus = request.ReviewStatus.Value;
         }
         
         await _context.SaveChangesAsync(cancellationToken);

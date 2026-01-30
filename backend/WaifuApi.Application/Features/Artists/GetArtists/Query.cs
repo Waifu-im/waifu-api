@@ -17,6 +17,7 @@ public class GetArtistsQuery : IQuery<PaginatedList<Artist>>
     public string? Search { get; set; }
     public int Page { get; set; } = 1;
     public int PageSize { get; set; }
+    public ReviewStatus? ReviewStatus { get; set; }
 }
 
 public class GetArtistsQueryHandler : IQueryHandler<GetArtistsQuery, PaginatedList<Artist>>
@@ -37,13 +38,20 @@ public class GetArtistsQueryHandler : IQueryHandler<GetArtistsQuery, PaginatedLi
         var pageSize = request.PageSize == 0 ? _defaultPageSize : request.PageSize;
         if (_maxPageSize > 0 && pageSize > _maxPageSize) pageSize = _maxPageSize;
 
-        var query = _context.Artists
-            .AsNoTracking()
-            .Where(a => a.ReviewStatus == ReviewStatus.Accepted);
+        var query = _context.Artists.AsNoTracking();
+
+        if (request.ReviewStatus.HasValue)
+        {
+            query = query.Where(a => a.ReviewStatus == request.ReviewStatus.Value);
+        }
+        else
+        {
+            query = query.Where(a => a.ReviewStatus == ReviewStatus.Accepted);
+        }
 
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
-            query = query.Where(a => a.Name.Contains(request.Search));
+            query = query.Where(a => a.Name.ToLower().Contains(request.Search.ToLower()));
         }
 
         query = query.OrderBy(a => a.Name);

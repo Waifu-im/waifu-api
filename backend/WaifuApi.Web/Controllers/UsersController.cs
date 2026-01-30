@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using WaifuApi.Application.Common.Models;
 using WaifuApi.Application.Features.Users.BanUser;
 using WaifuApi.Application.Features.Users.GetMe;
+using WaifuApi.Application.Features.Users.GetUserById;
 using WaifuApi.Application.Features.Users.GetUsers;
 using WaifuApi.Application.Features.Users.UpdateUserRole;
 using WaifuApi.Domain.Entities;
@@ -30,10 +31,24 @@ public class UsersController : ControllerBase
     /// </summary>
     /// <returns>The user profile.</returns>
     [HttpGet("me")]
-    public async Task<ActionResult<User>> GetMe()
+    public async Task<ActionResult<UserDto>> GetMe()
     {
         var userId = long.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
         var user = await _mediator.Send(new GetMeQuery(userId));
+        return Ok(user);
+    }
+
+    /// <summary>
+    /// Retrieves a user by ID (Moderator only).
+    /// Returns a minimal DTO safe for moderation tools.
+    /// </summary>
+    /// <param name="id">The ID of the user.</param>
+    /// <returns>The user profile.</returns>
+    [HttpGet("{id:long}")]
+    [Authorize(Policy = "Moderator")]
+    public async Task<ActionResult<UserMinimalDto>> GetUserById(long id)
+    {
+        var user = await _mediator.Send(new GetUserByIdQuery(id));
         return Ok(user);
     }
 
@@ -46,7 +61,7 @@ public class UsersController : ControllerBase
     /// <returns>A paginated list of users.</returns>
     [HttpGet]
     [Authorize(Policy = "Admin")]
-    public async Task<ActionResult<PaginatedList<User>>> Get([FromQuery] string? search, [FromQuery] int page = 1, [FromQuery] int pageSize = 0)
+    public async Task<ActionResult<PaginatedList<UserDto>>> Get([FromQuery] string? search, [FromQuery] int page = 1, [FromQuery] int pageSize = 0)
     {
         var users = await _mediator.Send(new GetUsersQuery(search, page, pageSize));
         return Ok(users);

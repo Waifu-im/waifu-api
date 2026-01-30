@@ -8,6 +8,7 @@ import { useNotification } from '../context/NotificationContext';
 import ImageModal from '../components/modals/ImageModal';
 import ConfirmModal from '../components/modals/ConfirmModal';
 import ReportModal from '../components/modals/ReportModal';
+import AlbumDropdown from '../components/AlbumDropdown';
 
 const ImagePage = () => {
   const { id } = useParams<{ id: string }>();
@@ -25,19 +26,14 @@ const ImagePage = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
-  // Album Dropdown
-  const [userAlbums, setUserAlbums] = useState<AlbumDto[]>([]);
-  const [isAlbumMenuOpen, setIsAlbumMenuOpen] = useState(false);
-  const albumMenuRef = useRef<HTMLDivElement>(null);
-
   const isAdminOrModerator = user && (user.role === Role.Admin || user.role === Role.Moderator);
 
   // Function to fetch image (can be called silently to refresh data)
   const fetchImage = async (silent = false) => {
     try {
       if (!silent) setIsLoading(true);
-      const userId = user?.id || 0;
-      const { data } = await api.get<ImageDto>(`/images/${id}?userId=${userId}`, { skipGlobalErrorHandler: true });
+      // Removed userId query param as it's handled by auth token now
+      const { data } = await api.get<ImageDto>(`/images/${id}`, { skipGlobalErrorHandler: true });
       setImage(data);
 
       if (data.isNsfw && !silent) {
@@ -54,82 +50,7 @@ const ImagePage = () => {
 
   useEffect(() => {
     fetchImage();
-  }, [id, user?.id]);
-
-  // Close dropdown on outside click
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (albumMenuRef.current && !albumMenuRef.current.contains(event.target as Node)) {
-        setIsAlbumMenuOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const handleFetchAlbums = async () => {
-    if (!user) {
-      showNotification('warning', 'You must be logged in to manage albums.');
-      navigate('/login');
-      return;
-    }
-
-    if (userAlbums.length > 0) {
-      setIsAlbumMenuOpen(!isAlbumMenuOpen);
-      return;
-    }
-    try {
-      const { data } = await api.get<PaginatedList<AlbumDto>>('/users/me/albums', { params: { pageSize: 100 }, skipGlobalErrorHandler: true });
-      setUserAlbums(data.items);
-      setIsAlbumMenuOpen(true);
-    } catch (e) {
-      // showNotification('error', 'Failed to load albums'); // Handled globally
-    }
-  };
-
-  const handleToggleAlbum = async (targetAlbum: AlbumDto) => {
-    if (!image || !user) return;
-
-    const isInAlbum = image.albums?.some(a => a.id === targetAlbum.id);
-    // FIXED: Use isDefault to identify the Favorites album instead of name string
-    const isFavorites = targetAlbum.isDefault;
-
-    try {
-      if (isInAlbum) {
-        // REMOVE
-        await api.delete(`/users/${user.id}/albums/${targetAlbum.id}/images/${image.id}`);
-        showNotification('success', `Removed from ${targetAlbum.name}`);
-
-        setImage(prev => {
-          if (!prev) return null;
-          return {
-            ...prev,
-            albums: prev.albums?.filter(a => a.id !== targetAlbum.id),
-            // Sync Heart if removing from Favorites
-            likedAt: isFavorites ? undefined : prev.likedAt,
-            favorites: isFavorites ? Math.max(0, prev.favorites - 1) : prev.favorites
-          };
-        });
-      } else {
-        // ADD
-        await api.post(`/users/${user.id}/albums/${targetAlbum.id}/images/${image.id}`);
-        showNotification('success', `Added to ${targetAlbum.name}`);
-
-        setImage(prev => {
-          if (!prev) return null;
-          return {
-            ...prev,
-            albums: [...(prev.albums || []), targetAlbum],
-            // Sync Heart if adding to Favorites
-            likedAt: isFavorites ? new Date().toISOString() : prev.likedAt,
-            favorites: isFavorites ? prev.favorites + 1 : prev.favorites
-          };
-        });
-      }
-    } catch (e) {
-      // showNotification('error', `Failed to ${isInAlbum ? 'remove from' : 'add to'} album`); // Handled globally
-    }
-  };
+  }, [id, user?.id]); // Keep user.id dependency to refresh if user logs in/out
 
   const handleNsfwConsent = () => {
     localStorage.setItem('nsfw-consent', 'true');
@@ -173,7 +94,8 @@ const ImagePage = () => {
         isNsfw: data.isNsfw,
         userId: data.userId || null,
         tags: data.tags || [],
-        artists: data.artists || []
+        artists: data.artists || [],
+        reviewStatus: data.reviewStatus
       };
       const { data: updatedImage } = await api.put<ImageDto>(`/images/${id}`, payload);
       
@@ -263,44 +185,22 @@ const ImagePage = () => {
               </button>
 
               {/* Album Dropdown */}
-              <div className="relative flex-1 sm:flex-none" ref={albumMenuRef}>
-                <button
-                    onClick={handleFetchAlbums}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-medium text-sm"
-                >
-                  <FolderPlus size={18} className="shrink-0" />
-                  <span className="truncate">Add to Album</span>
-                  <ChevronDown size={16} className={`transition-transform shrink-0 ${isAlbumMenuOpen ? 'rotate-180' : ''}`} />
-                </button>
-
-                {isAlbumMenuOpen && (
-                    <div className="absolute top-full right-0 mt-2 w-56 bg-popover border border-border rounded-xl shadow-xl py-1 z-50 animate-in fade-in zoom-in-95 origin-top-right">
-                      {userAlbums.length === 0 ? (
-                          <div className="px-4 py-3 text-sm text-muted-foreground text-center">No albums found.</div>
-                      ) : (
-                          <div className="max-h-60 overflow-y-auto">
-                            {userAlbums.map(album => {
-                              const isInAlbum = image.albums?.some(a => a.id === album.id);
-                              return (
-                                  <button
-                                      key={album.id}
-                                      onClick={() => handleToggleAlbum(album)}
-                                      className="w-full text-left px-4 py-3 hover:bg-accent hover:text-accent-foreground text-sm flex items-center justify-between group transition-colors"
-                                  >
-                                    <span className="truncate pr-2 font-medium">{album.name}</span>
-                                    {isInAlbum && <Check size={18} className="text-primary shrink-0" />}
-                                  </button>
-                              );
-                            })}
-                          </div>
-                      )}
-                      <div className="border-t border-border mt-1 pt-1">
-                        <Link to="/albums" className="block w-full text-center px-4 py-3 text-xs font-bold text-primary hover:underline hover:bg-accent/50 rounded-b-xl">
-                          + Create New Album
-                        </Link>
-                      </div>
-                    </div>
-                )}
+              <div className="relative flex-1 sm:flex-none">
+                  <AlbumDropdown 
+                      image={image} 
+                      onUpdate={(updated) => setImage(updated)}
+                      width="w-56"
+                      align="left"
+                      trigger={
+                        <button
+                            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-medium text-sm"
+                        >
+                          <FolderPlus size={18} className="shrink-0" />
+                          <span className="truncate">Add to Album</span>
+                          <ChevronDown size={16} className="shrink-0" />
+                        </button>
+                      }
+                  />
               </div>
 
               {/* Report Button */}
@@ -346,9 +246,7 @@ const ImagePage = () => {
                 <p>Uploaded: <span className="text-foreground font-medium">{new Date(image.uploadedAt).toLocaleDateString()}</span></p>
                 <p>Size: <span className="text-foreground font-medium">{(image.byteSize / (1024 * 1024)).toFixed(2)} MB</span></p>
                 <p>Dims: <span className="text-foreground font-medium">{image.width}x{image.height}</span></p>
-                {isAdminOrModerator && (
-                    <p>Status: <span className={`font-medium ${getReviewStatusColor(image.reviewStatus)}`}>{getReviewStatusLabel(image.reviewStatus)}</span></p>
-                )}
+                <p>Status: <span className={`font-medium ${getReviewStatusColor(image.reviewStatus)}`}>{getReviewStatusLabel(image.reviewStatus)}</span></p>
               </div>
 
               <p className="flex items-center gap-2">

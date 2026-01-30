@@ -12,7 +12,7 @@ using WaifuApi.Domain.Entities;
 
 namespace WaifuApi.Application.Features.Users.GetUsers;
 
-public class GetUsersQuery : IQuery<PaginatedList<User>>
+public class GetUsersQuery : IQuery<PaginatedList<UserDto>>
 {
     public string? Search { get; set; }
     public int Page { get; set; } = 1;
@@ -28,7 +28,7 @@ public class GetUsersQuery : IQuery<PaginatedList<User>>
     public GetUsersQuery() { }
 }
 
-public class GetUsersQueryHandler : IQueryHandler<GetUsersQuery, PaginatedList<User>>
+public class GetUsersQueryHandler : IQueryHandler<GetUsersQuery, PaginatedList<UserDto>>
 {
     private readonly IWaifuDbContext _context;
     private readonly int _defaultPageSize;
@@ -41,7 +41,7 @@ public class GetUsersQueryHandler : IQueryHandler<GetUsersQuery, PaginatedList<U
         _maxPageSize = int.Parse(configuration["User:MaxPageSize"] ?? throw new InvalidOperationException("User:MaxPageSize is required."));
     }
 
-    public async ValueTask<PaginatedList<User>> Handle(GetUsersQuery request, CancellationToken cancellationToken)
+    public async ValueTask<PaginatedList<UserDto>> Handle(GetUsersQuery request, CancellationToken cancellationToken)
     {
         var pageSize = request.PageSize == 0 ? _defaultPageSize : request.PageSize;
         if (_maxPageSize > 0 && pageSize > _maxPageSize) pageSize = _maxPageSize;
@@ -50,11 +50,27 @@ public class GetUsersQueryHandler : IQueryHandler<GetUsersQuery, PaginatedList<U
 
         if (!string.IsNullOrEmpty(request.Search))
         {
-            query = query.Where(u => u.Name.Contains(request.Search) || u.DiscordId.Contains(request.Search));
+            query = query.Where(u => u.Name.ToLower().Contains(request.Search.ToLower()) || u.DiscordId.Contains(request.Search));
         }
         
         query = query.OrderBy(u => u.Id);
 
-        return await PaginatedList<User>.CreateAsync(query, request.Page, pageSize, cancellationToken);
+        var count = await query.CountAsync(cancellationToken);
+        var items = await query.Skip((request.Page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
+
+        var dtos = items.Select(u => new UserDto
+        {
+            Id = u.Id,
+            Name = u.Name,
+            DiscordId = u.DiscordId,
+            AvatarUrl = u.AvatarUrl,
+            Role = u.Role,
+            IsBlacklisted = u.IsBlacklisted,
+            RequestCount = u.RequestCount,
+            ApiKeyRequestCount = u.ApiKeyRequestCount,
+            JwtRequestCount = u.JwtRequestCount
+        }).ToList();
+
+        return new PaginatedList<UserDto>(dtos, count, request.Page, pageSize);
     }
 }

@@ -1,9 +1,9 @@
 ﻿import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Artist, Role } from '../types';
+import { Artist, ReviewStatus, Role } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
-import { Plus, Edit2, Trash2, User as UserIcon, ChevronLeft, ChevronRight, Search, ExternalLink, Info, Link as LinkIcon } from 'lucide-react';
+import { Plus, Edit2, Trash2, User as UserIcon, ChevronLeft, ChevronRight, Search, ExternalLink, Info, Link as LinkIcon, Clock, Check, X } from 'lucide-react';
 import ArtistModal, { ArtistFormData } from '../components/modals/ArtistModal';
 import ConfirmModal from '../components/modals/ConfirmModal';
 import Modal from '../components/Modal';
@@ -33,6 +33,7 @@ const Artists = () => {
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const [selectedArtist, setSelectedArtist] = useState<Artist | null>(null);
     const [infoArtist, setInfoArtist] = useState<Artist | null>(null);
+    const [formData, setFormData] = useState<ArtistFormData>({ name: '', twitter: '', pixiv: '', patreon: '', deviantArt: '' });
 
     const handleOpenCreate = () => {
         if (!user) {
@@ -40,13 +41,17 @@ const Artists = () => {
             navigate('/login', { state: { from: location } });
             return;
         }
+        setFormData({ name: '', twitter: '', pixiv: '', patreon: '', deviantArt: '' });
         setIsCreateOpen(true);
     };
 
     const handleCreate = async (data: ArtistFormData) => {
         const isMod = user?.role === Role.Moderator || user?.role === Role.Admin;
         const success = await createItem(data, isMod ? 'Artist created' : 'Artist submitted for review');
-        if (success) setIsCreateOpen(false);
+        if (success) {
+            setIsCreateOpen(false);
+            setFormData({ name: '', twitter: '', pixiv: '', patreon: '', deviantArt: '' });
+        }
     };
 
     const handleEdit = async (data: ArtistFormData) => {
@@ -59,6 +64,37 @@ const Artists = () => {
         if (!selectedArtist) return;
         const success = await deleteItem(selectedArtist.id, 'Artist deleted');
         if (success) setIsDeleteOpen(false);
+    };
+
+    const openEdit = (e: React.MouseEvent, artist: Artist) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setSelectedArtist(artist);
+        setFormData({ 
+            name: artist.name, 
+            twitter: artist.twitter, 
+            pixiv: artist.pixiv, 
+            patreon: artist.patreon, 
+            deviantArt: artist.deviantArt,
+            reviewStatus: artist.reviewStatus 
+        });
+        setIsEditOpen(true);
+    };
+
+    const openDelete = (e: React.MouseEvent, artist: Artist) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setSelectedArtist(artist);
+        setIsDeleteOpen(true);
+    };
+
+    const getStatusBadge = (status?: ReviewStatus) => {
+        switch (status) {
+            case ReviewStatus.Pending: return <span className="bg-yellow-500/10 text-yellow-600 px-2 py-0.5 rounded text-xs font-bold border border-yellow-500/20 flex items-center gap-1"><Clock size={12}/> Pending</span>;
+            case ReviewStatus.Accepted: return <span className="bg-green-500/10 text-green-600 px-2 py-0.5 rounded text-xs font-bold border border-green-500/20 flex items-center gap-1"><Check size={12}/> Accepted</span>;
+            case ReviewStatus.Rejected: return <span className="bg-red-500/10 text-red-600 px-2 py-0.5 rounded text-xs font-bold border border-red-500/20 flex items-center gap-1"><X size={12}/> Rejected</span>;
+            default: return null;
+        }
     };
 
     const canManage = user && (user.role === Role.Admin || user.role === Role.Moderator);
@@ -94,7 +130,7 @@ const Artists = () => {
                 {loading ? [...Array(8)].map((_,i) => <div key={i} className="h-40 bg-muted rounded-xl animate-pulse"/>) : artists.map(artist => (
                     <div key={artist.id} className="group bg-card border border-border rounded-xl hover:shadow-md hover:border-primary/50 transition-all overflow-hidden p-6 flex flex-col">
                         <div className="flex justify-between items-start mb-2">
-                            <div className="flex flex-col gap-1 overflow-hidden">
+                            <div className="flex flex-col gap-1 overflow-hidden min-w-0">
                                 <h3 className="font-bold text-lg truncate text-foreground group-hover:text-primary transition-colors">{artist.name}</h3>
                                 <span className="text-xs font-mono bg-secondary px-2 py-1 rounded text-muted-foreground select-text w-fit">#{artist.id}</span>
                             </div>
@@ -118,7 +154,7 @@ const Artists = () => {
                                 {canManage && (
                                     <>
                                         <button
-                                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedArtist(artist); setIsEditOpen(true); }}
+                                            onClick={(e) => openEdit(e, artist)}
                                             className="p-1.5 bg-secondary hover:bg-primary hover:text-primary-foreground rounded text-muted-foreground transition-colors shadow-sm"
                                             title="Edit"
                                         >
@@ -126,7 +162,7 @@ const Artists = () => {
                                         </button>
                                         {isAdmin && (
                                             <button
-                                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedArtist(artist); setIsDeleteOpen(true); }}
+                                                onClick={(e) => openDelete(e, artist)}
                                                 className="p-1.5 bg-secondary hover:bg-destructive hover:text-destructive-foreground rounded text-muted-foreground transition-colors shadow-sm"
                                                 title="Delete"
                                             >
@@ -177,15 +213,29 @@ const Artists = () => {
             )}
 
             <ArtistModal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} onSubmit={handleCreate} title="New Artist" isReviewMode={isReviewMode} submitLabel="Create" />
-            <ArtistModal isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} onSubmit={handleEdit} initialData={selectedArtist || undefined} title="Edit Artist" submitLabel="Save" />
+            
+            <ArtistModal 
+                isOpen={isEditOpen} 
+                onClose={() => setIsEditOpen(false)} 
+                onSubmit={handleEdit} 
+                initialData={selectedArtist ? { ...formData, id: selectedArtist.id } : formData} 
+                title="Edit Artist" 
+                submitLabel="Save" 
+                onDelete={isAdmin ? () => setIsDeleteOpen(true) : undefined}
+            />
+
             <ConfirmModal isOpen={isDeleteOpen} onClose={() => setIsDeleteOpen(false)} onConfirm={handleDelete} title="Delete Artist" message={<>Delete artist <strong>{selectedArtist?.name}</strong>?</>} />
             
-            <Modal isOpen={!!infoArtist} onClose={() => setInfoArtist(null)} title="Artist Details">
+            <Modal 
+                isOpen={!!infoArtist} 
+                onClose={() => setInfoArtist(null)} 
+                title="Artist Details"
+            >
                 {infoArtist && (
                     <div className="space-y-4">
                         <div>
                             <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Name</h3>
-                            <p className="text-lg font-medium">{infoArtist.name}</p>
+                            <p className="text-lg font-medium break-words">{infoArtist.name}</p>
                         </div>
                         <div className="grid grid-cols-1 gap-4">
                             {infoArtist.twitter && (

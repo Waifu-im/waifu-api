@@ -9,6 +9,7 @@ using WaifuApi.Application.Common.Exceptions;
 using WaifuApi.Application.Common.Utilities;
 using WaifuApi.Application.Interfaces;
 using WaifuApi.Domain.Entities;
+using WaifuApi.Domain.Enums;
 
 namespace WaifuApi.Application.Features.Artists.UpdateArtist;
 
@@ -18,7 +19,8 @@ public record UpdateArtistCommand(
     string? Patreon,
     string? Pixiv,
     string? Twitter,
-    string? DeviantArt
+    string? DeviantArt,
+    ReviewStatus? ReviewStatus
 ) : ICommand<Artist>;
 
 public class UpdateArtistCommandHandler : ICommandHandler<UpdateArtistCommand, Artist>
@@ -79,6 +81,11 @@ public class UpdateArtistCommandHandler : ICommandHandler<UpdateArtistCommand, A
         artist.Pixiv = pixiv;
         artist.Twitter = twitter;
         artist.DeviantArt = deviantArt;
+
+        if (request.ReviewStatus.HasValue)
+        {
+            artist.ReviewStatus = request.ReviewStatus.Value;
+        }
         
         await _context.SaveChangesAsync(cancellationToken);
 

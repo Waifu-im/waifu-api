@@ -1,11 +1,11 @@
 ﻿import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Tag, Role } from '../types';
+import { Tag, ReviewStatus, Role } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 import Modal from '../components/Modal';
 import TagModal, { TagFormData } from '../components/modals/TagModal';
-import { Plus, Edit2, Trash2, Tag as TagIcon, ChevronLeft, ChevronRight, ExternalLink, Search, Info } from 'lucide-react';
+import { Plus, Edit2, Trash2, Tag as TagIcon, ChevronLeft, ChevronRight, ExternalLink, Search, Info, Clock, Check, X } from 'lucide-react';
 import { useResource } from '../hooks/useResource';
 
 const Tags = () => {
@@ -69,7 +69,7 @@ const Tags = () => {
         e.preventDefault();
         e.stopPropagation();
         setSelectedTag(tag);
-        setFormData({ name: tag.name, slug: tag.slug, description: tag.description });
+        setFormData({ name: tag.name, slug: tag.slug, description: tag.description, reviewStatus: tag.reviewStatus });
         setIsEditOpen(true);
     };
 
@@ -80,9 +80,19 @@ const Tags = () => {
         setIsDeleteOpen(true);
     };
 
+    const getStatusBadge = (status?: ReviewStatus) => {
+        switch (status) {
+            case ReviewStatus.Pending: return <span className="bg-yellow-500/10 text-yellow-600 px-2 py-0.5 rounded text-xs font-bold border border-yellow-500/20 flex items-center gap-1"><Clock size={12}/> Pending</span>;
+            case ReviewStatus.Accepted: return <span className="bg-green-500/10 text-green-600 px-2 py-0.5 rounded text-xs font-bold border border-green-500/20 flex items-center gap-1"><Check size={12}/> Accepted</span>;
+            case ReviewStatus.Rejected: return <span className="bg-red-500/10 text-red-600 px-2 py-0.5 rounded text-xs font-bold border border-red-500/20 flex items-center gap-1"><X size={12}/> Rejected</span>;
+            default: return null;
+        }
+    };
+
     const isAdmin = user?.role === Role.Admin;
     const isModerator = user?.role === Role.Moderator;
     const canEdit = isAdmin || isModerator;
+    const isReviewMode = !(canEdit);
 
     return (
         <div className="container mx-auto p-6 md:p-10">
@@ -121,15 +131,15 @@ const Tags = () => {
                     tags.map(tag => (
                         <div key={tag.id} className="group bg-card border border-border rounded-xl hover:shadow-md hover:border-primary/50 transition-all overflow-hidden flex flex-col p-6">
                             <div className="flex justify-between items-start mb-2">
-                                <div className="flex flex-col gap-1">
-                                    <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors">{tag.name}</h3>
+                                <div className="flex flex-col gap-1 min-w-0">
+                                    <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors truncate">{tag.name}</h3>
                                     <div className="flex items-center gap-2">
                                         <span className="text-xs font-mono bg-secondary px-2 py-1 rounded text-muted-foreground select-text">#{tag.id}</span>
-                                        <code className="text-xs text-primary/80 bg-primary/5 px-1.5 py-0.5 rounded select-text" title="API Slug">{tag.slug}</code>
+                                        <code className="text-xs text-primary/80 bg-primary/5 px-1.5 py-0.5 rounded select-text truncate" title="API Slug">{tag.slug}</code>
                                     </div>
                                 </div>
 
-                                <div className="flex gap-2">
+                                <div className="flex gap-2 flex-shrink-0 ml-2">
                                     <button
                                         onClick={() => setInfoTag(tag)}
                                         className="p-1.5 bg-secondary hover:bg-primary hover:text-primary-foreground rounded text-muted-foreground transition-colors shadow-sm"
@@ -200,6 +210,7 @@ const Tags = () => {
                 onSubmit={handleCreate}
                 initialData={{ name: '', slug: '', description: '' }}
                 title="New Tag"
+                isReviewMode={isReviewMode}
                 submitLabel="Create"
             />
 
@@ -207,9 +218,10 @@ const Tags = () => {
                 isOpen={isEditOpen}
                 onClose={() => setIsEditOpen(false)}
                 onSubmit={handleEdit}
-                initialData={formData}
+                initialData={selectedTag ? { ...formData, id: selectedTag.id } : formData}
                 title="Edit Tag"
                 submitLabel="Save"
+                onDelete={isAdmin ? () => setIsDeleteOpen(true) : undefined}
             />
 
             <Modal isOpen={isDeleteOpen} onClose={() => setIsDeleteOpen(false)} title="Delete Tag">
@@ -223,20 +235,24 @@ const Tags = () => {
                 </div>
             </Modal>
 
-            <Modal isOpen={!!infoTag} onClose={() => setInfoTag(null)} title="Tag Details">
+            <Modal 
+                isOpen={!!infoTag} 
+                onClose={() => setInfoTag(null)} 
+                title="Tag Details"
+            >
                 {infoTag && (
                     <div className="space-y-4">
                         <div>
                             <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Name</h3>
-                            <p className="text-lg font-medium">{infoTag.name}</p>
+                            <p className="text-lg font-medium break-words">{infoTag.name}</p>
                         </div>
                         <div>
                             <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Slug</h3>
-                            <code className="text-sm bg-secondary px-2 py-1 rounded">{infoTag.slug}</code>
+                            <code className="text-sm bg-secondary px-2 py-1 rounded break-all">{infoTag.slug}</code>
                         </div>
                         <div>
                             <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Description</h3>
-                            <p className="text-base whitespace-pre-wrap">{infoTag.description || "No description available."}</p>
+                            <p className="text-base whitespace-pre-wrap break-words">{infoTag.description || "No description available."}</p>
                         </div>
                         <div className="pt-4 border-t border-border flex justify-end">
                             <Link to={`/gallery?includedTags=${encodeURIComponent(infoTag.slug)}`} className="px-4 py-2 bg-primary text-primary-foreground rounded-lg font-bold hover:opacity-90">

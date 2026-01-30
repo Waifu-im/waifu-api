@@ -54,7 +54,7 @@ public class GetPendingImagesQueryHandler : IQueryHandler<GetPendingImagesQuery,
         var imageDtos = paginatedImages.Items.Select(image => new ImageDto
         {
             Id = image.Id,
-            PerceptualHash = BitArrayHelper.ToHex(image.PerceptualHash), // Utilisation du Helper
+            PerceptualHash = BitArrayHelper.ToHex(image.PerceptualHash),
             Extension = image.Extension,
             DominantColor = image.DominantColor,
             Source = image.Source,
@@ -83,7 +83,8 @@ public class GetPendingImagesQueryHandler : IQueryHandler<GetPendingImagesQuery,
                 Slug = t.Slug,
                 Description = t.Description,
                 ReviewStatus = t.ReviewStatus
-            }).ToList()
+            }).ToList(),
+            ReviewStatus = image.ReviewStatus
         }).ToList();
 
         return new PaginatedList<ImageDto>(

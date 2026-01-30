@@ -30,6 +30,12 @@ public class LoginWithDiscordCommandHandler : ICommandHandler<LoginWithDiscordCo
         var accessToken = await _discordService.GetAccessTokenAsync(request.Code);
         var discordUser = await _discordService.GetUserProfileAsync(accessToken);
 
+        string? avatarUrl = null;
+        if (!string.IsNullOrEmpty(discordUser.Avatar))
+        {
+            avatarUrl = $"https://cdn.discordapp.com/avatars/{discordUser.Id}/{discordUser.Avatar}.png";
+        }
+
         // Find or create user
         var user = await _context.Users.FirstOrDefaultAsync(u => u.DiscordId == discordUser.Id, cancellationToken);
         if (user == null)
@@ -38,6 +44,7 @@ public class LoginWithDiscordCommandHandler : ICommandHandler<LoginWithDiscordCo
             {
                 DiscordId = discordUser.Id,
                 Name = discordUser.Username,
+                AvatarUrl = avatarUrl,
                 Role = Role.User
             };
             _context.Users.Add(user);
@@ -56,6 +63,7 @@ public class LoginWithDiscordCommandHandler : ICommandHandler<LoginWithDiscordCo
         {
             // Update info if needed
             user.Name = discordUser.Username;
+            user.AvatarUrl = avatarUrl;
         }
 
         await _context.SaveChangesAsync(cancellationToken);

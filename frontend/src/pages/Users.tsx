@@ -147,7 +147,7 @@ const Users = () => {
                                 <td className="p-4 text-right">
                                     <button
                                         onClick={() => openBanModal(user)}
-                                        className={`p-2 rounded-lg transition-colors ${user.isBlacklisted ? 'bg-green-500/10 text-green-600 hover:bg-green-500/20' : 'bg-destructive/10 text-destructive hover:bg-destructive/20'}`}
+                                        className={`p-2 rounded-lg transition-colors ${user.isBlacklisted ? 'bg-green-500/10 text-green-600 hover:bg-green-500/20' : 'bg-secondary text-red-600 hover:bg-red-500/10'}`}
                                         title={user.isBlacklisted ? "Unban" : "Ban"}
                                     >
                                         {user.isBlacklisted ? <Shield size={16} /> : <Ban size={16} />}

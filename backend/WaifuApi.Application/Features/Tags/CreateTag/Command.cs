@@ -28,14 +28,16 @@ public class CreateTagCommandHandler : ICommandHandler<CreateTagCommand, TagDto>
 
     public async ValueTask<TagDto> Handle(CreateTagCommand request, CancellationToken cancellationToken)
     {
+        var trimmedName = request.Name.Trim();
+        
         // Génération automatique du slug si non fourni
         var slug = !string.IsNullOrWhiteSpace(request.Slug) 
-            ? request.Slug.ToSlug() 
-            : request.Name.ToSlug();
+            ? request.Slug.Trim().ToSlug() 
+            : trimmedName.ToSlug();
 
         var existingTag = await _context.Tags
             .Select(t => new { t.Name, t.Slug })
-            .FirstOrDefaultAsync(t => t.Slug == slug || t.Name.ToLower() == request.Name.ToLower(), cancellationToken);
+            .FirstOrDefaultAsync(t => t.Slug == slug || t.Name.ToLower() == trimmedName.ToLower(), cancellationToken);
 
         if (existingTag != null)
         {
@@ -44,16 +46,16 @@ public class CreateTagCommandHandler : ICommandHandler<CreateTagCommand, TagDto>
                 throw new ConflictException($"Tag with slug '{slug}' already exists.");
             }
 
-            throw new ConflictException($"Tag with name '{request.Name}' already exists.");
+            throw new ConflictException($"Tag with name '{trimmedName}' already exists.");
         }
 
         var requireReview = bool.Parse(_configuration["Moderation:RequireTagReview"] ?? "true");
         
         var tag = new Tag
         {
-            Name = request.Name,
+            Name = trimmedName,
             Slug = slug,
-            Description = request.Description,
+            Description = request.Description?.Trim() ?? string.Empty,
             ReviewStatus = requireReview ? ReviewStatus.Pending : ReviewStatus.Accepted
         };
 

@@ -7,8 +7,10 @@ using WaifuApi.Application.Common.Models;
 using WaifuApi.Application.Features.GetTags;
 using WaifuApi.Application.Features.Tags.CreateTag;
 using WaifuApi.Application.Features.Tags.DeleteTag;
+using WaifuApi.Application.Features.Tags.GetTagById;
 using WaifuApi.Application.Features.Tags.GetTagBySlug;
 using WaifuApi.Application.Features.Tags.UpdateTag;
+using WaifuApi.Domain.Enums;
 
 namespace WaifuApi.Web.Controllers;
 
@@ -30,6 +32,13 @@ public class TagsController : ControllerBase
         return Ok(tags);
     }
 
+    [HttpGet("{id:long}")]
+    public async Task<ActionResult<TagDto>> GetById([FromRoute] long id)
+    {
+        var tag = await _mediator.Send(new GetTagByIdQuery(id));
+        return Ok(tag);
+    }
+
     [HttpGet("by-slug/{slug}")]
     public async Task<ActionResult<TagDto>> GetBySlug([FromRoute] string slug)
     {
@@ -49,12 +58,12 @@ public class TagsController : ControllerBase
     [HttpPut("{id:long}")]
     public async Task<ActionResult<TagDto>> Update([FromRoute] long id, [FromBody] UpdateTagRequest request)
     {
-        var command = new UpdateTagCommand(id, request.Name, request.Description, request.Slug);
+        var command = new UpdateTagCommand(id, request.Name, request.Description, request.Slug, request.ReviewStatus);
         var tag = await _mediator.Send(command);
         return Ok(tag);
     }
 
-    [Authorize(Policy = "Moderator")]
+    [Authorize(Policy = "Admin")]
     [HttpDelete("{id:long}")]
     public async Task<IActionResult> Delete([FromRoute] long id)
     {
@@ -75,4 +84,5 @@ public class UpdateTagRequest
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public string? Slug { get; set; }
+    public ReviewStatus? ReviewStatus { get; set; }
 }

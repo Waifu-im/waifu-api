@@ -4,32 +4,21 @@ import { useAuth } from '../../context/AuthContext';
 import {
     Sun, Moon, Menu, X, LogOut, Upload as UploadIcon,
     Home, Image as ImageIcon, Tag as TagIcon, ChevronRight, PanelLeft,
-    User as UserIcon, Library, ChevronDown, Palette, Key, FileCheck, Users as UsersIcon, Shield, Flag, BarChart
+    User as UserIcon, Library, ChevronDown, Palette, Key, FileCheck, Users as UsersIcon, Shield, Flag, BarChart, Monitor
 } from 'lucide-react';
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import GlobalErrorHandler from '../GlobalErrorHandler';
+import { Dropdown, DropdownItem, DropdownLabel, DropdownSeparator } from '../Dropdown';
 
 const Layout = () => {
-    const { theme, toggleTheme } = useTheme();
+    const { theme, setTheme, resolvedTheme } = useTheme();
     const { user, logout } = useAuth();
     const location = useLocation();
 
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-    const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-    const userMenuRef = useRef<HTMLDivElement>(null);
 
     const isActive = (path: string) => location.pathname === path;
-
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
-                setIsUserMenuOpen(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
 
     const handleLogout = () => {
         logout();
@@ -62,98 +51,77 @@ const Layout = () => {
                     </button>
 
                     <Link to="/" className="flex items-center gap-2 group">
-                        <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-black text-lg shadow-lg group-hover:scale-105 transition-transform">W</div>
+                        <img src="/favicon.png" alt="Logo" className="w-8 h-8 rounded-lg shadow-lg group-hover:scale-105 transition-transform" />
                         <span className="text-xl font-bold tracking-tight hidden sm:block">WAIFU.IM</span>
                     </Link>
                 </div>
 
                 <div className="flex items-center gap-2 sm:gap-4">
-                    <button
-                        onClick={toggleTheme}
-                        className="p-2.5 rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                    {/* Theme Toggle Dropdown */}
+                    <Dropdown
+                        width="w-36"
+                        trigger={
+                            <button className="p-2.5 rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors">
+                                {resolvedTheme === 'light' ? <Sun size={20} /> : <Moon size={20} />}
+                            </button>
+                        }
                     >
-                        {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
-                    </button>
+                        <DropdownItem onClick={() => setTheme('light')} active={theme === 'light'} icon={<Sun size={16} />}>Light</DropdownItem>
+                        <DropdownItem onClick={() => setTheme('dark')} active={theme === 'dark'} icon={<Moon size={16} />}>Dark</DropdownItem>
+                        <DropdownItem onClick={() => setTheme('system')} active={theme === 'system'} icon={<Monitor size={16} />}>System</DropdownItem>
+                    </Dropdown>
 
                     {user ? (
-                        <div className="relative" ref={userMenuRef}>
-                            <button
-                                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                                className="flex items-center gap-3 pl-2 pr-3 py-1.5 rounded-full hover:bg-secondary transition-colors border border-transparent hover:border-border max-w-[200px]"
-                            >
-                                <div className="w-8 h-8 shrink-0 rounded-full bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
-                                    <UserIcon size={16} />
-                                </div>
-                                <div className="text-right hidden md:block overflow-hidden">
-                                    <p className="text-xs font-bold leading-none truncate max-w-[100px]">{user.name}</p>
-                                    <p className="text-[10px] text-muted-foreground mt-0.5 uppercase tracking-wide font-semibold">
-                                        {user.role === 3 ? 'Admin' : user.role === 2 ? 'Mod' : 'User'}
-                                    </p>
-                                </div>
-                                <ChevronDown size={14} className={`text-muted-foreground shrink-0 transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`} />
-                            </button>
-
-                            {/* Enhanced Dropdown Menu */}
-                            {isUserMenuOpen && (
-                                <div className="absolute right-0 mt-2 w-64 bg-card border border-border rounded-xl shadow-xl py-2 animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
-
-                                    {/* Header Mobile */}
-                                    <div className="px-4 py-3 border-b border-border mb-1 md:hidden bg-secondary/30">
-                                        <p className="font-bold truncate">{user.name}</p>
-                                        <p className="text-xs text-muted-foreground">{user.role === 3 ? 'Administrator' : 'Member'}</p>
+                        <Dropdown
+                            width="w-64"
+                            trigger={
+                                <button className="flex items-center gap-3 pl-2 pr-3 py-1.5 rounded-full hover:bg-secondary transition-colors border border-transparent hover:border-border max-w-[200px]">
+                                    {user.avatarUrl ? (
+                                        <img src={user.avatarUrl} alt={user.name} className="w-8 h-8 shrink-0 rounded-full object-cover border border-primary/20" />
+                                    ) : (
+                                        <div className="w-8 h-8 shrink-0 rounded-full bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
+                                            <UserIcon size={16} />
+                                        </div>
+                                    )}
+                                    <div className="text-right hidden md:block overflow-hidden">
+                                        <p className="text-xs font-bold leading-none truncate max-w-[100px]">{user.name}</p>
+                                        <p className="text-[10px] text-muted-foreground mt-0.5 uppercase tracking-wide font-semibold">
+                                            {user.role === 3 ? 'Admin' : user.role === 2 ? 'Mod' : 'User'}
+                                        </p>
                                     </div>
+                                    <ChevronDown size={14} className="text-muted-foreground shrink-0" />
+                                </button>
+                            }
+                        >
+                            {/* Header Mobile */}
+                            <div className="px-4 py-3 border-b border-border mb-1 md:hidden bg-secondary/30">
+                                <p className="font-bold truncate">{user.name}</p>
+                                <p className="text-xs text-muted-foreground">{user.role === 3 ? 'Administrator' : 'Member'}</p>
+                            </div>
 
-                                    {/* User Section */}
-                                    <div className="px-2 py-1">
-                                        <p className="px-2 py-1 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Personal</p>
-                                        <Link to="/upload" onClick={() => setIsUserMenuOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-secondary text-sm font-medium transition-colors">
-                                            <UploadIcon size={16} className="text-muted-foreground" /> Upload Image
-                                        </Link>
-                                        <Link to="/albums" onClick={() => setIsUserMenuOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-secondary text-sm font-medium transition-colors">
-                                            <Library size={16} className="text-muted-foreground" /> My Albums
-                                        </Link>
-                                        <Link to="/api-keys" onClick={() => setIsUserMenuOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-secondary text-sm font-medium transition-colors">
-                                            <Key size={16} className="text-muted-foreground" /> API Keys
-                                        </Link>
-                                    </div>
+                            <DropdownLabel>Personal</DropdownLabel>
+                            <Link to="/upload"><DropdownItem icon={<UploadIcon size={16} />}>Upload Image</DropdownItem></Link>
+                            <Link to="/albums"><DropdownItem icon={<Library size={16} />}>My Albums</DropdownItem></Link>
+                            <Link to="/api-keys"><DropdownItem icon={<Key size={16} />}>API Keys</DropdownItem></Link>
 
-                                    {/* Admin/Mod Section */}
-                                    {(isModOrAdmin) && (
+                            {isModOrAdmin && (
+                                <>
+                                    <DropdownSeparator />
+                                    <DropdownLabel>Administration</DropdownLabel>
+                                    <Link to="/review"><DropdownItem icon={<FileCheck size={16} className="text-orange-500" />}>Moderation Queue</DropdownItem></Link>
+                                    <Link to="/reports"><DropdownItem icon={<Flag size={16} className="text-red-500" />}>Reports</DropdownItem></Link>
+                                    {isAdmin && (
                                         <>
-                                            <div className="my-1 border-t border-border mx-2"></div>
-                                            <div className="px-2 py-1">
-                                                <p className="px-2 py-1 text-[10px] font-bold uppercase text-muted-foreground tracking-wider flex items-center gap-1">
-                                                    <Shield size={10}/> Administration
-                                                </p>
-                                                <Link to="/review" onClick={() => setIsUserMenuOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-secondary text-sm font-medium transition-colors">
-                                                    <FileCheck size={16} className="text-orange-500" /> Moderation Queue
-                                                </Link>
-                                                <Link to="/reports" onClick={() => setIsUserMenuOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-secondary text-sm font-medium transition-colors">
-                                                    <Flag size={16} className="text-red-500" /> Reports
-                                                </Link>
-                                                {isAdmin && (
-                                                    <>
-                                                        <Link to="/users" onClick={() => setIsUserMenuOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-secondary text-sm font-medium transition-colors">
-                                                            <UsersIcon size={16} className="text-blue-500" /> User Management
-                                                        </Link>
-                                                        <Link to="/stats" onClick={() => setIsUserMenuOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-secondary text-sm font-medium transition-colors">
-                                                            <BarChart size={16} className="text-purple-500" /> Statistics
-                                                        </Link>
-                                                    </>
-                                                )}
-                                            </div>
+                                            <Link to="/users"><DropdownItem icon={<UsersIcon size={16} className="text-blue-500" />}>User Management</DropdownItem></Link>
+                                            <Link to="/stats"><DropdownItem icon={<BarChart size={16} className="text-purple-500" />}>Statistics</DropdownItem></Link>
                                         </>
                                     )}
-
-                                    <div className="my-1 border-t border-border mx-2"></div>
-                                    <div className="px-2 pb-1">
-                                        <button onClick={handleLogout} className="flex w-full items-center gap-3 px-3 py-2 rounded-lg hover:bg-destructive/10 text-destructive text-sm font-medium transition-colors">
-                                            <LogOut size={16} /> Log out
-                                        </button>
-                                    </div>
-                                </div>
+                                </>
                             )}
-                        </div>
+
+                            <DropdownSeparator />
+                            <DropdownItem onClick={handleLogout} icon={<LogOut size={16} />} danger>Log out</DropdownItem>
+                        </Dropdown>
                     ) : (
                         <Link
                             to="/login"

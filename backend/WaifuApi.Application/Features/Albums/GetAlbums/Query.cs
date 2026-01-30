@@ -54,7 +54,8 @@ public class GetAlbumsQueryHandler : IQueryHandler<GetAlbumsQuery, PaginatedList
                 Name = a.Name,
                 Description = a.Description,
                 IsDefault = a.IsDefault,
-                UserId = a.UserId
+                UserId = a.UserId,
+                ImageCount = a.Items.Count // Changed from AlbumItems to Items
             });
 
         return await PaginatedList<AlbumDto>.CreateAsync(query, request.Page, pageSize, cancellationToken);

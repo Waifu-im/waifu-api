@@ -64,9 +64,9 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<ApiKeyAuthentic
         var claims = new[]
         {
             new Claim(ClaimTypes.NameIdentifier, apiKeyEntity.UserId.ToString()),
-            new Claim(ClaimTypes.Name, "API User"), 
+            new Claim(ClaimTypes.Name, apiKeyEntity.User.Name), 
             new Claim("ApiKeyId", apiKeyEntity.Id.ToString()),
-            new Claim(ClaimTypes.Role, "User") 
+            new Claim(ClaimTypes.Role, apiKeyEntity.User.Role.ToString()) 
         };
 
         var identity = new ClaimsIdentity(claims, Scheme.Name);
@@ -74,5 +74,31 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<ApiKeyAuthentic
         var ticket = new AuthenticationTicket(principal, Scheme.Name);
 
         return AuthenticateResult.Success(ticket);
+    }
+
+    protected override async Task HandleChallengeAsync(AuthenticationProperties properties)
+    {
+        Response.StatusCode = 401;
+        Response.ContentType = "application/problem+json";
+        await Response.WriteAsJsonAsync(new 
+        {
+            Title = "Unauthorized",
+            Status = 401,
+            Detail = "You are not authorized to access this resource. Please provide a valid API Key or Bearer Token.",
+            Type = "https://tools.ietf.org/html/rfc9110#section-15.5.2"
+        });
+    }
+
+    protected override async Task HandleForbiddenAsync(AuthenticationProperties properties)
+    {
+        Response.StatusCode = 403;
+        Response.ContentType = "application/problem+json";
+        await Response.WriteAsJsonAsync(new 
+        {
+            Title = "Forbidden",
+            Status = 403,
+            Detail = "You do not have permission to access this resource.",
+            Type = "https://tools.ietf.org/html/rfc9110#section-15.5.4"
+        });
     }
 }

@@ -1,6 +1,9 @@
 ﻿import { useState, useEffect } from 'react';
 import Modal from '../Modal';
-import { Info, Loader2 } from 'lucide-react';
+import { Info, Loader2, Check, Clock, ChevronDown, Trash2 } from 'lucide-react';
+import { ReviewStatus, Role } from '../../types';
+import { Dropdown, DropdownItem } from '../Dropdown';
+import { useAuth } from '../../context/AuthContext';
 
 export interface ArtistFormData {
     name: string;
@@ -8,21 +11,34 @@ export interface ArtistFormData {
     pixiv?: string;
     patreon?: string;
     deviantArt?: string;
+    reviewStatus?: ReviewStatus;
 }
 
 interface ArtistModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSubmit: (data: ArtistFormData) => Promise<void> | void;
-    initialData?: Partial<ArtistFormData>;
+    initialData?: Partial<ArtistFormData> & { id?: number };
     title: string;
     isReviewMode?: boolean;
     submitLabel?: string;
+    onDelete?: () => void;
 }
 
-const ArtistModal = ({ isOpen, onClose, onSubmit, initialData, title, isReviewMode, submitLabel = "Save" }: ArtistModalProps) => {
-    const [formData, setFormData] = useState<ArtistFormData>({ name: '', twitter: '', pixiv: '', patreon: '', deviantArt: '' });
+const ArtistModal = ({ isOpen, onClose, onSubmit, initialData, title, isReviewMode, submitLabel = "Save", onDelete }: ArtistModalProps) => {
+    const { user } = useAuth();
+    const [formData, setFormData] = useState<ArtistFormData>({ 
+        name: '', 
+        twitter: '', 
+        pixiv: '', 
+        patreon: '', 
+        deviantArt: '',
+        reviewStatus: ReviewStatus.Pending 
+    });
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const isEditMode = !!initialData?.id;
+    const isAdmin = user?.role === Role.Admin;
 
     useEffect(() => {
         if (isOpen) {
@@ -31,7 +47,8 @@ const ArtistModal = ({ isOpen, onClose, onSubmit, initialData, title, isReviewMo
                 twitter: initialData?.twitter || '',
                 pixiv: initialData?.pixiv || '',
                 patreon: initialData?.patreon || '',
-                deviantArt: initialData?.deviantArt || ''
+                deviantArt: initialData?.deviantArt || '',
+                reviewStatus: initialData?.reviewStatus ?? ReviewStatus.Pending
             });
             setIsSubmitting(false);
         }
@@ -47,10 +64,52 @@ const ArtistModal = ({ isOpen, onClose, onSubmit, initialData, title, isReviewMo
         }
     };
 
+    const getStatusBadge = (status?: ReviewStatus) => {
+        switch (status) {
+            case ReviewStatus.Pending: return <span className="bg-yellow-500/10 text-yellow-600 px-2 py-1 rounded text-xs font-bold border border-yellow-500/20 flex items-center gap-1"><Clock size={12}/> Pending</span>;
+            case ReviewStatus.Accepted: return <span className="bg-green-500/10 text-green-600 px-2 py-1 rounded text-xs font-bold border border-green-500/20 flex items-center gap-1"><Check size={12}/> Accepted</span>;
+            default: return <span className="text-muted-foreground text-xs">Select Status</span>;
+        }
+    };
+
+    const renderStatusDropdown = () => {
+        return (
+            <Dropdown 
+                trigger={
+                    <div className="w-full p-3 bg-secondary rounded-lg flex items-center justify-between cursor-pointer hover:bg-secondary/80 transition-colors border border-transparent focus-within:border-primary">
+                        {getStatusBadge(formData.reviewStatus)}
+                        <ChevronDown size={16} className="text-muted-foreground"/>
+                    </div>
+                }
+                align="left"
+                width="w-full"
+            >
+                <DropdownItem 
+                    onClick={() => setFormData({...formData, reviewStatus: ReviewStatus.Pending})}
+                    active={formData.reviewStatus === ReviewStatus.Pending}
+                    icon={<Clock size={14}/>}
+                >
+                    Pending
+                </DropdownItem>
+                <DropdownItem 
+                    onClick={() => setFormData({...formData, reviewStatus: ReviewStatus.Accepted})}
+                    active={formData.reviewStatus === ReviewStatus.Accepted}
+                    icon={<Check size={14}/>}
+                >
+                    Accepted
+                </DropdownItem>
+            </Dropdown>
+        );
+    };
+
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title={title}>
+        <Modal 
+            isOpen={isOpen} 
+            onClose={onClose} 
+            title={title}
+        >
             <div className="space-y-4">
-                {isReviewMode && (
+                {isReviewMode && !isEditMode && (
                     <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 flex items-start gap-3">
                         <Info className="text-blue-500 shrink-0 mt-0.5" size={20} />
                         <div>
@@ -59,6 +118,14 @@ const ArtistModal = ({ isOpen, onClose, onSubmit, initialData, title, isReviewMo
                                 New artists must be approved by a moderator before appearing in public lists.
                             </p>
                         </div>
+                    </div>
+                )}
+
+                {/* Always show review status in edit mode */}
+                {isEditMode && (
+                    <div>
+                        <label className="block text-sm font-bold mb-1">Review Status</label>
+                        {renderStatusDropdown()}
                     </div>
                 )}
 
@@ -89,14 +156,25 @@ const ArtistModal = ({ isOpen, onClose, onSubmit, initialData, title, isReviewMo
                     ))}
                 </div>
 
-                <button
-                    onClick={handleSubmit}
-                    disabled={isSubmitting}
-                    className="w-full py-3 bg-primary text-primary-foreground font-bold rounded-lg mt-2 flex items-center justify-center gap-2 disabled:opacity-70"
-                >
-                    {isSubmitting && <Loader2 size={18} className="animate-spin" />}
-                    {submitLabel}
-                </button>
+                <div className="flex gap-3 pt-2">
+                    <button
+                        onClick={handleSubmit}
+                        disabled={isSubmitting}
+                        className="flex-1 py-3 bg-primary text-primary-foreground font-bold rounded-lg flex items-center justify-center gap-2 disabled:opacity-70"
+                    >
+                        {isSubmitting && <Loader2 size={18} className="animate-spin" />}
+                        {submitLabel}
+                    </button>
+                    {onDelete && isAdmin && (
+                        <button
+                            onClick={onDelete}
+                            disabled={isSubmitting}
+                            className="px-4 py-3 bg-secondary text-red-600 hover:bg-red-500/10 font-bold rounded-lg flex items-center justify-center gap-2 disabled:opacity-70 transition-colors"
+                        >
+                            <Trash2 size={18} />
+                        </button>
+                    )}
+                </div>
             </div>
         </Modal>
     );

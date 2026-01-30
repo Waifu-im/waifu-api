@@ -21,6 +21,7 @@ public class ValidateApiKeyQueryHandler : IQueryHandler<ValidateApiKeyQuery, Api
     public async ValueTask<ApiKey?> Handle(ValidateApiKeyQuery request, CancellationToken cancellationToken)
     {
         var key = await _context.ApiKeys
+            .Include(k => k.User)
             .FirstOrDefaultAsync(k => k.Key == request.KeyString, cancellationToken);
             
         return key;

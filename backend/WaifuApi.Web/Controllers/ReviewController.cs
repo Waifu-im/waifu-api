@@ -9,6 +9,7 @@ using WaifuApi.Application.Features.Review.Images.ReviewImage;
 using WaifuApi.Application.Features.Review.Tags.GetPendingTags;
 using WaifuApi.Application.Features.Review.Tags.ReviewTag;
 using WaifuApi.Domain.Entities;
+using WaifuApi.Domain.Enums;
 
 namespace WaifuApi.Web.Controllers;
 

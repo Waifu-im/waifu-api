@@ -81,7 +81,7 @@ const SearchableSelect = ({
 
     const handleOptionClick = (option: Option) => {
         const isSelected = selectedOptions.some(selected =>
-            selected.id === option.id || selected.name === option.name
+            selected.id === option.id || selected.name.toLowerCase() === option.name.toLowerCase()
         );
 
         if (isSelected) {
@@ -135,9 +135,20 @@ const SearchableSelect = ({
             </div>
 
             {isOpen && (
-                <div className="absolute z-50 w-full mt-2 bg-popover border border-border rounded-xl shadow-xl max-h-60 overflow-auto py-1 animate-in fade-in slide-in-from-top-2">
+                <div className="absolute z-50 w-full mt-2 bg-popover border border-border rounded-xl shadow-xl max-h-60 overflow-auto animate-in fade-in slide-in-from-top-2 overflow-hidden flex flex-col">
+                    {/* Create Option - Always First */}
+                    {onCreate && !displayedOptions.some(o => o.name.toLowerCase() === searchTerm.toLowerCase()) && (
+                        <div
+                            className="px-4 py-3 hover:bg-accent hover:text-accent-foreground cursor-pointer flex items-center gap-2 text-primary font-medium text-sm border-b border-border sticky top-0 bg-popover z-10"
+                            onClick={() => { onCreate(searchTerm); setIsOpen(false); setSearchTerm(''); }}
+                        >
+                            <Plus size={16} /> {searchTerm ? `Create "${searchTerm}"` : "Create New"}
+                        </div>
+                    )}
+
+                    {/* Options List */}
                     {displayedOptions.map(option => {
-                        const isSelected = selectedOptions.some(s => s.id === option.id || s.name === option.name);
+                        const isSelected = selectedOptions.some(s => s.id === option.id || s.name.toLowerCase() === option.name.toLowerCase());
                         return (
                             <div
                                 key={option.id}
@@ -157,16 +168,7 @@ const SearchableSelect = ({
                         );
                     })}
 
-                    {searchTerm && onCreate && !options.some(o => o.name.toLowerCase() === searchTerm.toLowerCase()) && (
-                        <div
-                            className="px-4 py-3 hover:bg-accent hover:text-accent-foreground cursor-pointer flex items-center gap-2 text-primary font-medium text-sm border-t border-border mt-1"
-                            onClick={() => { onCreate(searchTerm); setIsOpen(false); setSearchTerm(''); }}
-                        >
-                            <Plus size={16} /> Create "{searchTerm}"
-                        </div>
-                    )}
-
-                    {displayedOptions.length === 0 && !searchTerm && !isLoading && (
+                    {displayedOptions.length === 0 && !searchTerm && !isLoading && !onCreate && (
                         <div className="px-4 py-8 text-center text-muted-foreground text-sm">No options found.</div>
                     )}
                     

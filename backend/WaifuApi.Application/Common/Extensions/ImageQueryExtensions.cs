@@ -11,7 +11,33 @@ public static class ImageQueryExtensions
 {
     public static IQueryable<Image> ApplyFilters(this IQueryable<Image> query, ImageFilters filters)
     {
-        query = query.Where(i => i.ReviewStatus == ReviewStatus.Accepted);
+        // If AlbumId is present, we don't filter by ReviewStatus here because the album logic handles it (or should show all in album regardless of status if that's the intent, but usually albums contain accepted images unless it's a personal album where pending might be allowed? The prompt says "pending image should be displayed in albums. Only in albums not regular Getimage")
+        // Actually, if we are in an album context, we might want to override the default "Accepted only" behavior.
+        // The prompt says: "pending image should be displayed in albums. Only in albums not regular Getimage"
+        
+        if (filters.AlbumId.HasValue)
+        {
+            // If viewing an album, we don't enforce ReviewStatus=Accepted. 
+            // We allow whatever is in the album (which could include pending images if the user added them).
+            // If a specific ReviewStatus is requested via API, we respect it, otherwise we don't filter by status.
+            if (filters.ReviewStatus.HasValue)
+            {
+                query = query.Where(i => i.ReviewStatus == filters.ReviewStatus.Value);
+            }
+            // Else: No status filter applied for albums, showing all statuses (Pending, Accepted, Rejected)
+        }
+        else
+        {
+            // Regular GetImages (Gallery): Enforce ReviewStatus logic
+            if (filters.ReviewStatus.HasValue)
+            {
+                query = query.Where(i => i.ReviewStatus == filters.ReviewStatus.Value);
+            }
+            else
+            {
+                query = query.Where(i => i.ReviewStatus == ReviewStatus.Accepted);
+            }
+        }
 
         switch (filters.IsNsfw)
         {

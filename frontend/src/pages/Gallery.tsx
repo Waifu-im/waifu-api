@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useImages } from '../hooks/useImages';
-import { SlidersHorizontal, Search } from 'lucide-react';
+import { SlidersHorizontal, Search, RefreshCw } from 'lucide-react';
 import api from '../services/api';
 import { ImageDto, Role, ImageFormData, ImageSort } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -50,6 +50,7 @@ const Gallery = () => {
   const page = pageStr ? parseInt(pageStr) : 1;
 
   const isAdminOrModerator = user && (user.role === Role.Admin || user.role === Role.Moderator);
+  const isAdmin = user?.role === Role.Admin;
   const isAnimatedBool = isAnimatedStr === 'true' ? true : isAnimatedStr === 'false' ? false : undefined;
 
   const { data: paginatedImages, isLoading, error, refetch } = useImages({
@@ -105,7 +106,8 @@ const Gallery = () => {
         isNsfw: data.isNsfw,
         userId: data.userId || null,
         tags: data.tags || [], // Updated key
-        artists: data.artists || [] // Updated key
+        artists: data.artists || [], // Updated key
+        reviewStatus: data.reviewStatus
       };
       await api.put<ImageDto>(`/images/${editingImage.id}`, payload);
       showNotification('success', 'Image updated');
@@ -137,9 +139,18 @@ const Gallery = () => {
             <h2 className="text-2xl font-black tracking-tight text-foreground flex gap-2">
               Gallery
             </h2>
-            <button onClick={() => setShowFilters(!showFilters)} className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg text-sm font-medium shadow-sm hover:bg-secondary transition-colors">
-              <SlidersHorizontal size={16} /> <span className="hidden sm:inline">{showFilters ? 'Hide' : 'Filters'}</span>
-            </button>
+            <div className="flex items-center gap-2">
+                <button
+                    onClick={() => refetch()}
+                    className="p-2 bg-card border border-border rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors shadow-sm"
+                    title="Refresh"
+                >
+                    <RefreshCw size={16} />
+                </button>
+                <button onClick={() => setShowFilters(!showFilters)} className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg text-sm font-medium shadow-sm hover:bg-secondary transition-colors">
+                  <SlidersHorizontal size={16} /> <span className="hidden sm:inline">{showFilters ? 'Hide' : 'Filters'}</span>
+                </button>
+            </div>
           </div>
 
           <ImageGrid
@@ -150,7 +161,7 @@ const Gallery = () => {
               page={page}
               totalPages={totalPages}
               setPage={setPage}
-              onDelete={confirmDelete}
+              onDelete={isAdmin ? confirmDelete : undefined}
               onEdit={isAdminOrModerator ? (img) => { setEditingImage(img); setIsEditModalOpen(true); } : undefined}
               emptyState={
                   <div className="flex flex-col items-center justify-center h-[50vh] text-muted-foreground">

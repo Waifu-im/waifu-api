@@ -5,10 +5,12 @@ using Microsoft.AspNetCore.Mvc;
 using WaifuApi.Application.Common.Models;
 using WaifuApi.Application.Features.Artists.CreateArtist;
 using WaifuApi.Application.Features.Artists.DeleteArtist;
+using WaifuApi.Application.Features.Artists.GetArtistById;
 using WaifuApi.Application.Features.Artists.GetArtistByName;
 using WaifuApi.Application.Features.Artists.GetArtists;
 using WaifuApi.Application.Features.Artists.UpdateArtist;
 using WaifuApi.Domain.Entities;
+using WaifuApi.Domain.Enums;
 
 namespace WaifuApi.Web.Controllers;
 
@@ -33,6 +35,18 @@ public class ArtistsController : ControllerBase
     {
         var artists = await _mediator.Send(query);
         return Ok(artists);
+    }
+
+    /// <summary>
+    /// Retrieves an artist by ID.
+    /// </summary>
+    /// <param name="id">The ID of the artist.</param>
+    /// <returns>The artist details.</returns>
+    [HttpGet("{id:long}")]
+    public async Task<ActionResult<ArtistDto>> GetById([FromRoute] long id)
+    {
+        var artist = await _mediator.Send(new GetArtistByIdQuery(id));
+        return Ok(artist);
     }
 
     /// <summary>
@@ -83,7 +97,8 @@ public class ArtistsController : ControllerBase
             request.Patreon,
             request.Pixiv,
             request.Twitter,
-            request.DeviantArt
+            request.DeviantArt,
+            request.ReviewStatus
         );
         var artist = await _mediator.Send(command);
         return Ok(artist);
@@ -93,7 +108,7 @@ public class ArtistsController : ControllerBase
     /// Deletes an artist.
     /// </summary>
     /// <param name="id">The artist ID.</param>
-    [Authorize(Policy = "Moderator")]
+    [Authorize(Policy = "Admin")]
     [HttpDelete("{id:long}")]
     public async Task<IActionResult> Delete([FromRoute] long id)
     {
@@ -118,4 +133,5 @@ public class UpdateArtistRequest
     public string? Pixiv { get; set; }
     public string? Twitter { get; set; }
     public string? DeviantArt { get; set; }
+    public ReviewStatus? ReviewStatus { get; set; }
 }

@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import { PaginatedList } from '../types';
 import { useNotification } from '../context/NotificationContext';
@@ -10,11 +11,15 @@ export function useResource<T extends { id: number | string }>(
     initialParams: Record<string, any> = {}
 ) {
     const { showNotification } = useNotification();
+    const [searchParams] = useSearchParams();
+    
     const [items, setItems] = useState<T[]>([]);
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
-    const [search, setSearch] = useState('');
+    
+    // Initialize search from URL query param if present
+    const [search, setSearch] = useState(searchParams.get('search') || '');
     const debouncedSearch = useDebounce(search, 500);
 
     const fetchData = useCallback(async () => {

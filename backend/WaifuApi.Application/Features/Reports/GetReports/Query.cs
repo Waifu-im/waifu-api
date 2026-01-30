@@ -66,7 +66,7 @@ public class GetReportsQueryHandler : IQueryHandler<GetReportsQuery, PaginatedLi
         {
             Id = report.Id,
             UserId = report.UserId,
-            User = report.User != null ? new UserDto { Id = report.User.Id, Name = report.User.Name } : null,
+            User = report.User != null ? new UserMinimalDto { Id = report.User.Id, Name = report.User.Name } : null,
             ImageId = report.ImageId,
             Image = report.Image != null ? new ImageDto
             {

@@ -43,6 +43,7 @@ export interface User {
   name: string;
   role: Role;
   discordId?: string;
+  avatarUrl?: string;
   isBlacklisted: boolean;
   requestCount?: number;
   apiKeyRequestCount?: number;
@@ -54,6 +55,7 @@ export interface AlbumDto {
   name: string;
   description: string;
   isDefault: boolean;
+  imageCount?: number;
 }
 
 export interface ApiKeyDto {
@@ -111,6 +113,7 @@ export interface ImageFormData {
   tags: string[];
   artists: number[];
   userId?: number;
+  reviewStatus?: ReviewStatus;
 }
 
 export interface PublicStats {

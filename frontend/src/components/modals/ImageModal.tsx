@@ -1,23 +1,29 @@
 ﻿import { useState, useEffect } from 'react';
 import Modal from '../Modal';
-import { ImageDto, ImageFormData, PaginatedList, User } from '../../types';
+import { ImageDto, ImageFormData, PaginatedList, User, ReviewStatus, Role } from '../../types';
 import SearchableSelect, { Option } from '../SearchableSelect';
 import api from '../../services/api';
 import TagModal from './TagModal';
 import ArtistModal from './ArtistModal';
 import { useMetadata } from '../../hooks/useMetadata';
+import { Dropdown, DropdownItem } from '../Dropdown';
+import { Check, Clock, ChevronDown, Trash2 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 interface ImageModalProps {
     isOpen: boolean;
     onClose: () => void;
     initialData?: ImageDto;
     onSubmit: (data: ImageFormData) => Promise<void> | void;
+    onDelete?: () => void;
 }
 
-const ImageModal = ({ isOpen, onClose, initialData, onSubmit }: ImageModalProps) => {
+const ImageModal = ({ isOpen, onClose, initialData, onSubmit, onDelete }: ImageModalProps) => {
+    const { user } = useAuth();
     const [source, setSource] = useState('');
     const [isNsfw, setIsNsfw] = useState(false);
     const [selectedUser, setSelectedUser] = useState<Option | null>(null);
+    const [reviewStatus, setReviewStatus] = useState<ReviewStatus>(ReviewStatus.Pending);
 
     const {
         selectedTags, setSelectedTags,
@@ -30,19 +36,26 @@ const ImageModal = ({ isOpen, onClose, initialData, onSubmit }: ImageModalProps)
         handleCreateTag, handleCreateArtist
     } = useMetadata();
 
+    const isAdmin = user?.role === Role.Admin;
+
     useEffect(() => {
         if (isOpen && initialData) {
             setSource(initialData.source || '');
             setIsNsfw(initialData.isNsfw);
             setSelectedTags(initialData.tags ? initialData.tags.map(t => ({ id: t.id, name: t.name, slug: t.slug, description: t.description })) : []);
             setSelectedArtists(initialData.artists ? initialData.artists.map(a => ({ id: a.id, name: a.name })) : []);
+            setReviewStatus(initialData.reviewStatus ?? ReviewStatus.Pending);
 
             if (initialData.uploaderId) {
-                api.get<User>(`/users/${initialData.uploaderId}`).then(res => {
-                     setSelectedUser({ id: res.data.id, name: res.data.name });
-                }).catch(() => {
-                    setSelectedUser({ id: initialData.uploaderId, name: `User #${initialData.uploaderId}` });
-                });
+                // Try to fetch user details, but don't block the modal if it fails
+                api.get<User>(`/users/${initialData.uploaderId}`, { skipGlobalErrorHandler: true })
+                    .then(res => {
+                         setSelectedUser({ id: res.data.id, name: res.data.name });
+                    })
+                    .catch(() => {
+                        // Fallback if user not found or error
+                        setSelectedUser({ id: initialData.uploaderId, name: `User #${initialData.uploaderId}` });
+                    });
             } else {
                 setSelectedUser(null);
             }
@@ -52,6 +65,7 @@ const ImageModal = ({ isOpen, onClose, initialData, onSubmit }: ImageModalProps)
             setSelectedTags([]);
             setSelectedArtists([]);
             setSelectedUser(null);
+            setReviewStatus(ReviewStatus.Pending);
         }
     }, [initialData, isOpen]);
 
@@ -68,8 +82,47 @@ const ImageModal = ({ isOpen, onClose, initialData, onSubmit }: ImageModalProps)
             tags: selectedTags.map(t => t.slug!),
             artists: selectedArtists.map(a => Number(a.id)),
             userId: selectedUser ? Number(selectedUser.id) : undefined,
+            reviewStatus: reviewStatus
         });
         onClose();
+    };
+
+    const getStatusBadge = (status?: ReviewStatus) => {
+        switch (status) {
+            case ReviewStatus.Pending: return <span className="bg-yellow-500/10 text-yellow-600 px-2 py-1 rounded text-xs font-bold border border-yellow-500/20 flex items-center gap-1"><Clock size={12}/> Pending</span>;
+            case ReviewStatus.Accepted: return <span className="bg-green-500/10 text-green-600 px-2 py-1 rounded text-xs font-bold border border-green-500/20 flex items-center gap-1"><Check size={12}/> Accepted</span>;
+            default: return <span className="text-muted-foreground text-xs">Select Status</span>;
+        }
+    };
+
+    const renderStatusDropdown = () => {
+        return (
+            <Dropdown 
+                trigger={
+                    <div className="w-full p-3 bg-secondary rounded-lg flex items-center justify-between cursor-pointer hover:bg-secondary/80 transition-colors border border-transparent focus-within:border-primary">
+                        {getStatusBadge(reviewStatus)}
+                        <ChevronDown size={16} className="text-muted-foreground"/>
+                    </div>
+                }
+                align="left"
+                width="w-full"
+            >
+                <DropdownItem 
+                    onClick={() => setReviewStatus(ReviewStatus.Pending)}
+                    active={reviewStatus === ReviewStatus.Pending}
+                    icon={<Clock size={14}/>}
+                >
+                    Pending
+                </DropdownItem>
+                <DropdownItem 
+                    onClick={() => setReviewStatus(ReviewStatus.Accepted)}
+                    active={reviewStatus === ReviewStatus.Accepted}
+                    icon={<Check size={14}/>}
+                >
+                    Accepted
+                </DropdownItem>
+            </Dropdown>
+        );
     };
 
     return (
@@ -80,6 +133,11 @@ const ImageModal = ({ isOpen, onClose, initialData, onSubmit }: ImageModalProps)
                 title={initialData ? `Edit Image #${initialData.id}` : 'Edit Image'}
             >
                 <div className="space-y-5">
+                    <div>
+                        <label className="block text-sm font-bold mb-1">Review Status</label>
+                        {renderStatusDropdown()}
+                    </div>
+
                     <SearchableSelect
                         label="Artists"
                         placeholder="Search artists..."
@@ -135,12 +193,22 @@ const ImageModal = ({ isOpen, onClose, initialData, onSubmit }: ImageModalProps)
                         isMulti={false}
                     />
 
-                    <button
-                        onClick={() => handleSubmit()}
-                        className="w-full bg-primary text-primary-foreground py-3.5 rounded-xl font-bold hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 mt-2"
-                    >
-                        Save Changes
-                    </button>
+                    <div className="flex gap-3 pt-2">
+                        <button
+                            onClick={() => handleSubmit()}
+                            className="flex-1 bg-primary text-primary-foreground py-3.5 rounded-xl font-bold hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
+                        >
+                            Save Changes
+                        </button>
+                        {onDelete && isAdmin && (
+                            <button
+                                onClick={onDelete}
+                                className="px-4 py-3.5 bg-secondary text-red-600 hover:bg-red-500/10 font-bold rounded-xl flex items-center justify-center gap-2 transition-colors"
+                            >
+                                <Trash2 size={20} />
+                            </button>
+                        )}
+                    </div>
                 </div>
             </Modal>
 

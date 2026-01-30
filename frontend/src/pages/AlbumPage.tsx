@@ -2,7 +2,7 @@
 import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { ImageDto, PaginatedList, AlbumDto, ImageFormData, Role, ImageSort } from '../types';
-import { ChevronLeft, FolderOpen, Edit2, Trash2, FolderMinus, SlidersHorizontal } from 'lucide-react';
+import { ChevronLeft, FolderOpen, Edit2, Trash2, FolderMinus, SlidersHorizontal, RefreshCw } from 'lucide-react';
 import { useNotification } from '../context/NotificationContext';
 import { useAuth } from '../context/AuthContext';
 import Modal from '../components/Modal';
@@ -36,6 +36,14 @@ const AlbumPage = () => {
     const isAdminOrModerator = user && (user.role === Role.Admin || user.role === Role.Moderator);
 
     useEffect(() => {
+        if (!user) {
+            showNotification('warning', 'You must be logged in to view albums.');
+            navigate('/login');
+            return;
+        }
+    }, [user, navigate, showNotification]);
+
+    useEffect(() => {
         if (!searchParams.has('orderBy')) {
             setSearchParams(prev => {
                 prev.set('orderBy', ImageSort.ADDED_TO_ALBUM);
@@ -53,7 +61,7 @@ const AlbumPage = () => {
 
             const params = new URLSearchParams(searchParams);
             params.set('pageSize', '50');
-            params.set('page', '1');
+            if (!params.has('page')) params.set('page', '1');
 
             const imgsRes = await api.get<PaginatedList<ImageDto>>(`/users/me/albums/${id}/images`, { params });
             if (imgsRes.data && Array.isArray(imgsRes.data.items)) {
@@ -79,6 +87,10 @@ const AlbumPage = () => {
         try {
             await api.delete(`/users/me/albums/${id}/images/${imageToRemove}`);
             setImages(prev => prev.filter(img => img.id !== imageToRemove));
+            // Update album count locally
+            if (album) {
+                setAlbum({ ...album, imageCount: Math.max(0, (album.imageCount || 0) - 1) });
+            }
             showNotification('success', 'Image removed from album');
             setImageToRemove(null);
         } catch(e) {
@@ -137,48 +149,74 @@ const AlbumPage = () => {
         { id: ImageSort.RANDOM, name: 'Random Shuffle' },
     ];
 
-    if (!user) return <div className="p-10 text-center">Please log in.</div>;
+    if (!user) return null; // Redirect handled in useEffect
     if (loading && !album) return <div className="p-10 text-center">Loading album...</div>;
 
     return (
         <div className="flex h-full relative overflow-hidden">
             <div className="flex-1 overflow-y-auto h-full p-4 md:p-6">
-                <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
-                    <div className="flex items-center gap-4">
-                        <Link to="/albums" className="p-2 rounded-full bg-secondary hover:bg-secondary/80 transition-colors">
+                <div className="flex flex-col md:flex-row md:items-start justify-between mb-8 gap-4">
+                    <div className="flex items-start gap-4 overflow-hidden max-w-full">
+                        <Link to="/albums" className="p-2 rounded-full bg-secondary hover:bg-secondary/80 transition-colors shrink-0 mt-1">
                             <ChevronLeft size={24} />
                         </Link>
-                        <div>
-                            <div className="flex items-center gap-3">
-                                <h1 className="text-3xl font-black flex items-center gap-2 text-foreground">
-                                    <FolderOpen className="text-primary" /> {album?.name || "Album"}
+                        <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-3 flex-wrap">
+                                <h1 className="text-3xl font-black flex items-center gap-2 text-foreground truncate">
+                                    <FolderOpen className="text-primary shrink-0" /> 
+                                    <span className="truncate">{album?.name || "Album"}</span>
                                 </h1>
-                                <button
-                                    onClick={() => { setEditAlbumFormData({ name: album?.name || '', description: album?.description || '' }); setIsEditAlbumOpen(true); }}
-                                    className="p-1.5 rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground"
-                                    title="Edit Album"
-                                >
-                                    <Edit2 size={16} />
-                                </button>
-                                <button
-                                    onClick={() => setIsDeleteAlbumOpen(true)}
-                                    className="p-1.5 rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                                    title="Delete Album"
-                                >
-                                    <Trash2 size={16} />
-                                </button>
+                                <div className="flex items-center gap-1 shrink-0">
+                                    <button
+                                        onClick={() => { setEditAlbumFormData({ name: album?.name || '', description: album?.description || '' }); setIsEditAlbumOpen(true); }}
+                                        className="p-1.5 rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground"
+                                        title="Edit Album"
+                                    >
+                                        <Edit2 size={16} />
+                                    </button>
+                                    {!album?.isDefault && (
+                                        <button
+                                            onClick={() => setIsDeleteAlbumOpen(true)}
+                                            className="p-1.5 rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                                            title="Delete Album"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    )}
+                                </div>
                             </div>
-                            <p className="text-muted-foreground mt-1">{album?.description || `${images?.length || 0} images`}</p>
+                            
+                            <div className="flex items-center gap-2 mt-2 mb-2">
+                                {album?.isDefault && <span className="text-[10px] font-bold uppercase tracking-wider text-rose-500 bg-rose-500/10 px-2 py-1 rounded">Default</span>}
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-secondary px-2 py-1 rounded">
+                                    {album?.imageCount || 0} image{album?.imageCount !== 1 ? 's' : ''}
+                                </span>
+                            </div>
+
+                            {album?.description && (
+                                <p className="text-muted-foreground text-sm break-words whitespace-pre-wrap max-w-3xl">
+                                    {album.description}
+                                </p>
+                            )}
                         </div>
                     </div>
 
-                    <button
-                        onClick={() => setShowFilters(!showFilters)}
-                        className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg text-sm font-medium shadow-sm hover:bg-secondary transition-colors self-start md:self-auto"
-                    >
-                        <SlidersHorizontal size={16} />
-                        <span className="hidden sm:inline">{showFilters ? 'Hide' : 'Filters'}</span>
-                    </button>
+                    <div className="flex items-center gap-2 self-end md:self-start shrink-0">
+                        <button
+                            onClick={() => fetchAlbumData()}
+                            className="p-2 bg-card border border-border rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors shadow-sm"
+                            title="Refresh"
+                        >
+                            <RefreshCw size={16} />
+                        </button>
+                        <button
+                            onClick={() => setShowFilters(!showFilters)}
+                            className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg text-sm font-medium shadow-sm hover:bg-secondary transition-colors"
+                        >
+                            <SlidersHorizontal size={16} />
+                            <span className="hidden sm:inline">{showFilters ? 'Hide' : 'Filters'}</span>
+                        </button>
+                    </div>
                 </div>
 
                 <ImageGrid

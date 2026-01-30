@@ -89,7 +89,13 @@ const Reports = () => {
                                     <div>
                                         <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Report #{report.id}</span>
                                         <p className="text-sm mt-1 font-medium">{report.description || "No description provided."}</p>
-                                        <p className="text-xs text-muted-foreground mt-2">By: {report.user?.name || "Unknown User"}</p>
+                                        <p className="text-xs text-muted-foreground mt-2">
+                                            By: {report.user ? (
+                                                <Link to={`/users?search=${report.user.id}`} className="hover:text-primary hover:underline font-medium">
+                                                    {report.user.name}
+                                                </Link>
+                                            ) : "Unknown User"}
+                                        </p>
                                         <p className="text-xs text-muted-foreground">Date: {new Date(report.createdAt).toLocaleDateString()}</p>
                                     </div>
                                 </div>
