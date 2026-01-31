@@ -68,6 +68,46 @@
 }
 
 @layer utilities {
+  /* --- CUSTOM SCROLLBAR --- */
+
+  /* Largeur et Hauteur de la scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  /* Le fond de la scrollbar (transparent) */
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  /* Le "pouce" (la partie qui bouge) */
+  ::-webkit-scrollbar-thumb {
+    background-color: #a1a1aa; /* Zinc 400 - Assez foncé pour être visible sur blanc */
+    border-radius: 20px;       /* Bords arrondis */
+    border: 2px solid transparent; /* Espace transparent autour pour l'effet "flottant" */
+    background-clip: content-box;
+  }
+
+  /* Au survol en mode clair */
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: #71717a; /* Zinc 500 - Plus foncé au survol */
+  }
+
+  /* --- DARK MODE SCROLLBAR --- */
+
+  /* Couleur adaptée pour le mode sombre */
+  .dark ::-webkit-scrollbar-thumb {
+    background-color: #3f3f46; /* Zinc 700 - Visible sur fond noir mais pas trop agressif */
+  }
+
+  /* Au survol en mode sombre */
+  .dark ::-webkit-scrollbar-thumb:hover {
+    background-color: #52525b; /* Zinc 600 */
+  }
+
+  /* --- AUTRES UTILITAIRES --- */
+
   .static-rainbow {
     @apply bg-clip-text text-transparent bg-gradient-to-r from-violet-400 via-fuchsia-400 to-rose-400 font-black;
   }

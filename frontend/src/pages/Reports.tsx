@@ -3,8 +3,9 @@ import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { Report, PaginatedList } from '../types';
 import { useNotification } from '../context/NotificationContext';
-import { Check, Trash2, Flag, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Check, Trash2, Flag, ExternalLink } from 'lucide-react';
 import ConfirmModal from '../components/modals/ConfirmModal';
+import Pagination from '../components/Pagination'; // Import Pagination
 
 const Reports = () => {
     const { showNotification } = useNotification();
@@ -52,7 +53,7 @@ const Reports = () => {
             await api.delete(`/images/${reportToDelete.imageId}`);
             // Also resolve the report since the image is gone
             await api.put(`/reports/${reportToDelete.id}/resolve`);
-            
+
             showNotification('success', 'Image deleted and report resolved');
             setReports(prev => prev.filter(r => r.id !== reportToDelete.id));
             setIsDeleteModalOpen(false);
@@ -90,10 +91,10 @@ const Reports = () => {
                                         <p className="text-sm mt-1 font-medium">{report.description || "No description provided."}</p>
                                         <p className="text-xs text-muted-foreground mt-2">
                                             By: {report.user ? (
-                                                <Link to={`/users?search=${report.user.id}`} className="hover:text-primary hover:underline font-medium">
-                                                    {report.user.name}
-                                                </Link>
-                                            ) : "Unknown User"}
+                                            <Link to={`/users?search=${report.user.id}`} className="hover:text-primary hover:underline font-medium">
+                                                {report.user.name}
+                                            </Link>
+                                        ) : "Unknown User"}
                                         </p>
                                         <p className="text-xs text-muted-foreground">Date: {new Date(report.createdAt).toLocaleDateString()}</p>
                                     </div>
@@ -103,11 +104,11 @@ const Reports = () => {
                                     {report.image ? (
                                         <>
                                             <Link to={`/images/${report.imageId}`} className="block w-full h-full">
-                                                <img 
-                                                    src={report.image.url} 
-                                                    alt={`Reported Image ${report.imageId}`} 
-                                                    className={`w-full h-full object-cover ${report.image.isNsfw ? 'blur-md hover:blur-none transition-all duration-300' : ''}`} 
-                                                    loading="lazy" 
+                                                <img
+                                                    src={report.image.url}
+                                                    alt={`Reported Image ${report.imageId}`}
+                                                    className={`w-full h-full object-cover ${report.image.isNsfw ? 'blur-md hover:blur-none transition-all duration-300' : ''}`}
+                                                    loading="lazy"
                                                 />
                                             </Link>
                                             <a href={report.image.url} target="_blank" rel="noreferrer" className="absolute top-2 right-2 p-1.5 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:bg-black/70">
@@ -120,15 +121,15 @@ const Reports = () => {
                                 </div>
 
                                 <div className="p-3 border-t border-border flex gap-2">
-                                    <button 
-                                        onClick={() => handleResolve(report.id)} 
+                                    <button
+                                        onClick={() => handleResolve(report.id)}
                                         className="flex-1 py-2 bg-secondary hover:bg-green-500/10 hover:text-green-600 rounded-lg font-bold text-sm transition-colors flex items-center justify-center gap-2"
                                         title="Dismiss Report (Keep Image)"
                                     >
                                         <Check size={16}/> Keep Image
                                     </button>
-                                    <button 
-                                        onClick={() => { setReportToDelete(report); setIsDeleteModalOpen(true); }} 
+                                    <button
+                                        onClick={() => { setReportToDelete(report); setIsDeleteModalOpen(true); }}
                                         className="flex-1 py-2 bg-secondary hover:bg-red-500/10 hover:text-red-600 rounded-lg font-bold text-sm transition-colors flex items-center justify-center gap-2"
                                         title="Delete Image"
                                     >
@@ -139,35 +140,17 @@ const Reports = () => {
                         ))}
                     </div>
 
-                    {totalPages > 1 && (
-                        <div className="flex justify-center items-center gap-4 mt-8 pb-4">
-                            <button
-                                onClick={() => setPage(p => Math.max(1, p - 1))}
-                                disabled={page === 1}
-                                className="p-2 rounded-lg bg-secondary hover:bg-secondary/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                            >
-                                <ChevronLeft size={20} />
-                            </button>
-                            <span className="text-sm font-medium">
-                                Page {page} of {totalPages}
-                            </span>
-                            <button
-                                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                                disabled={page === totalPages}
-                                className="p-2 rounded-lg bg-secondary hover:bg-secondary/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                            >
-                                <ChevronRight size={20} />
-                            </button>
-                        </div>
+                    {!loading && (
+                        <Pagination currentPage={page} totalPages={totalPages} setPage={setPage} />
                     )}
                 </div>
             )}
 
-            <ConfirmModal 
-                isOpen={isDeleteModalOpen} 
-                onClose={() => setIsDeleteModalOpen(false)} 
-                onConfirm={handleDeleteImage} 
-                title="Delete Reported Image" 
+            <ConfirmModal
+                isOpen={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                onConfirm={handleDeleteImage}
+                title="Delete Reported Image"
                 message={<>Are you sure you want to delete this image? This will also <strong>resolve the report</strong>.</>}
                 confirmText="Delete Image"
                 variant="destructive"

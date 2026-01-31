@@ -3,12 +3,13 @@ import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { ImageDto, Artist, Tag, ImageFormData, PaginatedList, Role } from '../types';
 import { useNotification } from '../context/NotificationContext';
-import { Check, FileCheck, Edit2, ExternalLink, ChevronLeft, ChevronRight, Link as LinkIcon, Trash2 } from 'lucide-react';
+import { Check, FileCheck, Edit2, ExternalLink, Link as LinkIcon, Trash2 } from 'lucide-react';
 import ImageModal from '../components/modals/ImageModal';
 import ArtistModal, { ArtistFormData } from '../components/modals/ArtistModal';
 import TagModal, { TagFormData } from '../components/modals/TagModal';
 import ConfirmModal from '../components/modals/ConfirmModal';
 import ImageGrid from '../components/ImageGrid';
+import Pagination from '../components/Pagination'; // Import Pagination
 import { useAuth } from '../context/AuthContext';
 
 const Review = () => {
@@ -51,7 +52,7 @@ const Review = () => {
                 setTags(data.items);
                 setTotalPages(data.totalPages);
             }
-        } catch (err: any) { 
+        } catch (err: any) {
             // showNotification('error', err.message); // Handled globally
         } finally { setLoading(false); }
     };
@@ -77,7 +78,7 @@ const Review = () => {
             showNotification('success', 'Image updated');
             setEditingImage(null);
             fetchData();
-        } catch (err: any) { 
+        } catch (err: any) {
             // showNotification('error', err.message); // Handled globally
         }
     };
@@ -89,7 +90,7 @@ const Review = () => {
             showNotification('success', 'Artist updated');
             setEditingArtist(null);
             fetchData();
-        } catch (err: any) { 
+        } catch (err: any) {
             // showNotification('error', err.message); // Handled globally
         }
     };
@@ -101,7 +102,7 @@ const Review = () => {
             showNotification('success', 'Tag updated');
             setEditingTag(null);
             fetchData();
-        } catch (err: any) { 
+        } catch (err: any) {
             // showNotification('error', err.message); // Handled globally
         }
     };
@@ -172,17 +173,22 @@ const Review = () => {
                 <div className="flex-1 overflow-y-auto">
                     {/* Images Tab */}
                     {tab === 'images' && (
-                        <ImageGrid
-                            images={images}
-                            isLoading={loading}
-                            page={page}
-                            totalPages={totalPages}
-                            setPage={setPage}
-                            onEdit={(img) => setEditingImage(img)}
-                            onDelete={isAdmin ? (id) => setDeletingImage(images.find(i => i.id === id) || null) : undefined}
-                            emptyState={<EmptyState type="images"/>}
-                            forceOverlay={true}
-                        />
+                        <>
+                            <ImageGrid
+                                images={images}
+                                isLoading={loading}
+                                onEdit={(img) => setEditingImage(img)}
+                                onDelete={isAdmin ? (id) => setDeletingImage(images.find(i => i.id === id) || null) : undefined}
+                                emptyState={<EmptyState type="images"/>}
+                                forceOverlay={true}
+                            />
+                            {/* REPLACED PAGINATION PROPS WITH COMPONENT */}
+                            <Pagination
+                                currentPage={page}
+                                totalPages={totalPages}
+                                setPage={setPage}
+                            />
+                        </>
                     )}
 
                     {/* Artists Tab */}
@@ -196,7 +202,7 @@ const Review = () => {
                                                 <h3 className="font-bold text-lg truncate text-foreground group-hover:text-primary transition-colors">{artist.name}</h3>
                                                 <span className="text-xs font-mono bg-secondary px-2 py-1 rounded text-muted-foreground select-text w-fit">#{artist.id}</span>
                                             </div>
-                                            
+
                                             <div className="flex gap-2 flex-shrink-0 ml-2">
                                                 <Link
                                                     to={`/gallery?includedArtists=${artist.id}`}
@@ -303,27 +309,13 @@ const Review = () => {
                             </div>
                     )}
 
-                    {/* Pagination Controls */}
+                    {/* SHARED PAGINATION FOR ARTISTS AND TAGS */}
                     {totalPages > 1 && tab !== 'images' && (
-                        <div className="flex justify-center items-center gap-4 mt-8 pb-4">
-                            <button
-                                onClick={() => setPage(p => Math.max(1, p - 1))}
-                                disabled={page === 1}
-                                className="p-2 rounded-full bg-secondary hover:bg-secondary/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                            >
-                                <ChevronLeft size={20} />
-                            </button>
-                            <span className="text-sm font-medium">
-                                Page {page} of {totalPages}
-                            </span>
-                            <button
-                                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                                disabled={page === totalPages}
-                                className="p-2 rounded-full bg-secondary hover:bg-secondary/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                            >
-                                <ChevronRight size={20} />
-                            </button>
-                        </div>
+                        <Pagination
+                            currentPage={page}
+                            totalPages={totalPages}
+                            setPage={setPage}
+                        />
                     )}
                 </div>
             )}

@@ -3,11 +3,12 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Artist, Role } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
-import { Plus, Edit2, Trash2, User as UserIcon, ChevronLeft, ChevronRight, ExternalLink, Info, Link as LinkIcon } from 'lucide-react';
+import { Plus, Edit2, Trash2, User as UserIcon, ExternalLink, Info, Link as LinkIcon } from 'lucide-react';
 import ArtistModal, { ArtistFormData } from '../components/modals/ArtistModal';
 import ConfirmModal from '../components/modals/ConfirmModal';
 import Modal from '../components/Modal';
-import SearchInput from '../components/SearchInput'; // Import
+import SearchInput from '../components/SearchInput';
+import Pagination from '../components/Pagination'; // Import Pagination
 import { useResource } from '../hooks/useResource';
 
 const Artists = () => {
@@ -104,7 +105,6 @@ const Artists = () => {
                 </div>
 
                 <div className="flex gap-3 w-full md:w-auto">
-                    {/* Reusable Component */}
                     <SearchInput
                         value={search}
                         onChange={setSearch}
@@ -196,12 +196,8 @@ const Artists = () => {
                 ))}
             </div>
 
-            {!loading && totalPages > 1 && (
-                <div className="flex justify-center items-center gap-4 mt-10">
-                    <button disabled={page === 1} onClick={() => setPage(p => Math.max(1, p - 1))} className="p-2 rounded-full bg-secondary disabled:opacity-50"><ChevronLeft size={20} /></button>
-                    <span className="text-sm font-bold">Page {page} of {totalPages}</span>
-                    <button disabled={page === totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))} className="p-2 rounded-full bg-secondary disabled:opacity-50"><ChevronRight size={20} /></button>
-                </div>
+            {!loading && (
+                <Pagination currentPage={page} totalPages={totalPages} setPage={setPage} />
             )}
 
             <ArtistModal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} onSubmit={handleCreate} title="New Artist" isReviewMode={isReviewMode} submitLabel="Create" />

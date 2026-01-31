@@ -1,7 +1,7 @@
-﻿import { ReactNode, useState, useEffect } from 'react';
+﻿import { ReactNode } from 'react';
 import { ImageDto, Role } from '../types';
 import ImageCard from './ImageCard';
-import { RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export interface ImageGridProps {
@@ -9,9 +9,6 @@ export interface ImageGridProps {
     isLoading: boolean;
     error?: any;
     onRetry?: () => void;
-    page: number;
-    totalPages: number;
-    setPage: (page: number) => void;
     onEdit?: (image: ImageDto) => void;
     onDelete?: (id: number) => void;
     onRemove?: (id: number) => void;
@@ -19,30 +16,14 @@ export interface ImageGridProps {
     forceOverlay?: boolean;
 }
 
-const ImageGrid = ({ 
-    images, isLoading, error, onRetry, 
-    page, totalPages, setPage, 
-    onEdit, onDelete, onRemove,
-    emptyState, forceOverlay = false
-}: ImageGridProps) => {
+const ImageGrid = ({
+                       images, isLoading, error, onRetry,
+                       onEdit, onDelete, onRemove,
+                       emptyState, forceOverlay = false
+                   }: ImageGridProps) => {
     const { user } = useAuth();
     const isAdminOrModerator = user && (user.role === Role.Admin || user.role === Role.Moderator);
     const isAdmin = user && user.role === Role.Admin;
-    const [inputPage, setInputPage] = useState(page.toString());
-
-    useEffect(() => {
-        setInputPage(page.toString());
-    }, [page]);
-
-    const handlePageSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        const newPage = parseInt(inputPage);
-        if (!isNaN(newPage) && newPage >= 1 && newPage <= totalPages) {
-            setPage(newPage);
-        } else {
-            setInputPage(page.toString());
-        }
-    };
 
     if (isLoading) {
         return (
@@ -70,52 +51,19 @@ const ImageGrid = ({
     }
 
     return (
-        <>
-            <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4 space-y-4 pb-10">
-                {images.map(img => (
-                    <div key={img.id} className="break-inside-avoid relative group">
-                        <ImageCard
-                            image={img}
-                            onDelete={isAdmin ? onDelete : undefined}
-                            onRemove={onRemove}
-                            onEdit={isAdminOrModerator ? onEdit : undefined}
-                            forceOverlay={forceOverlay}
-                        />
-                    </div>
-                ))}
-            </div>
-
-            {totalPages > 1 && (
-                <div className="flex justify-center items-center gap-4 mt-10 pb-10">
-                    <button
-                        disabled={page === 1}
-                        onClick={() => setPage(Math.max(1, page - 1))}
-                        className="p-2 rounded-full bg-secondary disabled:opacity-50 hover:bg-secondary/80"
-                    >
-                        <ChevronLeft size={20} />
-                    </button>
-                    
-                    <form onSubmit={handlePageSubmit} className="flex items-center gap-2">
-                        <span className="text-sm font-bold">Page</span>
-                        <input 
-                            type="text" 
-                            value={inputPage}
-                            onChange={(e) => setInputPage(e.target.value)}
-                            className="w-12 text-center p-1 rounded bg-secondary text-sm font-bold outline-none focus:ring-2 focus:ring-primary"
-                        />
-                        <span className="text-sm font-bold">of {totalPages}</span>
-                    </form>
-
-                    <button
-                        disabled={page === totalPages}
-                        onClick={() => setPage(Math.min(totalPages, page + 1))}
-                        className="p-2 rounded-full bg-secondary disabled:opacity-50 hover:bg-secondary/80"
-                    >
-                        <ChevronRight size={20} />
-                    </button>
+        <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4 space-y-4 pb-10">
+            {images.map(img => (
+                <div key={img.id} className="break-inside-avoid relative group">
+                    <ImageCard
+                        image={img}
+                        onDelete={isAdmin ? onDelete : undefined}
+                        onRemove={onRemove}
+                        onEdit={isAdminOrModerator ? onEdit : undefined}
+                        forceOverlay={forceOverlay}
+                    />
                 </div>
-            )}
-        </>
+            ))}
+        </div>
     );
 };
 

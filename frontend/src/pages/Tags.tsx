@@ -5,8 +5,9 @@ import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 import Modal from '../components/Modal';
 import TagModal, { TagFormData } from '../components/modals/TagModal';
-import { Plus, Edit2, Trash2, Tag as TagIcon, ChevronLeft, ChevronRight, ExternalLink, Info } from 'lucide-react';
-import SearchInput from '../components/SearchInput'; // Import
+import { Plus, Edit2, Trash2, Tag as TagIcon, ExternalLink, Info } from 'lucide-react';
+import SearchInput from '../components/SearchInput';
+import Pagination from '../components/Pagination'; // Import Pagination
 import { useResource } from '../hooks/useResource';
 
 const Tags = () => {
@@ -99,7 +100,6 @@ const Tags = () => {
                 </div>
 
                 <div className="flex gap-3 w-full md:w-auto">
-                    {/* Reusable Component */}
                     <SearchInput
                         value={search}
                         onChange={setSearch}
@@ -176,24 +176,8 @@ const Tags = () => {
                 )}
             </div>
 
-            {!loading && totalPages > 1 && (
-                <div className="flex justify-center items-center gap-4 mt-10">
-                    <button
-                        disabled={page === 1}
-                        onClick={() => setPage(p => Math.max(1, p - 1))}
-                        className="p-2 rounded-full bg-secondary disabled:opacity-50 hover:bg-secondary/80"
-                    >
-                        <ChevronLeft size={20} />
-                    </button>
-                    <span className="text-sm font-bold">Page {page} of {totalPages}</span>
-                    <button
-                        disabled={page === totalPages}
-                        onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                        className="p-2 rounded-full bg-secondary disabled:opacity-50 hover:bg-secondary/80"
-                    >
-                        <ChevronRight size={20} />
-                    </button>
-                </div>
+            {!loading && (
+                <Pagination currentPage={page} totalPages={totalPages} setPage={setPage} />
             )}
 
             <TagModal

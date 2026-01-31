@@ -2,10 +2,11 @@
 import api from '../services/api';
 import { User, Role } from '../types';
 import { useNotification } from '../context/NotificationContext';
-import { Users as UsersIcon, Shield, Ban, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Users as UsersIcon, Shield, Ban, CheckCircle } from 'lucide-react';
 import ConfirmModal from '../components/modals/ConfirmModal';
 import SearchableSelect from '../components/SearchableSelect';
-import SearchInput from '../components/SearchInput'; // Import the new component
+import SearchInput from '../components/SearchInput';
+import Pagination from '../components/Pagination'; // Import Pagination
 import { useResource } from '../hooks/useResource';
 
 const Users = () => {
@@ -70,7 +71,6 @@ const Users = () => {
                     <p className="text-muted-foreground mt-1">Manage user roles and access.</p>
                 </div>
 
-                {/* Reusable Component with custom width */}
                 <SearchInput
                     value={search}
                     onChange={setSearch}
@@ -142,12 +142,8 @@ const Users = () => {
                 </div>
             </div>
 
-            {!loading && totalPages > 1 && (
-                <div className="flex justify-center items-center gap-4 mt-8">
-                    <button disabled={page === 1} onClick={() => setPage(p => Math.max(1, p - 1))} className="p-2 rounded-full bg-secondary disabled:opacity-50 hover:bg-secondary/80"><ChevronLeft size={20}/></button>
-                    <span className="text-sm font-bold">Page {page} of {totalPages}</span>
-                    <button disabled={page === totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))} className="p-2 rounded-full bg-secondary disabled:opacity-50 hover:bg-secondary/80"><ChevronRight size={20}/></button>
-                </div>
+            {!loading && (
+                <Pagination currentPage={page} totalPages={totalPages} setPage={setPage} />
             )}
 
             <ConfirmModal
