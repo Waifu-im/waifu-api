@@ -3,10 +3,11 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Artist, Role } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
-import { Plus, Edit2, Trash2, User as UserIcon, ChevronLeft, ChevronRight, Search, ExternalLink, Info, Link as LinkIcon } from 'lucide-react';
+import { Plus, Edit2, Trash2, User as UserIcon, ChevronLeft, ChevronRight, ExternalLink, Info, Link as LinkIcon } from 'lucide-react';
 import ArtistModal, { ArtistFormData } from '../components/modals/ArtistModal';
 import ConfirmModal from '../components/modals/ConfirmModal';
 import Modal from '../components/Modal';
+import SearchInput from '../components/SearchInput'; // Import
 import { useResource } from '../hooks/useResource';
 
 const Artists = () => {
@@ -15,17 +16,19 @@ const Artists = () => {
     const navigate = useNavigate();
     const location = useLocation();
 
-    const { 
-        items: artists, 
-        loading, 
-        page, 
-        setPage, 
-        totalPages, 
-        search, 
-        setSearch, 
-        createItem, 
-        updateItem, 
-        deleteItem 
+    const {
+        items: artists,
+        loading,
+        page,
+        setPage,
+        totalPages,
+        search,
+        setSearch,
+        searchType,
+        setSearchType,
+        createItem,
+        updateItem,
+        deleteItem
     } = useResource<Artist>('/artists');
 
     const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -70,13 +73,13 @@ const Artists = () => {
         e.preventDefault();
         e.stopPropagation();
         setSelectedArtist(artist);
-        setFormData({ 
-            name: artist.name, 
-            twitter: artist.twitter, 
-            pixiv: artist.pixiv, 
-            patreon: artist.patreon, 
+        setFormData({
+            name: artist.name,
+            twitter: artist.twitter,
+            pixiv: artist.pixiv,
+            patreon: artist.patreon,
             deviantArt: artist.deviantArt,
-            reviewStatus: artist.reviewStatus 
+            reviewStatus: artist.reviewStatus
         });
         setIsEditOpen(true);
     };
@@ -101,16 +104,14 @@ const Artists = () => {
                 </div>
 
                 <div className="flex gap-3 w-full md:w-auto">
-                    <div className="relative w-full md:w-64">
-                        <Search className="absolute left-3 top-3 text-muted-foreground" size={18} />
-                        <input
-                            type="text"
-                            placeholder="Search artists..."
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            className="w-full pl-10 p-3 bg-card border border-border rounded-xl outline-none focus:ring-2 focus:ring-primary"
-                        />
-                    </div>
+                    {/* Reusable Component */}
+                    <SearchInput
+                        value={search}
+                        onChange={setSearch}
+                        searchType={searchType}
+                        onSearchTypeChange={setSearchType}
+                    />
+
                     <button onClick={handleOpenCreate} className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-bold hover:opacity-90 shadow-lg transition-all whitespace-nowrap">
                         <Plus size={20} /> <span className="hidden sm:inline">New</span>
                     </button>
@@ -125,7 +126,7 @@ const Artists = () => {
                                 <h3 className="font-bold text-lg truncate text-foreground group-hover:text-primary transition-colors">{artist.name}</h3>
                                 <span className="text-xs font-mono bg-secondary px-2 py-1 rounded text-muted-foreground select-text w-fit">#{artist.id}</span>
                             </div>
-                            
+
                             <div className="flex gap-2 flex-shrink-0 ml-2">
                                 <button
                                     onClick={() => setInfoArtist(artist)}
@@ -204,22 +205,22 @@ const Artists = () => {
             )}
 
             <ArtistModal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} onSubmit={handleCreate} title="New Artist" isReviewMode={isReviewMode} submitLabel="Create" />
-            
-            <ArtistModal 
-                isOpen={isEditOpen} 
-                onClose={() => setIsEditOpen(false)} 
-                onSubmit={handleEdit} 
-                initialData={selectedArtist ? { ...formData, id: selectedArtist.id } : formData} 
-                title="Edit Artist" 
-                submitLabel="Save" 
+
+            <ArtistModal
+                isOpen={isEditOpen}
+                onClose={() => setIsEditOpen(false)}
+                onSubmit={handleEdit}
+                initialData={selectedArtist ? { ...formData, id: selectedArtist.id } : formData}
+                title="Edit Artist"
+                submitLabel="Save"
                 onDelete={isAdmin ? () => setIsDeleteOpen(true) : undefined}
             />
 
             <ConfirmModal isOpen={isDeleteOpen} onClose={() => setIsDeleteOpen(false)} onConfirm={handleDelete} title="Delete Artist" message={<>Delete artist <strong>{selectedArtist?.name}</strong>?</>} />
-            
-            <Modal 
-                isOpen={!!infoArtist} 
-                onClose={() => setInfoArtist(null)} 
+
+            <Modal
+                isOpen={!!infoArtist}
+                onClose={() => setInfoArtist(null)}
                 title="Artist Details"
             >
                 {infoArtist && (

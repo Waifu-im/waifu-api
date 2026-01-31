@@ -1,56 +1,40 @@
-﻿import { useState, useEffect } from 'react';
+﻿import { useState } from 'react';
 import api from '../services/api';
-import { User, PaginatedList, Role } from '../types';
+import { User, Role } from '../types';
 import { useNotification } from '../context/NotificationContext';
-import { Users as UsersIcon, Search, Shield, Ban, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Users as UsersIcon, Shield, Ban, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import ConfirmModal from '../components/modals/ConfirmModal';
-import SearchableSelect from '../components/SearchableSelect'; // Reusing your nice component
+import SearchableSelect from '../components/SearchableSelect';
+import SearchInput from '../components/SearchInput'; // Import the new component
+import { useResource } from '../hooks/useResource';
 
 const Users = () => {
     const { showNotification } = useNotification();
-    const [users, setUsers] = useState<User[]>([]);
-    const [loading, setLoading] = useState(true);
 
-    // Search & Pagination
-    const [search, setSearch] = useState('');
-    const [page, setPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(1);
-    const [searchTerm, setSearchTerm] = useState('');
+    const {
+        items: users,
+        loading,
+        page,
+        setPage,
+        totalPages,
+        search,
+        setSearch,
+        searchType,
+        setSearchType,
+        refresh
+    } = useResource<User>('/users', 20);
 
-    // Actions
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [isBanModalOpen, setIsBanModalOpen] = useState(false);
-
-    const fetchUsers = async () => {
-        setLoading(true);
-        try {
-            const params = new URLSearchParams({ page: page.toString(), pageSize: '20' });
-            if (searchTerm) params.append('search', searchTerm);
-
-            const { data } = await api.get<PaginatedList<User>>('/users', { params });
-            setUsers(data.items);
-            setTotalPages(data.totalPages);
-        } catch { 
-            // showNotification('error', 'Failed to load users'); // Handled globally
-        } finally { setLoading(false); }
-    };
-
-    useEffect(() => { fetchUsers(); }, [page, searchTerm]);
-
-    const handleSearch = (e: React.FormEvent) => {
-        e.preventDefault();
-        setSearchTerm(search);
-        setPage(1);
-    };
 
     const handleRoleChange = async (userId: number, newRole: string) => {
         const roleEnum = parseInt(newRole);
         try {
             await api.put(`/users/${userId}/role`, { role: roleEnum });
             showNotification('success', 'User role updated');
-            fetchUsers(); // Refresh to ensure state sync
-        } catch { 
-            // showNotification('error', 'Failed to update role'); // Handled globally
+            refresh();
+        } catch {
+            // handled globally
         }
     };
 
@@ -60,9 +44,9 @@ const Users = () => {
             await api.put(`/users/${selectedUser.id}/ban`, { isBlacklisted: !selectedUser.isBlacklisted });
             showNotification('success', `User ${selectedUser.isBlacklisted ? 'unbanned' : 'banned'}`);
             setIsBanModalOpen(false);
-            fetchUsers();
-        } catch { 
-            // showNotification('error', 'Failed to update ban status'); // Handled globally
+            refresh();
+        } catch {
+            // handled globally
         }
     };
 
@@ -85,20 +69,19 @@ const Users = () => {
                     <h1 className="text-3xl font-black flex items-center gap-3 text-foreground"><UsersIcon className="text-primary" size={32}/> User Management</h1>
                     <p className="text-muted-foreground mt-1">Manage user roles and access.</p>
                 </div>
-                <form onSubmit={handleSearch} className="relative w-full md:w-80">
-                    <Search className="absolute left-3 top-3 text-muted-foreground" size={18} />
-                    <input
-                        type="text"
-                        placeholder="Search by name or ID..."
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        className="w-full pl-10 p-3 bg-card border border-border rounded-xl outline-none focus:ring-2 focus:ring-primary"
-                    />
-                </form>
+
+                {/* Reusable Component with custom width */}
+                <SearchInput
+                    value={search}
+                    onChange={setSearch}
+                    searchType={searchType}
+                    onSearchTypeChange={setSearchType}
+                    className="w-full md:w-80"
+                />
             </div>
 
             <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
-                <div className="overflow-x-auto min-h-[400px]"> {/* Min height ensures dropdowns aren't cut off if few rows */}
+                <div className="overflow-x-auto min-h-[400px]">
                     <table className="w-full text-left border-collapse">
                         <thead>
                         <tr className="bg-secondary/50 border-b border-border">
@@ -125,13 +108,12 @@ const Users = () => {
                                 <td className="p-4 font-mono text-sm text-blue-500">{user.apiKeyRequestCount?.toLocaleString() || 0}</td>
                                 <td className="p-4 font-mono text-sm text-purple-500">{user.jwtRequestCount?.toLocaleString() || 0}</td>
                                 <td className="p-4">
-                                    {/* Using your SearchableSelect for consistent look */}
                                     <div className="w-36">
                                         <SearchableSelect
                                             options={roleOptions}
                                             selectedOptions={roleOptions.filter(r => r.id === user.role.toString())}
                                             onSelect={(opt) => handleRoleChange(user.id, opt.id as string)}
-                                            onRemove={() => {}} // Single select, can't remove
+                                            onRemove={() => {}}
                                             isMulti={false}
                                             clearable={false}
                                             placeholder="Select Role"
@@ -160,11 +142,11 @@ const Users = () => {
                 </div>
             </div>
 
-            {totalPages > 1 && (
+            {!loading && totalPages > 1 && (
                 <div className="flex justify-center items-center gap-4 mt-8">
-                    <button disabled={page === 1} onClick={() => setPage(p => p - 1)} className="p-2 rounded-full bg-secondary disabled:opacity-50 hover:bg-secondary/80"><ChevronLeft size={20}/></button>
+                    <button disabled={page === 1} onClick={() => setPage(p => Math.max(1, p - 1))} className="p-2 rounded-full bg-secondary disabled:opacity-50 hover:bg-secondary/80"><ChevronLeft size={20}/></button>
                     <span className="text-sm font-bold">Page {page} of {totalPages}</span>
-                    <button disabled={page === totalPages} onClick={() => setPage(p => p + 1)} className="p-2 rounded-full bg-secondary disabled:opacity-50 hover:bg-secondary/80"><ChevronRight size={20}/></button>
+                    <button disabled={page === totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))} className="p-2 rounded-full bg-secondary disabled:opacity-50 hover:bg-secondary/80"><ChevronRight size={20}/></button>
                 </div>
             )}
 

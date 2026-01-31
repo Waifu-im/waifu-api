@@ -15,7 +15,8 @@ namespace WaifuApi.Application.Features.GetTags;
 
 public class GetTagsQuery : IQuery<PaginatedList<TagDto>>
 {
-    public string? Search { get; set; }
+    public string? Name { get; set; }
+    public int? Id { get; set; }
     public int Page { get; set; } = 1;
     public int PageSize { get; set; }
     public ReviewStatus? ReviewStatus { get; set; }
@@ -50,9 +51,14 @@ public class GetTagsQueryHandler : IQueryHandler<GetTagsQuery, PaginatedList<Tag
             query = query.Where(t => t.ReviewStatus == ReviewStatus.Accepted);
         }
 
-        if (!string.IsNullOrWhiteSpace(request.Search))
+        if (request.Id.HasValue)
         {
-            query = query.Where(t => t.Name.ToLower().Contains(request.Search.ToLower()));
+            query = query.Where(t => t.Id == request.Id.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Name))
+        {
+            query = query.Where(t => t.Name.ToLower().Contains(request.Name.ToLower()));
         }
 
         query = query.OrderBy(t => t.Name);

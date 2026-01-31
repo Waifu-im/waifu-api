@@ -14,13 +14,15 @@ namespace WaifuApi.Application.Features.Users.GetUsers;
 
 public class GetUsersQuery : IQuery<PaginatedList<UserDto>>
 {
-    public string? Search { get; set; }
+    public string? Name { get; set; }
+    public int? Id { get; set; }
     public int Page { get; set; } = 1;
     public int PageSize { get; set; }
 
-    public GetUsersQuery(string? search, int page, int pageSize)
+    public GetUsersQuery(string? name, int? id, int page, int pageSize)
     {
-        Search = search;
+        Name = name;
+        Id = id;
         Page = page;
         PageSize = pageSize;
     }
@@ -48,9 +50,14 @@ public class GetUsersQueryHandler : IQueryHandler<GetUsersQuery, PaginatedList<U
 
         var query = _context.Users.AsQueryable();
 
-        if (!string.IsNullOrEmpty(request.Search))
+        if (request.Id.HasValue)
         {
-            query = query.Where(u => u.Name.ToLower().Contains(request.Search.ToLower()) || u.DiscordId.Contains(request.Search));
+            query = query.Where(u => u.Id == request.Id.Value);
+        }
+
+        if (!string.IsNullOrEmpty(request.Name))
+        {
+            query = query.Where(u => u.Name.ToLower().Contains(request.Name.ToLower()) || u.DiscordId.Contains(request.Name));
         }
         
         query = query.OrderBy(u => u.Id);

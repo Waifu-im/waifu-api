@@ -55,15 +55,13 @@ public class UsersController : ControllerBase
     /// <summary>
     /// Retrieves a list of users (Admin only).
     /// </summary>
-    /// <param name="search">Optional search term for name or Discord ID.</param>
-    /// <param name="page">Page number (default 1).</param>
-    /// <param name="pageSize">Page size (default 0, uses server default).</param>
+    /// <param name="query">Pagination parameters.</param>
     /// <returns>A paginated list of users.</returns>
     [HttpGet]
     [Authorize(Policy = "Admin")]
-    public async Task<ActionResult<PaginatedList<UserDto>>> Get([FromQuery] string? search, [FromQuery] int page = 1, [FromQuery] int pageSize = 0)
+    public async Task<ActionResult<PaginatedList<UserDto>>> Get([FromQuery] GetUsersQuery query)
     {
-        var users = await _mediator.Send(new GetUsersQuery(search, page, pageSize));
+        var users = await _mediator.Send(query);
         return Ok(users);
     }
 

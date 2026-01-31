@@ -14,7 +14,8 @@ namespace WaifuApi.Application.Features.Artists.GetArtists;
 
 public class GetArtistsQuery : IQuery<PaginatedList<Artist>>
 {
-    public string? Search { get; set; }
+    public string? Name { get; set; }
+    public int? Id { get; set; }
     public int Page { get; set; } = 1;
     public int PageSize { get; set; }
     public ReviewStatus? ReviewStatus { get; set; }
@@ -49,9 +50,14 @@ public class GetArtistsQueryHandler : IQueryHandler<GetArtistsQuery, PaginatedLi
             query = query.Where(a => a.ReviewStatus == ReviewStatus.Accepted);
         }
 
-        if (!string.IsNullOrWhiteSpace(request.Search))
+        if (request.Id.HasValue)
         {
-            query = query.Where(a => a.Name.ToLower().Contains(request.Search.ToLower()));
+            query = query.Where(a => a.Id == request.Id.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Name))
+        {
+            query = query.Where(a => a.Name.ToLower().Contains(request.Name.ToLower()));
         }
 
         query = query.OrderBy(a => a.Name);

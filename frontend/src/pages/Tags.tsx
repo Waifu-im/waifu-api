@@ -5,7 +5,8 @@ import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 import Modal from '../components/Modal';
 import TagModal, { TagFormData } from '../components/modals/TagModal';
-import { Plus, Edit2, Trash2, Tag as TagIcon, ChevronLeft, ChevronRight, ExternalLink, Search, Info } from 'lucide-react';
+import { Plus, Edit2, Trash2, Tag as TagIcon, ChevronLeft, ChevronRight, ExternalLink, Info } from 'lucide-react';
+import SearchInput from '../components/SearchInput'; // Import
 import { useResource } from '../hooks/useResource';
 
 const Tags = () => {
@@ -14,17 +15,19 @@ const Tags = () => {
     const navigate = useNavigate();
     const location = useLocation();
 
-    const { 
-        items: tags, 
-        loading, 
-        page, 
-        setPage, 
-        totalPages, 
-        search, 
-        setSearch, 
-        createItem, 
-        updateItem, 
-        deleteItem 
+    const {
+        items: tags,
+        loading,
+        page,
+        setPage,
+        totalPages,
+        search,
+        setSearch,
+        searchType,
+        setSearchType,
+        createItem,
+        updateItem,
+        deleteItem
     } = useResource<Tag>('/tags');
 
     const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -96,16 +99,14 @@ const Tags = () => {
                 </div>
 
                 <div className="flex gap-3 w-full md:w-auto">
-                    <div className="relative w-full md:w-64">
-                        <Search className="absolute left-3 top-3 text-muted-foreground" size={18} />
-                        <input
-                            type="text"
-                            placeholder="Search tags..."
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            className="w-full pl-10 p-3 bg-card border border-border rounded-xl outline-none focus:ring-2 focus:ring-primary"
-                        />
-                    </div>
+                    {/* Reusable Component */}
+                    <SearchInput
+                        value={search}
+                        onChange={setSearch}
+                        searchType={searchType}
+                        onSearchTypeChange={setSearchType}
+                    />
+
                     <button
                         onClick={handleOpenCreate}
                         className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-bold hover:opacity-90 shadow-lg transition-all whitespace-nowrap"
@@ -145,7 +146,7 @@ const Tags = () => {
                                     >
                                         <ExternalLink size={16} />
                                     </Link>
-                                    
+
                                     {canEdit && (
                                         <>
                                             <button
@@ -226,9 +227,9 @@ const Tags = () => {
                 </div>
             </Modal>
 
-            <Modal 
-                isOpen={!!infoTag} 
-                onClose={() => setInfoTag(null)} 
+            <Modal
+                isOpen={!!infoTag}
+                onClose={() => setInfoTag(null)}
                 title="Tag Details"
             >
                 {infoTag && (

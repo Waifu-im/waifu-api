@@ -1,4 +1,4 @@
-﻿import { ReactNode } from 'react';
+﻿import { ReactNode, useState, useEffect } from 'react';
 import { ImageDto, Role } from '../types';
 import ImageCard from './ImageCard';
 import { RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -28,6 +28,21 @@ const ImageGrid = ({
     const { user } = useAuth();
     const isAdminOrModerator = user && (user.role === Role.Admin || user.role === Role.Moderator);
     const isAdmin = user && user.role === Role.Admin;
+    const [inputPage, setInputPage] = useState(page.toString());
+
+    useEffect(() => {
+        setInputPage(page.toString());
+    }, [page]);
+
+    const handlePageSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        const newPage = parseInt(inputPage);
+        if (!isNaN(newPage) && newPage >= 1 && newPage <= totalPages) {
+            setPage(newPage);
+        } else {
+            setInputPage(page.toString());
+        }
+    };
 
     if (isLoading) {
         return (
@@ -79,7 +94,18 @@ const ImageGrid = ({
                     >
                         <ChevronLeft size={20} />
                     </button>
-                    <span className="text-sm font-bold">Page {page} of {totalPages}</span>
+                    
+                    <form onSubmit={handlePageSubmit} className="flex items-center gap-2">
+                        <span className="text-sm font-bold">Page</span>
+                        <input 
+                            type="text" 
+                            value={inputPage}
+                            onChange={(e) => setInputPage(e.target.value)}
+                            className="w-12 text-center p-1 rounded bg-secondary text-sm font-bold outline-none focus:ring-2 focus:ring-primary"
+                        />
+                        <span className="text-sm font-bold">of {totalPages}</span>
+                    </form>
+
                     <button
                         disabled={page === totalPages}
                         onClick={() => setPage(Math.min(totalPages, page + 1))}
