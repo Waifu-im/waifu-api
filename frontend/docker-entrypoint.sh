@@ -1,4 +1,4 @@
-﻿#!/bin/sh
+#!/bin/sh
 
 # Recreate config.js with environment variables
 echo "window.env = {" > /usr/share/nginx/html/config.js
