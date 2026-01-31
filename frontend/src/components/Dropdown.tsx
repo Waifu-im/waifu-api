@@ -8,30 +8,49 @@ interface DropdownProps {
     className?: string;
     isOpen?: boolean;
     onClose?: () => void;
+    onOpen?: () => void;
+    padding?: string;
 }
 
-export const Dropdown = ({ trigger, children, align = 'right', width = 'w-48', className = '' }: DropdownProps) => {
-    const [isOpen, setIsOpen] = useState(false);
+export const Dropdown = ({ trigger, children, align = 'right', width = 'w-48', className = '', isOpen: controlledIsOpen, onClose, onOpen, padding = 'p-1' }: DropdownProps) => {
+    const [internalIsOpen, setInternalIsOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
+
+    const isControlled = controlledIsOpen !== undefined;
+    const isOpen = isControlled ? controlledIsOpen : internalIsOpen;
+
+    const handleToggle = () => {
+        if (isControlled) {
+            if (isOpen) onClose?.();
+            else onOpen?.();
+        } else {
+            setInternalIsOpen(!internalIsOpen);
+        }
+    };
+
+    const handleClose = () => {
+        if (isControlled) onClose?.();
+        else setInternalIsOpen(false);
+    };
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (ref.current && !ref.current.contains(event.target as Node)) {
-                setIsOpen(false);
+                handleClose();
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
+    }, [isControlled, onClose]);
 
     return (
         <div className="relative" ref={ref}>
-            <div onClick={() => setIsOpen(!isOpen)} className="cursor-pointer">
+            <div onClick={handleToggle} className="cursor-pointer">
                 {trigger}
             </div>
             {isOpen && (
-                <div 
-                    className={`absolute mt-2 bg-card border border-border rounded-xl shadow-xl animate-in fade-in zoom-in-95 duration-200 z-50 p-1 ${align === 'right' ? 'right-0' : 'left-0'} ${width} ${className}`}
+                <div
+                    className={`absolute mt-2 bg-card border border-border rounded-xl shadow-xl animate-in fade-in zoom-in-95 duration-200 z-50 ${padding} overflow-hidden ${align === 'right' ? 'right-0' : 'left-0'} ${width} ${className}`}
                     onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside dropdown content
                 >
                     {children}
@@ -51,7 +70,7 @@ interface DropdownItemProps {
 }
 
 export const DropdownItem = ({ children, onClick, className = '', active = false, icon, danger = false }: DropdownItemProps) => (
-    <div 
+    <div
         onClick={onClick}
         className={`px-3 py-2 rounded-lg text-sm font-medium cursor-pointer flex items-center gap-3 transition-colors mb-0.5 last:mb-0
             ${active ? 'bg-primary/10 text-primary' : ''} 

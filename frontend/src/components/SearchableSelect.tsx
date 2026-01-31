@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect, useRef, useCallback } from 'react';
 import { X, Plus, ChevronDown, Check, Loader2 } from 'lucide-react';
 import { useDebounce } from '../hooks/useDebounce';
 
@@ -16,7 +16,7 @@ interface SearchableSelectProps {
     onSelect: (option: Option) => void;
     onRemove: (option: Option) => void;
     onCreate?: (name: string) => void;
-    loadOptions?: (query: string) => Promise<Option[]>;
+    loadOptions?: (query: string, page?: number) => Promise<Option[]>;
     placeholder?: string;
     label?: string;
     isMulti?: boolean;
@@ -39,8 +39,11 @@ const SearchableSelect = ({
     const [searchTerm, setSearchTerm] = useState('');
     const [asyncOptions, setAsyncOptions] = useState<Option[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
     const wrapperRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+    const listRef = useRef<HTMLDivElement>(null);
 
     const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
@@ -54,6 +57,15 @@ const SearchableSelect = ({
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
+    // Reset pagination when search term changes or dropdown opens
+    useEffect(() => {
+        if (isOpen) {
+            setPage(1);
+            setHasMore(true);
+            setAsyncOptions([]);
+        }
+    }, [debouncedSearchTerm, isOpen]);
+
     useEffect(() => {
         if (!loadOptions || !isOpen) return;
 
@@ -61,8 +73,20 @@ const SearchableSelect = ({
         const fetchOptions = async () => {
             setIsLoading(true);
             try {
-                const results = await loadOptions(debouncedSearchTerm);
-                if (isMounted) setAsyncOptions(results);
+                const results = await loadOptions(debouncedSearchTerm, page);
+                if (isMounted) {
+                    if (page === 1) {
+                        setAsyncOptions(results);
+                    } else {
+                        setAsyncOptions(prev => {
+                            // Filter out duplicates just in case
+                            const existingIds = new Set(prev.map(o => o.id));
+                            const newOptions = results.filter(o => !existingIds.has(o.id));
+                            return [...prev, ...newOptions];
+                        });
+                    }
+                    setHasMore(results.length > 0);
+                }
             } catch (error) {
                 console.error("Failed to load options", error);
             } finally {
@@ -73,19 +97,45 @@ const SearchableSelect = ({
         fetchOptions();
 
         return () => { isMounted = false; };
-    }, [debouncedSearchTerm, loadOptions, isOpen]);
+    }, [debouncedSearchTerm, loadOptions, isOpen, page]);
+
+    const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+        const { scrollTop, clientHeight, scrollHeight } = e.currentTarget;
+        if (scrollHeight - scrollTop <= clientHeight + 50 && !isLoading && hasMore && loadOptions) {
+            setPage(prev => prev + 1);
+        }
+    }, [isLoading, hasMore, loadOptions]);
 
     const displayedOptions = loadOptions
         ? asyncOptions
         : options.filter(option => option.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
     const handleOptionClick = (option: Option) => {
-        const isSelected = selectedOptions.some(selected =>
-            selected.id === option.id || selected.name.toLowerCase() === option.name.toLowerCase()
-        );
+        // Use a more robust comparison that handles both ID and Name/Slug matching
+        // This is crucial because sometimes we might have objects with just ID or just Name depending on source
+        const isSelected = selectedOptions.some(selected => {
+            // Strict ID match if both have IDs
+            if (selected.id !== undefined && option.id !== undefined) {
+                return String(selected.id) === String(option.id);
+            }
+            // Fallback to name/slug match
+            const selectedKey = selected.slug || selected.name;
+            const optionKey = option.slug || option.name;
+            return selectedKey?.toLowerCase() === optionKey?.toLowerCase();
+        });
 
         if (isSelected) {
-            onRemove(option);
+            // Find the exact object reference or construct a valid one to remove
+            const itemToRemove = selectedOptions.find(selected => {
+                 if (selected.id !== undefined && option.id !== undefined) {
+                    return String(selected.id) === String(option.id);
+                }
+                const selectedKey = selected.slug || selected.name;
+                const optionKey = option.slug || option.name;
+                return selectedKey?.toLowerCase() === optionKey?.toLowerCase();
+            }) || option;
+            
+            onRemove(itemToRemove);
         } else {
             onSelect(option);
         }
@@ -135,7 +185,11 @@ const SearchableSelect = ({
             </div>
 
             {isOpen && (
-                <div className="absolute z-50 w-full mt-2 bg-popover border border-border rounded-xl shadow-xl max-h-60 overflow-auto animate-in fade-in slide-in-from-top-2 overflow-hidden flex flex-col">
+                <div 
+                    className="absolute z-50 w-full mt-2 bg-popover border border-border rounded-xl shadow-xl max-h-60 overflow-auto animate-in fade-in slide-in-from-top-2 flex flex-col"
+                    onScroll={handleScroll}
+                    ref={listRef}
+                >
                     {/* Create Option - Always First */}
                     {onCreate && !displayedOptions.some(o => o.name.toLowerCase() === searchTerm.toLowerCase()) && (
                         <div
@@ -148,7 +202,16 @@ const SearchableSelect = ({
 
                     {/* Options List */}
                     {displayedOptions.map(option => {
-                        const isSelected = selectedOptions.some(s => s.id === option.id || s.name.toLowerCase() === option.name.toLowerCase());
+                        // Improved selection check for rendering
+                        const isSelected = selectedOptions.some(s => {
+                            if (s.id !== undefined && option.id !== undefined) {
+                                return String(s.id) === String(option.id);
+                            }
+                            const sKey = s.slug || s.name;
+                            const oKey = option.slug || option.name;
+                            return sKey?.toLowerCase() === oKey?.toLowerCase();
+                        });
+
                         return (
                             <div
                                 key={option.id}
@@ -172,8 +235,10 @@ const SearchableSelect = ({
                         <div className="px-4 py-8 text-center text-muted-foreground text-sm">No options found.</div>
                     )}
                     
-                    {isLoading && displayedOptions.length === 0 && (
-                         <div className="px-4 py-8 text-center text-muted-foreground text-sm">Loading...</div>
+                    {isLoading && (
+                         <div className="px-4 py-3 text-center text-muted-foreground text-sm flex items-center justify-center gap-2">
+                             <Loader2 size={14} className="animate-spin" /> Loading...
+                         </div>
                     )}
                 </div>
             )}

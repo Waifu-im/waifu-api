@@ -134,43 +134,47 @@ const Gallery = () => {
 
   return (
       <div className="flex h-full relative overflow-hidden">
-        <div className="flex-1 overflow-y-auto h-full p-4">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-black tracking-tight text-foreground flex gap-2">
-              Gallery
-            </h2>
-            <div className="flex items-center gap-2">
-                <button
-                    onClick={() => refetch()}
-                    className="p-2 bg-card border border-border rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors shadow-sm"
-                    title="Refresh"
-                >
-                    <RefreshCw size={16} />
-                </button>
-                <button onClick={() => setShowFilters(!showFilters)} className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg text-sm font-medium shadow-sm hover:bg-secondary transition-colors">
-                  <SlidersHorizontal size={16} /> <span className="hidden sm:inline">{showFilters ? 'Hide' : 'Filters'}</span>
-                </button>
+        <div className="flex-1 flex flex-col h-full min-w-0">
+            {/* Fixed Header */}
+            <div className="flex justify-between items-center px-4 py-3 border-b border-border z-10 shrink-0">
+                <h2 className="text-2xl font-black tracking-tight text-foreground flex gap-2">
+                    Gallery
+                </h2>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => refetch()}
+                        className="p-2 bg-card border border-border rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors shadow-sm"
+                        title="Refresh"
+                    >
+                        <RefreshCw size={16} />
+                    </button>
+                    <button onClick={() => setShowFilters(!showFilters)} className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg text-sm font-medium shadow-sm hover:bg-secondary transition-colors">
+                        <SlidersHorizontal size={16} /> <span className="hidden sm:inline">{showFilters ? 'Hide' : 'Filters'}</span>
+                    </button>
+                </div>
             </div>
-          </div>
 
-          <ImageGrid
-              images={images}
-              isLoading={isLoading}
-              error={error}
-              onRetry={() => refetch()}
-              page={page}
-              totalPages={totalPages}
-              setPage={setPage}
-              onDelete={isAdmin ? confirmDelete : undefined}
-              onEdit={isAdminOrModerator ? (img) => { setEditingImage(img); setIsEditModalOpen(true); } : undefined}
-              emptyState={
-                  <div className="flex flex-col items-center justify-center h-[50vh] text-muted-foreground">
-                      <Search size={48} className="mb-4 opacity-20" />
-                      <p className="text-lg font-medium">No images found.</p>
-                      <button onClick={() => { setSearchParams({}); refetch(); }} className="mt-6 px-6 py-2 bg-secondary text-foreground rounded-lg font-bold">Clear All Filters</button>
-                  </div>
-              }
-          />
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto p-4">
+                <ImageGrid
+                    images={images}
+                    isLoading={isLoading}
+                    error={error}
+                    onRetry={() => refetch()}
+                    page={page}
+                    totalPages={totalPages}
+                    setPage={setPage}
+                    onDelete={isAdmin ? confirmDelete : undefined}
+                    onEdit={isAdminOrModerator ? (img) => { setEditingImage(img); setIsEditModalOpen(true); } : undefined}
+                    emptyState={
+                        <div className="flex flex-col items-center justify-center h-[50vh] text-muted-foreground">
+                            <Search size={48} className="mb-4 opacity-20" />
+                            <p className="text-lg font-medium">No images found.</p>
+                            <button onClick={() => { setSearchParams({}); refetch(); }} className="mt-6 px-6 py-2 bg-secondary text-foreground rounded-lg font-bold">Clear All Filters</button>
+                        </div>
+                    }
+                />
+            </div>
         </div>
 
         <FilterSidebar

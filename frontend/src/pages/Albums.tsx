@@ -88,8 +88,8 @@ const Albums = () => {
             <div className="flex justify-between items-center mb-10">
                 <div>
                     <h1 className="text-3xl font-black flex items-center gap-3 text-foreground"><Library className="text-primary" size={32}/> My Albums</h1>
-                    <div className="flex items-center gap-2 mt-1">
-                        <p className="text-muted-foreground">Manage your collections.</p>
+                    <p className="text-muted-foreground mt-1">Manage your collections.</p>
+                    <div className="mt-2">
                         <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-secondary px-2 py-1 rounded">
                             Total: {totalImages} image{totalImages !== 1 ? 's' : ''}
                         </span>

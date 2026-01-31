@@ -74,6 +74,7 @@ const Layout = () => {
                     {user ? (
                         <Dropdown
                             width="w-64"
+                            padding="p-0"
                             trigger={
                                 <button className="flex items-center gap-3 pl-2 pr-3 py-1.5 rounded-full hover:bg-secondary transition-colors border border-transparent hover:border-border max-w-[200px]">
                                     {user.avatarUrl ? (
@@ -94,33 +95,35 @@ const Layout = () => {
                             }
                         >
                             {/* Header Mobile */}
-                            <div className="px-4 py-3 border-b border-border mb-1 md:hidden bg-secondary/30">
+                            <div className="px-4 py-3 border-b border-border md:hidden bg-secondary/30">
                                 <p className="font-bold truncate">{user.name}</p>
                                 <p className="text-xs text-muted-foreground">{user.role === 3 ? 'Administrator' : 'Member'}</p>
                             </div>
 
-                            <DropdownLabel>Personal</DropdownLabel>
-                            <Link to="/upload"><DropdownItem icon={<UploadIcon size={16} />}>Upload Image</DropdownItem></Link>
-                            <Link to="/albums"><DropdownItem icon={<Library size={16} />}>My Albums</DropdownItem></Link>
-                            <Link to="/api-keys"><DropdownItem icon={<Key size={16} />}>API Keys</DropdownItem></Link>
+                            <div className="p-1">
+                                <DropdownLabel>Personal</DropdownLabel>
+                                <Link to="/upload"><DropdownItem icon={<UploadIcon size={16} />}>Upload Image</DropdownItem></Link>
+                                <Link to="/albums"><DropdownItem icon={<Library size={16} />}>My Albums</DropdownItem></Link>
+                                <Link to="/api-keys"><DropdownItem icon={<Key size={16} />}>API Keys</DropdownItem></Link>
 
-                            {isModOrAdmin && (
-                                <>
-                                    <DropdownSeparator />
-                                    <DropdownLabel>Administration</DropdownLabel>
-                                    <Link to="/review"><DropdownItem icon={<FileCheck size={16} className="text-orange-500" />}>Moderation Queue</DropdownItem></Link>
-                                    <Link to="/reports"><DropdownItem icon={<Flag size={16} className="text-red-500" />}>Reports</DropdownItem></Link>
-                                    {isAdmin && (
-                                        <>
-                                            <Link to="/users"><DropdownItem icon={<UsersIcon size={16} className="text-blue-500" />}>User Management</DropdownItem></Link>
-                                            <Link to="/stats"><DropdownItem icon={<BarChart size={16} className="text-purple-500" />}>Statistics</DropdownItem></Link>
-                                        </>
-                                    )}
-                                </>
-                            )}
+                                {isModOrAdmin && (
+                                    <>
+                                        <DropdownSeparator />
+                                        <DropdownLabel>Administration</DropdownLabel>
+                                        <Link to="/review"><DropdownItem icon={<FileCheck size={16} className="text-orange-500" />}>Moderation Queue</DropdownItem></Link>
+                                        <Link to="/reports"><DropdownItem icon={<Flag size={16} className="text-red-500" />}>Reports</DropdownItem></Link>
+                                        {isAdmin && (
+                                            <>
+                                                <Link to="/users"><DropdownItem icon={<UsersIcon size={16} className="text-blue-500" />}>User Management</DropdownItem></Link>
+                                                <Link to="/stats"><DropdownItem icon={<BarChart size={16} className="text-purple-500" />}>Statistics</DropdownItem></Link>
+                                            </>
+                                        )}
+                                    </>
+                                )}
 
-                            <DropdownSeparator />
-                            <DropdownItem onClick={handleLogout} icon={<LogOut size={16} />} danger>Log out</DropdownItem>
+                                <DropdownSeparator />
+                                <DropdownItem onClick={handleLogout} icon={<LogOut size={16} />} danger>Log out</DropdownItem>
+                            </div>
                         </Dropdown>
                     ) : (
                         <Link

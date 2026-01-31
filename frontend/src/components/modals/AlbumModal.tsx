@@ -1,77 +1,65 @@
-﻿import { useState, useEffect } from 'react';
+﻿import { useForm } from 'react-hook-form';
 import Modal from '../Modal';
-import { Loader2 } from 'lucide-react';
+import { useEffect } from 'react';
 
 export interface AlbumFormData {
     name: string;
-    description: string;
+    description?: string;
 }
 
 interface AlbumModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSubmit: (data: AlbumFormData) => Promise<void> | void;
-    initialData?: Partial<AlbumFormData>;
-    title: string;
+    onSubmit: (data: AlbumFormData) => void;
+    initialData?: AlbumFormData;
+    title?: string;
     submitLabel?: string;
 }
 
-const AlbumModal = ({ isOpen, onClose, onSubmit, initialData, title, submitLabel = "Save" }: AlbumModalProps) => {
-    const [formData, setFormData] = useState<AlbumFormData>({ name: '', description: '' });
-    const [isSubmitting, setIsSubmitting] = useState(false);
+const AlbumModal = ({ isOpen, onClose, onSubmit, initialData, title = "Create Album", submitLabel = "Create" }: AlbumModalProps) => {
+    const { register, handleSubmit, reset, formState: { errors } } = useForm<AlbumFormData>();
 
     useEffect(() => {
         if (isOpen) {
-            setFormData({
-                name: initialData?.name || '',
-                description: initialData?.description || ''
-            });
-            setIsSubmitting(false);
+            reset(initialData || { name: '', description: '' });
         }
-    }, [isOpen, initialData]);
+    }, [isOpen, initialData, reset]);
 
-    const handleSubmit = async () => {
-        if (isSubmitting) return;
-        setIsSubmitting(true);
-        try {
-            await onSubmit(formData);
-        } finally {
-            setIsSubmitting(false);
-        }
+    const handleFormSubmit = (data: AlbumFormData) => {
+        onSubmit(data);
+        // Don't reset here immediately if we want to keep values on error, 
+        // but usually parent handles close/reset. 
+        // For now, let's rely on parent closing the modal to trigger the useEffect reset next time.
     };
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title={title}>
-            <div className="space-y-4">
+        <Modal isOpen={isOpen} onClose={onClose} title={title} maxWidth="max-w-md">
+            <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
                 <div>
                     <label className="block text-sm font-bold mb-1">Name</label>
-                    <input
-                        value={formData.name}
-                        onChange={e => setFormData({...formData, name: e.target.value})}
-                        className="w-full p-3 bg-secondary rounded-lg outline-none focus:ring-1 focus:ring-primary text-foreground"
-                        placeholder="Album Name"
-                        disabled={isSubmitting}
+                    <input 
+                        {...register('name', { required: 'Name is required' })}
+                        className="w-full p-2 rounded-lg bg-secondary border-transparent focus:ring-2 focus:ring-primary outline-none"
+                        placeholder="My Awesome Album"
+                        autoFocus
                     />
+                    {errors.name && <p className="text-destructive text-xs mt-1">{errors.name.message}</p>}
                 </div>
+                
                 <div>
                     <label className="block text-sm font-bold mb-1">Description</label>
-                    <textarea
-                        value={formData.description}
-                        onChange={e => setFormData({...formData, description: e.target.value})}
-                        className="w-full p-3 bg-secondary rounded-lg outline-none h-24 resize-none text-foreground"
-                        placeholder="Description..."
-                        disabled={isSubmitting}
+                    <textarea 
+                        {...register('description')}
+                        className="w-full p-2 rounded-lg bg-secondary border-transparent focus:ring-2 focus:ring-primary outline-none min-h-[100px]"
+                        placeholder="Optional description..."
                     />
                 </div>
-                <button
-                    onClick={handleSubmit}
-                    disabled={isSubmitting}
-                    className="w-full py-3 bg-primary text-primary-foreground font-bold rounded-lg mt-2 flex items-center justify-center gap-2 disabled:opacity-70"
-                >
-                    {isSubmitting && <Loader2 size={18} className="animate-spin" />}
-                    {submitLabel}
-                </button>
-            </div>
+
+                <div className="flex justify-end gap-2 pt-2">
+                    <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg hover:bg-secondary transition-colors font-medium">Cancel</button>
+                    <button type="submit" className="px-4 py-2 rounded-lg bg-primary text-primary-foreground font-bold hover:opacity-90 transition-opacity">{submitLabel}</button>
+                </div>
+            </form>
         </Modal>
     );
 };

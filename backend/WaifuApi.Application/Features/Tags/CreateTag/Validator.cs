@@ -13,7 +13,7 @@ public class CreateTagCommandValidator : AbstractValidator<CreateTagCommand>
 
         RuleFor(x => x.Description)
             .NotEmpty().WithMessage("Description is required.")
-            .MaximumLength(200).WithMessage("Description must not exceed 200 characters.");
+            .MaximumLength(60).WithMessage("Description must not exceed 60 characters.");
             
         RuleFor(x => x.Slug)
             .MaximumLength(50).WithMessage("Slug must not exceed 50 characters.")

@@ -1,21 +1,20 @@
-﻿import { useState, ReactNode } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Check, Plus } from 'lucide-react';
-import api from '../services/api';
-import { AlbumDto, ImageDto, PaginatedList } from '../types';
-import { Dropdown, DropdownItem, DropdownLabel, DropdownSeparator } from './Dropdown';
-import { useNotification } from '../context/NotificationContext';
-import { useAuth } from '../context/AuthContext';
-import AlbumModal, { AlbumFormData } from './modals/AlbumModal';
+import api from '../../services/api';
+import { AlbumDto, ImageDto, PaginatedList } from '../../types';
+import { useNotification } from '../../context/NotificationContext';
+import { useAuth } from '../../context/AuthContext';
+import Modal from '../Modal';
+import AlbumModal, { AlbumFormData } from './AlbumModal';
 
-interface AlbumDropdownProps {
+interface AlbumSelectionModalProps {
+    isOpen: boolean;
+    onClose: () => void;
     image: ImageDto;
-    trigger: ReactNode;
     onUpdate?: (updatedImage: ImageDto) => void;
-    align?: 'left' | 'right';
-    width?: string;
 }
 
-const AlbumDropdown = ({ image, trigger, onUpdate, align = 'right', width = 'w-56' }: AlbumDropdownProps) => {
+const AlbumSelectionModal = ({ isOpen, onClose, image, onUpdate }: AlbumSelectionModalProps) => {
     const { user } = useAuth();
     const { showNotification } = useNotification();
     const [userAlbums, setUserAlbums] = useState<AlbumDto[]>([]);
@@ -33,9 +32,15 @@ const AlbumDropdown = ({ image, trigger, onUpdate, align = 'right', width = 'w-5
         }
     };
 
+    useEffect(() => {
+        if (isOpen) {
+            loadAlbums();
+        }
+    }, [isOpen]);
+
     const handleToggleAlbum = async (e: React.MouseEvent, targetAlbum: AlbumDto) => {
         e.preventDefault();
-        e.stopPropagation(); // Prevent dropdown from closing
+        e.stopPropagation();
 
         if (!user) return;
         const isInAlbum = image.albums?.some(a => a.id === targetAlbum.id);
@@ -68,15 +73,10 @@ const AlbumDropdown = ({ image, trigger, onUpdate, align = 'right', width = 'w-5
 
             if (onUpdate) {
                 onUpdate(updatedImage);
-            } else {
-                // If no onUpdate provided, we mutate the prop object to reflect changes locally 
-                // (fallback for ImageCard where we don't easily update parent list state)
-                image.albums = updatedImage.albums;
-                image.likedAt = updatedImage.likedAt;
-                image.favorites = updatedImage.favorites;
-                // Force re-render of this component to show checkmark update
-                setUserAlbums([...userAlbums]);
             }
+            
+            // Update local list to reflect changes if needed
+             setUserAlbums([...userAlbums]);
         } catch (e) {
             showNotification('error', `Failed to update album`);
         }
@@ -87,15 +87,9 @@ const AlbumDropdown = ({ image, trigger, onUpdate, align = 'right', width = 'w-5
             const { data: newAlbum } = await api.post<AlbumDto>(`/users/me/albums`, data);
             showNotification('success', 'Album created');
             setIsCreateAlbumOpen(false);
-            
-            // Add new album to list and select it immediately
             setUserAlbums(prev => [...prev, newAlbum]);
-            
-            // Optionally add image to new album immediately
-            // We need to construct a synthetic event or call logic directly
-            // For simplicity, let's just add it to the list so user can click it
         } catch { 
-            // showNotification('error', 'Failed to create album'); // Handled globally
+            // Error handled globally
         }
     };
 
@@ -103,41 +97,59 @@ const AlbumDropdown = ({ image, trigger, onUpdate, align = 'right', width = 'w-5
 
     return (
         <>
-            <div onMouseEnter={loadAlbums}>
-                <Dropdown width={width} align={align} trigger={trigger}>
-                    <DropdownLabel>Add to Album</DropdownLabel>
+            <Modal
+                isOpen={isOpen}
+                onClose={onClose}
+                title="Add to Album"
+                maxWidth="max-w-sm"
+            >
+                <div className="space-y-2">
                     {isAlbumsLoaded ? (
                         userAlbums.length === 0 ? (
-                            <div className="px-3 py-2 text-xs text-muted-foreground">No albums found.</div>
+                            <div className="text-center py-8 text-muted-foreground">
+                                <p>No albums found.</p>
+                                <button 
+                                    onClick={() => setIsCreateAlbumOpen(true)}
+                                    className="mt-4 text-primary font-bold hover:underline"
+                                >
+                                    Create your first album
+                                </button>
+                            </div>
                         ) : (
-                            <div className="max-h-48 overflow-y-auto">
+                            <div className="space-y-1 max-h-[60vh] overflow-y-auto -mx-2 px-2">
                                 {userAlbums.map(album => {
                                     const isInAlbum = image.albums?.some(a => a.id === album.id);
                                     return (
-                                        <DropdownItem
+                                        <div
                                             key={album.id}
-                                            onClick={(e: any) => handleToggleAlbum(e, album)}
-                                            icon={isInAlbum ? <Check size={14} className="text-primary"/> : <div className="w-3.5"/>}
-                                            active={isInAlbum}
+                                            onClick={(e) => handleToggleAlbum(e, album)}
+                                            className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all border ${
+                                                isInAlbum 
+                                                    ? 'bg-primary/10 border-primary/20 text-primary' 
+                                                    : 'bg-secondary/50 border-transparent hover:bg-secondary hover:border-border'
+                                            }`}
                                         >
-                                            <span className="truncate">{album.name}</span>
-                                        </DropdownItem>
+                                            <span className="font-medium truncate pr-4">{album.name}</span>
+                                            {isInAlbum && <Check size={18} className="shrink-0" />}
+                                        </div>
                                     );
                                 })}
                             </div>
                         )
                     ) : (
-                        <div className="px-3 py-2 text-xs text-muted-foreground">Loading...</div>
+                        <div className="py-8 text-center text-muted-foreground">Loading albums...</div>
                     )}
-                    <DropdownSeparator />
-                    <DropdownItem 
-                        icon={<Plus size={14} />} 
-                        onClick={() => setIsCreateAlbumOpen(true)}
-                    >
-                        Create New Album
-                    </DropdownItem>
-                </Dropdown>
-            </div>
+
+                    {userAlbums.length > 0 && (
+                        <button
+                            onClick={() => setIsCreateAlbumOpen(true)}
+                            className="w-full mt-4 py-3 flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border hover:border-primary/50 hover:bg-secondary/50 text-muted-foreground hover:text-foreground transition-all font-medium"
+                        >
+                            <Plus size={18} /> Create New Album
+                        </button>
+                    )}
+                </div>
+            </Modal>
 
             <AlbumModal 
                 isOpen={isCreateAlbumOpen} 
@@ -150,4 +162,4 @@ const AlbumDropdown = ({ image, trigger, onUpdate, align = 'right', width = 'w-5
     );
 };
 
-export default AlbumDropdown;
+export default AlbumSelectionModal;

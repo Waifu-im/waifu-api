@@ -4,8 +4,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useState, useEffect } from "react";
 import api from "../services/api";
-import { useNotification } from "../context/NotificationContext";
-import AlbumDropdown from "./AlbumDropdown";
+import AlbumSelectionModal from "./modals/AlbumSelectionModal";
 
 interface ImageCardProps {
     image: ImageDto;
@@ -22,6 +21,7 @@ const ImageCard = ({ image, onDelete, onRemove, onEdit, forceOverlay = false }: 
     const [isLikeLoading, setIsLikeLoading] = useState(false);
     // Local state to track albums for immediate UI feedback in dropdown
     const [localAlbums, setLocalAlbums] = useState(image.albums || []);
+    const [isAlbumModalOpen, setIsAlbumModalOpen] = useState(false);
 
     const isAdmin = user && user.role === Role.Admin;
 
@@ -92,19 +92,22 @@ const ImageCard = ({ image, onDelete, onRemove, onEdit, forceOverlay = false }: 
                 <div className="flex justify-end gap-2 pointer-events-auto">
                     {/* Album Dropdown */}
                     {user && (
-                        <AlbumDropdown 
-                            image={{...image, albums: localAlbums}} // Pass local state to dropdown
-                            onUpdate={handleAlbumUpdate}
-                            trigger={
-                                <button
-                                    className="p-2 bg-primary/90 text-primary-foreground rounded-full shadow-sm hover:bg-primary transition-transform hover:scale-110"
-                                    title="Add to Album"
-                                    onClick={(e) => { e.preventDefault(); }}
-                                >
-                                    <FolderPlus size={14} />
-                                </button>
-                            }
-                        />
+                        <>
+                            <button
+                                className="p-2 bg-primary/90 text-primary-foreground rounded-full shadow-sm hover:bg-primary transition-transform hover:scale-110"
+                                title="Add to Album"
+                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsAlbumModalOpen(true); }}
+                            >
+                                <FolderPlus size={14} />
+                            </button>
+                            
+                            <AlbumSelectionModal
+                                isOpen={isAlbumModalOpen}
+                                onClose={() => setIsAlbumModalOpen(false)}
+                                image={{...image, albums: localAlbums}}
+                                onUpdate={handleAlbumUpdate}
+                            />
+                        </>
                     )}
 
                     {/* Bouton Retirer de l'album (FolderMinus - Style neutre) */}

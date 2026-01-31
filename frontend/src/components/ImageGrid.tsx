@@ -31,7 +31,7 @@ const ImageGrid = ({
 
     if (isLoading) {
         return (
-            <div className="columns-2 sm:columns-3 md:columns-4 xl:columns-5 gap-4 space-y-4">
+            <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4 space-y-4">
                 {[...Array(12)].map((_,i) => <div key={i} className="bg-muted h-64 rounded-xl animate-pulse break-inside-avoid"></div>)}
             </div>
         );
@@ -56,7 +56,7 @@ const ImageGrid = ({
 
     return (
         <>
-            <div className="columns-2 sm:columns-3 md:columns-4 xl:columns-5 gap-4 space-y-4 pb-10">
+            <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4 space-y-4 pb-10">
                 {images.map(img => (
                     <div key={img.id} className="break-inside-avoid relative group">
                         <ImageCard

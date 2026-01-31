@@ -31,17 +31,17 @@ export const useMetadata = (isReviewMode: boolean = false) => {
     const [newArtistName, setNewArtistName] = useState('');
 
     // Loaders
-    const loadTags = async (query: string) => {
+    const loadTags = async (query: string, page: number = 1) => {
         const { data } = await api.get<PaginatedList<Tag>>('/tags', { 
-            params: { search: query, pageSize: 20, reviewStatus: 1 }, 
+            params: { search: query, pageSize: 50, page, reviewStatus: 1 }, 
             skipGlobalErrorHandler: true 
         });
         return data.items.map(t => ({ id: t.id, name: t.name, slug: t.slug, description: t.description }));
     };
 
-    const loadArtists = async (query: string) => {
+    const loadArtists = async (query: string, page: number = 1) => {
         const { data } = await api.get<PaginatedList<Artist>>('/artists', { 
-            params: { search: query, pageSize: 20, reviewStatus: 1 }, 
+            params: { search: query, pageSize: 50, page, reviewStatus: 1 },
             skipGlobalErrorHandler: true 
         });
         return data.items.map(a => ({ id: a.id, name: a.name }));

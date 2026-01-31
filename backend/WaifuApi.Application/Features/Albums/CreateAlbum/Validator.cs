@@ -14,6 +14,6 @@ public class CreateAlbumCommandValidator : AbstractValidator<CreateAlbumCommand>
             .MaximumLength(100).WithMessage("Name must not exceed 100 characters.");
 
         RuleFor(x => x.Description)
-            .MaximumLength(500).WithMessage("Description must not exceed 500 characters.");
+            .MaximumLength(60).WithMessage("Description must not exceed 60 characters.");
     }
 }

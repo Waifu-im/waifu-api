@@ -22,23 +22,23 @@ const FilterSidebar = ({ searchParams, setSearchParams, showFilters, setShowFilt
     // Load initial data for selected items if needed, or just some defaults
     useEffect(() => {
         // We can load a small batch initially or just rely on async search
-        // For better UX, let's load the first 20 of each to populate the list initially
-        api.get<PaginatedList<Tag>>('/tags', { params: { pageSize: 20 } })
+        // For better UX, let's load the first 50 of each to populate the list initially
+        api.get<PaginatedList<Tag>>('/tags', { params: { pageSize: 50 } })
             .then(res => setInitialTags(res.data.items.map(t => ({ id: t.id, name: t.name, slug: t.slug }))))
             .catch(console.error);
 
-        api.get<PaginatedList<Artist>>('/artists', { params: { pageSize: 20 } })
+        api.get<PaginatedList<Artist>>('/artists', { params: { pageSize: 50 } })
             .then(res => setInitialArtists(res.data.items.map(a => ({ id: a.id, name: a.name }))))
             .catch(console.error);
     }, []);
 
-    const loadTags = async (query: string) => {
-        const { data } = await api.get<PaginatedList<Tag>>('/tags', { params: { search: query, pageSize: 20 } });
+    const loadTags = async (query: string, page: number = 1) => {
+        const { data } = await api.get<PaginatedList<Tag>>('/tags', { params: { search: query, pageSize: 50, page } });
         return data.items.map(t => ({ id: t.id, name: t.name, slug: t.slug }));
     };
 
-    const loadArtists = async (query: string) => {
-        const { data } = await api.get<PaginatedList<Artist>>('/artists', { params: { search: query, pageSize: 20 } });
+    const loadArtists = async (query: string, page: number = 1) => {
+        const { data } = await api.get<PaginatedList<Artist>>('/artists', { params: { search: query, pageSize: 50, page } });
         return data.items.map(a => ({ id: a.id, name: a.name }));
     };
 
@@ -100,8 +100,20 @@ const FilterSidebar = ({ searchParams, setSearchParams, showFilters, setShowFilt
     const handleIdKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, key: 'includedIds' | 'excludedIds', input: string, setInput: (val: string) => void) => {
         if (e.key === 'Enter' && input.trim()) {
             e.preventDefault();
+            // Validate that input is an integer
+            if (!/^\d+$/.test(input.trim())) {
+                return; // Or show an error/toast
+            }
             handleIdChange(key, input.trim(), 'add');
             setInput('');
+        }
+    };
+
+    const handleIdInputChange = (e: React.ChangeEvent<HTMLInputElement>, setInput: (val: string) => void) => {
+        const val = e.target.value;
+        // Only allow digits
+        if (val === '' || /^\d+$/.test(val)) {
+            setInput(val);
         }
     };
 
@@ -215,12 +227,12 @@ const FilterSidebar = ({ searchParams, setSearchParams, showFilters, setShowFilt
                         <label className="block text-xs font-bold uppercase text-muted-foreground mb-1">Dimensions (px)</label>
                         <div className="flex gap-2">
                             <input
-                                type="text" placeholder="Width"
+                                type="text" placeholder="Width (e.g. > 1920)"
                                 value={width} onChange={e => updateFilter('width', e.target.value)}
                                 className="w-1/2 p-2 rounded bg-secondary text-sm border-transparent focus:ring-1 focus:ring-primary outline-none"
                             />
                             <input
-                                type="text" placeholder="Height"
+                                type="text" placeholder="Height (e.g. < 1080)"
                                 value={height} onChange={e => updateFilter('height', e.target.value)}
                                 className="w-1/2 p-2 rounded bg-secondary text-sm border-transparent focus:ring-1 focus:ring-primary outline-none"
                             />
@@ -297,7 +309,7 @@ const FilterSidebar = ({ searchParams, setSearchParams, showFilters, setShowFilt
                         type="text"
                         placeholder="Press Enter to add ID..."
                         value={includedIdInput}
-                        onChange={e => setIncludedIdInput(e.target.value)}
+                        onChange={e => handleIdInputChange(e, setIncludedIdInput)}
                         onKeyDown={e => handleIdKeyDown(e, 'includedIds', includedIdInput, setIncludedIdInput)}
                         className="w-full p-2 rounded bg-secondary text-sm border-transparent focus:ring-1 focus:ring-primary outline-none"
                     />
@@ -317,7 +329,7 @@ const FilterSidebar = ({ searchParams, setSearchParams, showFilters, setShowFilt
                         type="text"
                         placeholder="Press Enter to add ID..."
                         value={excludedIdInput}
-                        onChange={e => setExcludedIdInput(e.target.value)}
+                        onChange={e => handleIdInputChange(e, setExcludedIdInput)}
                         onKeyDown={e => handleIdKeyDown(e, 'excludedIds', excludedIdInput, setExcludedIdInput)}
                         className="w-full p-2 rounded bg-secondary text-sm border-transparent focus:ring-1 focus:ring-primary outline-none"
                     />

@@ -1,14 +1,14 @@
-﻿import { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect} from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
-import { ImageDto, Role, ImageFormData, AlbumDto, PaginatedList, ReviewStatus } from '../types';
-import { Heart, Trash2, Edit, AlertTriangle, FolderPlus, ChevronDown, Check, Flag } from 'lucide-react';
+import { ImageDto, Role, ImageFormData, ReviewStatus } from '../types';
+import { Heart, Trash2, Edit, AlertTriangle, FolderPlus,  Flag } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 import ImageModal from '../components/modals/ImageModal';
 import ConfirmModal from '../components/modals/ConfirmModal';
 import ReportModal from '../components/modals/ReportModal';
-import AlbumDropdown from '../components/AlbumDropdown';
+import AlbumSelectionModal from '../components/modals/AlbumSelectionModal';
 
 const ImagePage = () => {
   const { id } = useParams<{ id: string }>();
@@ -25,6 +25,7 @@ const ImagePage = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [isAlbumModalOpen, setIsAlbumModalOpen] = useState(false);
 
   const isAdminOrModerator = user && (user.role === Role.Admin || user.role === Role.Moderator);
 
@@ -184,24 +185,14 @@ const ImagePage = () => {
                 <span>{image.favorites}</span>
               </button>
 
-              {/* Album Dropdown */}
-              <div className="relative flex-1 sm:flex-none">
-                  <AlbumDropdown 
-                      image={image} 
-                      onUpdate={(updated) => setImage(updated)}
-                      width="w-56"
-                      align="left"
-                      trigger={
-                        <button
-                            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-medium text-sm"
-                        >
-                          <FolderPlus size={18} className="shrink-0" />
-                          <span className="truncate">Add to Album</span>
-                          <ChevronDown size={16} className="shrink-0" />
-                        </button>
-                      }
-                  />
-              </div>
+              {/* Album Button */}
+              <button
+                  onClick={() => setIsAlbumModalOpen(true)}
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-medium text-sm"
+              >
+                  <FolderPlus size={18} className="shrink-0" />
+                  <span className="truncate">Add to Album</span>
+              </button>
 
               {/* Report Button */}
               <button
@@ -304,6 +295,13 @@ const ImagePage = () => {
             isOpen={isReportModalOpen}
             onClose={() => setIsReportModalOpen(false)}
             onSubmit={handleReport}
+        />
+
+        <AlbumSelectionModal
+            isOpen={isAlbumModalOpen}
+            onClose={() => setIsAlbumModalOpen(false)}
+            image={image}
+            onUpdate={(updated) => setImage(updated)}
         />
       </div>
   );

@@ -155,7 +155,7 @@ const AlbumPage = () => {
     return (
         <div className="flex h-full relative overflow-hidden">
             <div className="flex-1 overflow-y-auto h-full p-4 md:p-6">
-                <div className="flex flex-col md:flex-row md:items-start justify-between mb-8 gap-4">
+                <div className="flex flex-col md:flex-row md:items-start justify-between px-4 md:px-6 py-4 border-b border-border backdrop-blur-xl z-10 shrink-0 gap-4 -mx-4 md:-mx-6 -mt-4 md:-mt-6 mb-4">
                     <div className="flex items-start gap-4 overflow-hidden max-w-full">
                         <Link to="/albums" className="p-2 rounded-full bg-secondary hover:bg-secondary/80 transition-colors shrink-0 mt-1">
                             <ChevronLeft size={24} />
