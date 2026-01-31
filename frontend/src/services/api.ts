@@ -1,5 +1,6 @@
 ﻿import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { globalErrorBus } from './eventBus';
+import { getEnv } from '../utils/env';
 
 // Extend AxiosRequestConfig to include our custom property
 declare module 'axios' {
@@ -9,7 +10,7 @@ declare module 'axios' {
 }
 
 const api = axios.create({
-    baseURL: import.meta.env.VITE_API_URL || '/api',
+    baseURL: getEnv('VITE_API_URL') || '/api',
     headers: {
         'Content-Type': 'application/json',
     },

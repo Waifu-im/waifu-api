@@ -3,6 +3,7 @@ import { ArrowRight, Book, Wifi, WifiOff, Image as ImageIcon, Tag as TagIcon, Us
 import { useEffect, useState } from 'react';
 import api from '../services/api';
 import { ImageDto, PaginatedList } from '../types';
+import { getEnv } from '../utils/env';
 
 interface PublicStats {
     totalRequests: number;
@@ -15,6 +16,8 @@ const Home = () => {
   const [heroImage, setHeroImage] = useState<ImageDto | null>(null);
   const [isApiOnline, setIsApiOnline] = useState<boolean>(false);
   const [stats, setStats] = useState<PublicStats | null>(null);
+
+  const docsUrl = getEnv('VITE_DOCS_URL');
 
   useEffect(() => {
     const fetchHero = async () => {
@@ -120,14 +123,16 @@ const Home = () => {
               Start Browsing <ArrowRight size={20} />
             </Link>
 
-            <a
-                href="https://docs.waifu.im"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full sm:w-auto px-8 py-4 rounded-xl bg-card border border-border hover:bg-secondary text-foreground font-bold text-lg transition-all flex items-center justify-center gap-2 shadow-sm"
-            >
-              <Book size={20} /> API Docs
-            </a>
+            {docsUrl && (
+                <a
+                    href={docsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full sm:w-auto px-8 py-4 rounded-xl bg-card border border-border hover:bg-secondary text-foreground font-bold text-lg transition-all flex items-center justify-center gap-2 shadow-sm"
+                >
+                  <Book size={20} /> API Docs
+                </a>
+            )}
           </div>
         </div>
       </div>

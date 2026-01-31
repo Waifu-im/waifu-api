@@ -1,11 +1,11 @@
 ﻿import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Tag, ReviewStatus, Role } from '../types';
+import { Tag, Role } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 import Modal from '../components/Modal';
 import TagModal, { TagFormData } from '../components/modals/TagModal';
-import { Plus, Edit2, Trash2, Tag as TagIcon, ChevronLeft, ChevronRight, ExternalLink, Search, Info, Clock, Check, X } from 'lucide-react';
+import { Plus, Edit2, Trash2, Tag as TagIcon, ChevronLeft, ChevronRight, ExternalLink, Search, Info } from 'lucide-react';
 import { useResource } from '../hooks/useResource';
 
 const Tags = () => {
@@ -78,15 +78,6 @@ const Tags = () => {
         e.stopPropagation();
         setSelectedTag(tag);
         setIsDeleteOpen(true);
-    };
-
-    const getStatusBadge = (status?: ReviewStatus) => {
-        switch (status) {
-            case ReviewStatus.Pending: return <span className="bg-yellow-500/10 text-yellow-600 px-2 py-0.5 rounded text-xs font-bold border border-yellow-500/20 flex items-center gap-1"><Clock size={12}/> Pending</span>;
-            case ReviewStatus.Accepted: return <span className="bg-green-500/10 text-green-600 px-2 py-0.5 rounded text-xs font-bold border border-green-500/20 flex items-center gap-1"><Check size={12}/> Accepted</span>;
-            case ReviewStatus.Rejected: return <span className="bg-red-500/10 text-red-600 px-2 py-0.5 rounded text-xs font-bold border border-red-500/20 flex items-center gap-1"><X size={12}/> Rejected</span>;
-            default: return null;
-        }
     };
 
     const isAdmin = user?.role === Role.Admin;

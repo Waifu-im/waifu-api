@@ -241,6 +241,9 @@ if (app.Environment.IsDevelopment())
     app.MapScalarApiReference();
 }
 
+app.UseCors("AllowAll");
+
+
 // IMPORTANT: Authentication must come BEFORE RequestLoggingMiddleware
 // otherwise HttpContext.User will not be populated when logging runs.
 app.UseAuthentication();
@@ -248,8 +251,6 @@ app.UseAuthorization();
 
 app.UseMiddleware<RequestLoggingMiddleware>();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
-
-app.UseCors("AllowAll");
 
 app.UseHttpsRedirection();
 app.MapControllers();

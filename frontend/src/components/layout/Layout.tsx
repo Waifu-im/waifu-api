@@ -4,11 +4,12 @@ import { useAuth } from '../../context/AuthContext';
 import {
     Sun, Moon, Menu, X, LogOut, Upload as UploadIcon,
     Home, Image as ImageIcon, Tag as TagIcon, ChevronRight, PanelLeft,
-    User as UserIcon, Library, ChevronDown, Palette, Key, FileCheck, Users as UsersIcon, Shield, Flag, BarChart, Monitor
+    User as UserIcon, Library, ChevronDown, Palette, Key, FileCheck, Users as UsersIcon, Flag, BarChart, Monitor, Book, Mail
 } from 'lucide-react';
 import { useState } from 'react';
 import GlobalErrorHandler from '../GlobalErrorHandler';
 import { Dropdown, DropdownItem, DropdownLabel, DropdownSeparator } from '../Dropdown';
+import { getEnv } from '../../utils/env';
 
 const Layout = () => {
     const { theme, setTheme, resolvedTheme } = useTheme();
@@ -24,6 +25,12 @@ const Layout = () => {
         logout();
         window.location.href = "/";
     };
+
+    const appTitle = getEnv('VITE_APP_TITLE') || 'WAIFU.IM';
+    const docsUrl = getEnv('VITE_DOCS_URL');
+    const contactEmail = getEnv('VITE_CONTACT_EMAIL');
+    const discordServerUrl = getEnv('VITE_DISCORD_SERVER_URL');
+    const showContact = !!contactEmail || !!discordServerUrl;
 
     const navItems = [
         { name: 'Home', path: '/', icon: Home },
@@ -52,7 +59,7 @@ const Layout = () => {
 
                     <Link to="/" className="flex items-center gap-2 group">
                         <img src="/favicon.png" alt="Logo" className="w-8 h-8 rounded-lg shadow-lg group-hover:scale-105 transition-transform" />
-                        <span className="text-xl font-bold tracking-tight hidden sm:block">WAIFU.IM</span>
+                        <span className="text-xl font-bold tracking-tight hidden sm:block">{appTitle}</span>
                     </Link>
                 </div>
 
@@ -175,6 +182,41 @@ const Layout = () => {
                             <UploadIcon size={22} className="shrink-0" />
                             {!isSidebarCollapsed && <span>Upload</span>}
                         </Link>
+
+                        {/* Dynamic Links Section */}
+                        {(docsUrl || showContact) && (
+                            <>
+                                <div className="my-4 border-t border-border mx-2 opacity-50"></div>
+                                
+                                {docsUrl && (
+                                    <a
+                                        href={docsUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all text-muted-foreground hover:bg-secondary hover:text-foreground ${isSidebarCollapsed ? 'justify-center' : ''}`}
+                                        title={isSidebarCollapsed ? 'Documentation' : ''}
+                                    >
+                                        <Book size={22} className="shrink-0" />
+                                        {!isSidebarCollapsed && <span>Documentation</span>}
+                                    </a>
+                                )}
+
+                                {showContact && (
+                                    <Link
+                                        to="/contact"
+                                        className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all ${
+                                            isActive('/contact')
+                                                ? 'bg-secondary text-foreground font-bold'
+                                                : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+                                        } ${isSidebarCollapsed ? 'justify-center' : ''}`}
+                                        title={isSidebarCollapsed ? 'Contact' : ''}
+                                    >
+                                        <Mail size={22} className="shrink-0" />
+                                        {!isSidebarCollapsed && <span>Contact</span>}
+                                    </Link>
+                                )}
+                            </>
+                        )}
                     </nav>
 
                     <div className="p-4 border-t border-border mt-auto">
@@ -212,7 +254,6 @@ const Layout = () => {
 
                                 <div className="my-2 border-t border-border opacity-50"></div>
 
-                                {/* ADDED: Upload Button for Mobile */}
                                 <Link
                                     to="/upload"
                                     onClick={() => setIsMobileMenuOpen(false)}
@@ -222,6 +263,35 @@ const Layout = () => {
                                 >
                                     <UploadIcon size={20} /> Upload
                                 </Link>
+
+                                {(docsUrl || showContact) && (
+                                    <>
+                                        <div className="my-2 border-t border-border opacity-50"></div>
+                                        
+                                        {docsUrl && (
+                                            <a
+                                                href={docsUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
+                                            >
+                                                <Book size={20} /> Documentation
+                                            </a>
+                                        )}
+
+                                        {showContact && (
+                                            <Link
+                                                to="/contact"
+                                                onClick={() => setIsMobileMenuOpen(false)}
+                                                className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium ${
+                                                    isActive('/contact') ? 'bg-secondary text-foreground' : 'text-muted-foreground'
+                                                }`}
+                                            >
+                                                <Mail size={20} /> Contact
+                                            </Link>
+                                        )}
+                                    </>
+                                )}
                             </nav>
                         </div>
                     </div>

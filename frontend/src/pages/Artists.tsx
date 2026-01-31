@@ -1,9 +1,9 @@
 ﻿import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Artist, ReviewStatus, Role } from '../types';
+import { Artist, Role } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
-import { Plus, Edit2, Trash2, User as UserIcon, ChevronLeft, ChevronRight, Search, ExternalLink, Info, Link as LinkIcon, Clock, Check, X } from 'lucide-react';
+import { Plus, Edit2, Trash2, User as UserIcon, ChevronLeft, ChevronRight, Search, ExternalLink, Info, Link as LinkIcon } from 'lucide-react';
 import ArtistModal, { ArtistFormData } from '../components/modals/ArtistModal';
 import ConfirmModal from '../components/modals/ConfirmModal';
 import Modal from '../components/Modal';
@@ -86,15 +86,6 @@ const Artists = () => {
         e.stopPropagation();
         setSelectedArtist(artist);
         setIsDeleteOpen(true);
-    };
-
-    const getStatusBadge = (status?: ReviewStatus) => {
-        switch (status) {
-            case ReviewStatus.Pending: return <span className="bg-yellow-500/10 text-yellow-600 px-2 py-0.5 rounded text-xs font-bold border border-yellow-500/20 flex items-center gap-1"><Clock size={12}/> Pending</span>;
-            case ReviewStatus.Accepted: return <span className="bg-green-500/10 text-green-600 px-2 py-0.5 rounded text-xs font-bold border border-green-500/20 flex items-center gap-1"><Check size={12}/> Accepted</span>;
-            case ReviewStatus.Rejected: return <span className="bg-red-500/10 text-red-600 px-2 py-0.5 rounded text-xs font-bold border border-red-500/20 flex items-center gap-1"><X size={12}/> Rejected</span>;
-            default: return null;
-        }
     };
 
     const canManage = user && (user.role === Role.Admin || user.role === Role.Moderator);

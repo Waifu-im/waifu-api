@@ -1,4 +1,5 @@
 ﻿import { useLocation } from 'react-router-dom';
+import { getEnv } from '../utils/env';
 
 const Login = () => {
     const location = useLocation();
@@ -7,10 +8,18 @@ const Login = () => {
         const from = location.state?.from?.pathname || '/';
         localStorage.setItem('auth_redirect', from);
 
-        const clientId = import.meta.env.VITE_DISCORD_CLIENT_ID;
-        const redirectUri = encodeURIComponent(import.meta.env.VITE_DISCORD_REDIRECT_URI);
+        const clientId = getEnv('VITE_DISCORD_CLIENT_ID');
+        const redirectUri = getEnv('VITE_DISCORD_REDIRECT_URI');
+
+        if (!clientId || !redirectUri) {
+            console.error("Discord Client ID or Redirect URI is missing in configuration.");
+            alert("Login configuration is missing. Please contact the administrator.");
+            return;
+        }
+
+        const encodedRedirectUri = encodeURIComponent(redirectUri);
         const scope = encodeURIComponent('identify');
-        const url = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}`;
+        const url = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodedRedirectUri}&response_type=code&scope=${scope}`;
         window.location.href = url;
     };
 
@@ -34,4 +43,4 @@ const Login = () => {
     )
 }
 
-export default Login
+export default Login;

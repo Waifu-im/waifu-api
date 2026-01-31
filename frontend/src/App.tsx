@@ -15,6 +15,7 @@ import Users from './pages/Users'
 import ApiKeys from './pages/ApiKeys'
 import Reports from "@/pages/Reports.tsx";
 import AdminStats from "@/pages/AdminStats.tsx";
+import Contact from './pages/Contact';
 
 function App() {
     return (
@@ -34,6 +35,7 @@ function App() {
                 <Route path="users" element={<Users />} />
                 <Route path="api-keys" element={<ApiKeys />} />
                 <Route path="stats" element={<AdminStats />} />
+                <Route path="contact" element={<Contact />} />
                 <Route path="auth/callback" element={<Callback />} />
             </Route>
         </Routes>
