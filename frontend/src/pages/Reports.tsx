@@ -21,8 +21,7 @@ const Reports = () => {
         setLoading(true);
         try {
             const { data } = await api.get<PaginatedList<Report>>('/reports', {
-                params: { page, pageSize, isResolved: false },
-                skipGlobalErrorHandler: true
+                params: { page, pageSize, isResolved: false }
             });
             setReports(data.items);
             setTotalPages(data.totalPages);
