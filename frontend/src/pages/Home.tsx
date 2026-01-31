@@ -94,22 +94,22 @@ const Home = () => {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto pt-4">
                   <div className="bg-card/50 backdrop-blur-sm border border-border p-4 rounded-xl flex flex-col items-center">
                       <Activity className="text-primary mb-2" size={24} />
-                      <span className="text-2xl font-bold">{stats.totalRequests.toLocaleString()}</span>
+                      <span className="text-2xl font-bold">{stats.totalRequests?.toLocaleString() || 0}</span>
                       <span className="text-xs text-muted-foreground uppercase tracking-wider">Requests</span>
                   </div>
                   <div className="bg-card/50 backdrop-blur-sm border border-border p-4 rounded-xl flex flex-col items-center">
                       <ImageIcon className="text-blue-500 mb-2" size={24} />
-                      <span className="text-2xl font-bold">{stats.totalImages.toLocaleString()}</span>
+                      <span className="text-2xl font-bold">{stats.totalImages?.toLocaleString() || 0}</span>
                       <span className="text-xs text-muted-foreground uppercase tracking-wider">Images</span>
                   </div>
                   <div className="bg-card/50 backdrop-blur-sm border border-border p-4 rounded-xl flex flex-col items-center">
                       <TagIcon className="text-green-500 mb-2" size={24} />
-                      <span className="text-2xl font-bold">{stats.totalTags.toLocaleString()}</span>
+                      <span className="text-2xl font-bold">{stats.totalTags?.toLocaleString() || 0}</span>
                       <span className="text-xs text-muted-foreground uppercase tracking-wider">Tags</span>
                   </div>
                   <div className="bg-card/50 backdrop-blur-sm border border-border p-4 rounded-xl flex flex-col items-center">
                       <Users className="text-purple-500 mb-2" size={24} />
-                      <span className="text-2xl font-bold">{stats.totalArtists.toLocaleString()}</span>
+                      <span className="text-2xl font-bold">{stats.totalArtists?.toLocaleString() || 0}</span>
                       <span className="text-xs text-muted-foreground uppercase tracking-wider">Artists</span>
                   </div>
               </div>

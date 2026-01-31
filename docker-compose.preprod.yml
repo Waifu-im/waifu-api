@@ -5,14 +5,14 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     env_file:
-      - .env
+      - .env.preprod
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
-
     ports:
       - "8085:8080"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     restart: always
 
   frontend:
@@ -20,7 +20,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     env_file:
-      - .env
+      - .env.preprod
     ports:
       - "8084:80"
     depends_on:
@@ -30,10 +30,17 @@ services:
   db:
     image: pgvector/pgvector:pg18
     env_file:
-      - .env
+      - .env.preprod
     volumes:
       - postgres_data:/var/lib/postgresql
     restart: always
+    ports:
+      - "54330:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-waifuapi}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres_data:

@@ -7,11 +7,11 @@
       - .env
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
-
     ports:
       - "8080:8080"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     restart: always
 
   frontend:
@@ -33,6 +33,11 @@
     volumes:
       - postgres_data:/var/lib/postgresql
     restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-waifuapi}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres_data:
