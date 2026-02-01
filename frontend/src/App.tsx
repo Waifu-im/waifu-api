@@ -16,6 +16,7 @@ import ApiKeys from './pages/ApiKeys'
 import Reports from "@/pages/Reports.tsx";
 import AdminStats from "@/pages/AdminStats.tsx";
 import Contact from './pages/Contact';
+import NotFound from './pages/NotFound';
 
 function App() {
     return (
@@ -37,6 +38,7 @@ function App() {
                 <Route path="stats" element={<AdminStats />} />
                 <Route path="contact" element={<Contact />} />
                 <Route path="auth/callback" element={<Callback />} />
+                <Route path="*" element={<NotFound />} />
             </Route>
         </Routes>
     )

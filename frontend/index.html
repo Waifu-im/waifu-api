@@ -5,6 +5,21 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <script src="/config.js"></script>
+    <script>
+      // Immediate theme application to prevent flash of unstyled content (FOUC)
+      (function() {
+        try {
+          const savedTheme = localStorage.getItem('theme');
+          const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          
+          if (savedTheme === 'dark' || (!savedTheme && systemDark) || (savedTheme === 'system' && systemDark)) {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+        } catch (e) {}
+      })();
+    </script>
     <title>Waifu API</title>
   </head>
   <body>

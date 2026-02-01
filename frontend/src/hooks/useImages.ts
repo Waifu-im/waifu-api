@@ -20,11 +20,13 @@ export interface ImageFilters {
   height?: string;
   byteSize?: string;
   albumId?: string;
+  enabled?: boolean; // Added enabled flag
 }
 
 export const useImages = (filters: ImageFilters) => {
   const { user } = useAuth();
   const isAlbumRequest = !!filters.albumId;
+  const isEnabled = filters.enabled !== undefined ? filters.enabled : true;
 
   return useQuery({
     queryKey: ['images', filters, user?.id],
@@ -55,7 +57,7 @@ export const useImages = (filters: ImageFilters) => {
       const { data } = await api.get<PaginatedList<ImageDto>>(endpoint, { params });
       return data;
     },
-    enabled: !isAlbumRequest || (isAlbumRequest && !!user),
+    enabled: isEnabled && (!isAlbumRequest || (isAlbumRequest && !!user)),
     staleTime: 0,
     refetchOnWindowFocus: false,
   });

@@ -2,16 +2,32 @@
 import { useImages } from '../hooks/useImages';
 import { GalleryLayout } from '../components/layout/GalleryLayout';
 import { useGalleryParams } from '../hooks/useGalleryParams';
+import { useAlternativeSearch } from '../hooks/useAlternativeSearch';
+import EmptyState from '../components/EmptyState';
 
 const Gallery = () => {
     const { filters, page, setPage, searchParams, setSearchParams, isNsfw } = useGalleryParams();
     const [showNsfwWarning, setShowNsfwWarning] = useState(false);
 
     const { data: paginatedImages, isLoading, error, refetch } = useImages(filters);
+    
+    const { alternativeCount, isCheckingAlternatives } = useAlternativeSearch(
+        isLoading,
+        paginatedImages?.items,
+        isNsfw,
+        filters
+    );
 
     useEffect(() => {
         if (isNsfw !== '0' && !localStorage.getItem('nsfw-consent')) setShowNsfwWarning(true);
     }, [isNsfw]);
+
+    const handleEnableNsfw = () => {
+        setSearchParams(prev => {
+            prev.set('isNsfw', '2');
+            return prev;
+        });
+    };
 
     return (
         <>
@@ -25,6 +41,14 @@ const Gallery = () => {
                 setPage={setPage}
                 searchParams={searchParams}
                 setSearchParams={setSearchParams}
+                emptyState={
+                    <EmptyState
+                        isCheckingAlternatives={isCheckingAlternatives}
+                        alternativeCount={alternativeCount}
+                        onEnableNsfw={handleEnableNsfw}
+                        onClearFilters={() => { setSearchParams(new URLSearchParams()); refetch(); }}
+                    />
+                }
             />
 
             {showNsfwWarning && (

@@ -10,6 +10,8 @@ import { useRequireAuth } from '../hooks/useRequireAuth';
 import { useImages } from '../hooks/useImages';
 import { GalleryLayout } from '../components/layout/GalleryLayout';
 import { useGalleryParams } from '../hooks/useGalleryParams';
+import { useAlternativeSearch } from '../hooks/useAlternativeSearch';
+import EmptyState from '../components/EmptyState';
 
 const AlbumPage = () => {
     const { id } = useParams<{ id: string }>();
@@ -17,7 +19,7 @@ const AlbumPage = () => {
     const navigate = useNavigate();
     const { showNotification } = useNotification();
 
-    const { filters, page, setPage, searchParams, setSearchParams } = useGalleryParams(ImageSort.ADDED_TO_ALBUM);
+    const { filters, page, setPage, searchParams, setSearchParams, isNsfw } = useGalleryParams(ImageSort.ADDED_TO_ALBUM);
 
     const [album, setAlbum] = useState<AlbumDto | null>(null);
     const [loadingAlbum, setLoadingAlbum] = useState(true);
@@ -37,6 +39,13 @@ const AlbumPage = () => {
     }, [id, user]);
 
     const { data: paginatedImages, isLoading: loadingImages, refetch } = useImages({ ...filters, albumId: id });
+
+    const { alternativeCount, isCheckingAlternatives } = useAlternativeSearch(
+        loadingImages,
+        paginatedImages?.items,
+        isNsfw,
+        { ...filters, albumId: id }
+    );
 
     const handleRemoveImage = async () => {
         if (!id || !imageToRemove) return;
@@ -67,6 +76,13 @@ const AlbumPage = () => {
             setIsEditAlbumOpen(false);
             showNotification('success', 'Album updated');
         } catch (e) { }
+    };
+
+    const handleEnableNsfw = () => {
+        setSearchParams(prev => {
+            prev.set('isNsfw', '2');
+            return prev;
+        });
     };
 
     const sortOptions = [
@@ -119,10 +135,20 @@ const AlbumPage = () => {
                 sortOptions={sortOptions}
                 onRemoveFromAlbum={setImageToRemove}
                 emptyState={
-                    <div className="flex flex-col items-center justify-center h-64 text-muted-foreground border-2 border-dashed border-border rounded-xl bg-card/50">
-                        <p className="text-lg font-medium">This album is empty.</p>
-                        <Link to="/gallery" className="mt-2 text-primary font-bold hover:underline">Browse Gallery to add images</Link>
-                    </div>
+                    <EmptyState
+                        isCheckingAlternatives={isCheckingAlternatives}
+                        alternativeCount={alternativeCount}
+                        onEnableNsfw={handleEnableNsfw}
+                        onClearFilters={() => { setSearchParams(new URLSearchParams()); refetch(); }}
+                        customEmptyMessage={
+                            !isCheckingAlternatives && (!alternativeCount || alternativeCount === 0) ? (
+                                <div className="flex flex-col items-center">
+                                    <p className="text-lg font-medium">This album is empty.</p>
+                                    <Link to="/gallery" className="mt-2 text-primary font-bold hover:underline">Browse Gallery to add images</Link>
+                                </div>
+                            ) : undefined
+                        }
+                    />
                 }
             />
 

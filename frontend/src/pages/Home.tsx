@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import api from '../services/api';
 import { ImageDto, PaginatedList } from '../types';
 import { getEnv } from '../utils/env';
+import Skeleton from '../components/Skeleton';
 
 interface PublicStats {
     totalRequests: number;
@@ -15,7 +16,9 @@ interface PublicStats {
 const Home = () => {
   const [heroImage, setHeroImage] = useState<ImageDto | null>(null);
   const [isApiOnline, setIsApiOnline] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [stats, setStats] = useState<PublicStats | null>(null);
+  const [loadingStats, setLoadingStats] = useState<boolean>(true);
 
   const docsUrl = getEnv('VITE_DOCS_URL');
 
@@ -23,7 +26,13 @@ const Home = () => {
     const fetchHero = async () => {
       try {
         const { data } = await api.get<PaginatedList<ImageDto>>('/images', {
-          params: { isNsfw: 0, pageSize: 30, orientation: 'LANDSCAPE' },
+          params: { 
+              isNsfw: 0, 
+              pageSize: 1,
+              orientation: 'LANDSCAPE',
+              isAnimated: false,
+              width: '>=1000'
+          },
           skipGlobalErrorHandler: true
         });
         if (data.items.length > 0) {
@@ -33,6 +42,8 @@ const Home = () => {
       } catch (e) { 
           console.error(e);
           setIsApiOnline(false);
+      } finally {
+          setIsLoading(false);
       }
     };
 
@@ -42,6 +53,8 @@ const Home = () => {
             setStats(data);
         } catch (e) {
             console.error(e);
+        } finally {
+            setLoadingStats(false);
         }
     };
 
@@ -67,8 +80,13 @@ const Home = () => {
 
         <div className="relative z-10 max-w-4xl w-full text-center space-y-8 animate-in fade-in zoom-in-95 duration-700">
 
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary/50 border border-border text-xs font-semibold text-muted-foreground backdrop-blur-md">
-            {isApiOnline ? (
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary/50 border border-border text-xs font-semibold text-muted-foreground backdrop-blur-md min-h-[26px]">
+            {isLoading ? (
+                <div className="flex items-center gap-2">
+                    <Skeleton className="w-3 h-3 rounded-full" />
+                    <Skeleton className="w-16 h-3 rounded" />
+                </div>
+            ) : isApiOnline ? (
                 <>
                     <Wifi size={12} className="text-emerald-500" />
                     <span>API Online</span>
@@ -90,30 +108,44 @@ const Home = () => {
           </p>
 
           {/* Stats Grid */}
-          {stats && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto pt-4">
-                  <div className="bg-card/50 backdrop-blur-sm border border-border p-4 rounded-xl flex flex-col items-center">
-                      <Activity className="text-primary mb-2" size={24} />
-                      <span className="text-2xl font-bold">{stats.totalRequests?.toLocaleString() || 0}</span>
-                      <span className="text-xs text-muted-foreground uppercase tracking-wider">Requests</span>
-                  </div>
-                  <div className="bg-card/50 backdrop-blur-sm border border-border p-4 rounded-xl flex flex-col items-center">
-                      <ImageIcon className="text-blue-500 mb-2" size={24} />
-                      <span className="text-2xl font-bold">{stats.totalImages?.toLocaleString() || 0}</span>
-                      <span className="text-xs text-muted-foreground uppercase tracking-wider">Images</span>
-                  </div>
-                  <div className="bg-card/50 backdrop-blur-sm border border-border p-4 rounded-xl flex flex-col items-center">
-                      <TagIcon className="text-green-500 mb-2" size={24} />
-                      <span className="text-2xl font-bold">{stats.totalTags?.toLocaleString() || 0}</span>
-                      <span className="text-xs text-muted-foreground uppercase tracking-wider">Tags</span>
-                  </div>
-                  <div className="bg-card/50 backdrop-blur-sm border border-border p-4 rounded-xl flex flex-col items-center">
-                      <Users className="text-purple-500 mb-2" size={24} />
-                      <span className="text-2xl font-bold">{stats.totalArtists?.toLocaleString() || 0}</span>
-                      <span className="text-xs text-muted-foreground uppercase tracking-wider">Artists</span>
-                  </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto pt-4">
+              <div className="bg-card/50 backdrop-blur-sm border border-border p-4 rounded-xl flex flex-col items-center">
+                  <Activity className="text-primary mb-2" size={24} />
+                  {loadingStats ? (
+                      <Skeleton className="h-8 w-20 mb-1" />
+                  ) : (
+                      <span className="text-2xl font-bold">{stats?.totalRequests?.toLocaleString() || 0}</span>
+                  )}
+                  <span className="text-xs text-muted-foreground uppercase tracking-wider">Requests</span>
               </div>
-          )}
+              <div className="bg-card/50 backdrop-blur-sm border border-border p-4 rounded-xl flex flex-col items-center">
+                  <ImageIcon className="text-blue-500 mb-2" size={24} />
+                  {loadingStats ? (
+                      <Skeleton className="h-8 w-16 mb-1" />
+                  ) : (
+                      <span className="text-2xl font-bold">{stats?.totalImages?.toLocaleString() || 0}</span>
+                  )}
+                  <span className="text-xs text-muted-foreground uppercase tracking-wider">Images</span>
+              </div>
+              <div className="bg-card/50 backdrop-blur-sm border border-border p-4 rounded-xl flex flex-col items-center">
+                  <TagIcon className="text-green-500 mb-2" size={24} />
+                  {loadingStats ? (
+                      <Skeleton className="h-8 w-12 mb-1" />
+                  ) : (
+                      <span className="text-2xl font-bold">{stats?.totalTags?.toLocaleString() || 0}</span>
+                  )}
+                  <span className="text-xs text-muted-foreground uppercase tracking-wider">Tags</span>
+              </div>
+              <div className="bg-card/50 backdrop-blur-sm border border-border p-4 rounded-xl flex flex-col items-center">
+                  <Users className="text-purple-500 mb-2" size={24} />
+                  {loadingStats ? (
+                      <Skeleton className="h-8 w-12 mb-1" />
+                  ) : (
+                      <span className="text-2xl font-bold">{stats?.totalArtists?.toLocaleString() || 0}</span>
+                  )}
+                  <span className="text-xs text-muted-foreground uppercase tracking-wider">Artists</span>
+              </div>
+          </div>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
             <Link
