@@ -71,7 +71,7 @@ const ImageModal = ({ isOpen, onClose, initialData, onSubmit, onDelete }: ImageM
     }, [initialData, isOpen]);
 
     const loadUsers = async (query: string) => {
-        const { data } = await api.get<PaginatedList<User>>('/users', { params: { search: query, pageSize: usersPageSize } });
+        const { data } = await api.get<PaginatedList<User>>('/users', { params: { name: query, pageSize: usersPageSize } });
         return data.items.map(u => ({ id: u.id, name: u.name }));
     };
 

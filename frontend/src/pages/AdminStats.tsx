@@ -280,7 +280,7 @@ const AdminStats = () => {
                                         <div className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${i === 0 ? 'bg-yellow-500/20 text-yellow-600' : i === 1 ? 'bg-gray-400/20 text-gray-500' : i === 2 ? 'bg-orange-500/20 text-orange-600' : 'bg-secondary text-muted-foreground'}`}>
                                             {i + 1}
                                         </div>
-                                        <Link to={`/users?search=${u.id}`} className="font-medium truncate hover:text-primary hover:underline" title={u.name}>{u.name}</Link>
+                                        <Link to={`/users?id=${u.id}`} className="font-medium truncate hover:text-primary hover:underline" title={u.name}>{u.name}</Link>
                                     </div>
                                     <span className="font-mono text-sm font-bold shrink-0">{u.requestCount.toLocaleString()}</span>
                                 </div>
@@ -308,7 +308,7 @@ const AdminStats = () => {
                                     <div className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${i === 0 ? 'bg-blue-500/20 text-blue-600' : 'bg-secondary text-muted-foreground'}`}>
                                         {i + 1}
                                     </div>
-                                    <Link to={`/users?search=${u.id}`} className="font-medium truncate hover:text-primary hover:underline" title={u.name}>{u.name}</Link>
+                                    <Link to={`/users?id=${u.id}`} className="font-medium truncate hover:text-primary hover:underline" title={u.name}>{u.name}</Link>
                                 </div>
                                 <span className="font-mono text-sm font-bold shrink-0">{u.apiKeyRequestCount.toLocaleString()}</span>
                             </div>
@@ -331,7 +331,7 @@ const AdminStats = () => {
                                     <div className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${i === 0 ? 'bg-purple-500/20 text-purple-600' : 'bg-secondary text-muted-foreground'}`}>
                                         {i + 1}
                                     </div>
-                                    <Link to={`/users?search=${u.id}`} className="font-medium truncate hover:text-primary hover:underline" title={u.name}>{u.name}</Link>
+                                    <Link to={`/users?id=${u.id}`} className="font-medium truncate hover:text-primary hover:underline" title={u.name}>{u.name}</Link>
                                 </div>
                                 <span className="font-mono text-sm font-bold shrink-0">{u.jwtRequestCount.toLocaleString()}</span>
                             </div>
