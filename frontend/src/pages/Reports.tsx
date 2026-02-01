@@ -6,19 +6,22 @@ import { useNotification } from '../context/NotificationContext';
 import { Check, Trash2, Flag, ExternalLink } from 'lucide-react';
 import ConfirmModal from '../components/modals/ConfirmModal';
 import Pagination from '../components/Pagination'; // Import Pagination
+import { useRequireAuth } from '../hooks/useRequireAuth';
 
 const Reports = () => {
+    const user = useRequireAuth();
     const { showNotification } = useNotification();
     const [reports, setReports] = useState<Report[]>([]);
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
-    const pageSize = 20;
+    const pageSize = 30;
 
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [reportToDelete, setReportToDelete] = useState<Report | null>(null);
 
     const fetchReports = async () => {
+        if (!user) return;
         setLoading(true);
         try {
             const { data } = await api.get<PaginatedList<Report>>('/reports', {
@@ -34,8 +37,10 @@ const Reports = () => {
     };
 
     useEffect(() => {
-        fetchReports();
-    }, [page]);
+        if (user) {
+            fetchReports();
+        }
+    }, [page, user]);
 
     const handleResolve = async (id: number) => {
         try {
@@ -62,6 +67,8 @@ const Reports = () => {
             // showNotification('error', 'Failed to delete image'); // Handled globally
         }
     };
+
+    if (!user) return null;
 
     return (
         <div className="container mx-auto p-6 md:p-10 h-full flex flex-col">

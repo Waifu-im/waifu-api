@@ -22,7 +22,7 @@ export interface UseResourceResult<T> {
 
 export function useResource<T extends { id: number | string }>(
     endpoint: string,
-    pageSize: number = 50,
+    pageSize: number = 30,
     initialParams: Record<string, any> = {}
 ): UseResourceResult<T> {
     const { showNotification } = useNotification();

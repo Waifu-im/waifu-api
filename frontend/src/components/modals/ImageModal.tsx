@@ -19,6 +19,7 @@ interface ImageModalProps {
 }
 
 const ImageModal = ({ isOpen, onClose, initialData, onSubmit, onDelete }: ImageModalProps) => {
+    const usersPageSize = 30;
     const { user } = useAuth();
     const [source, setSource] = useState('');
     const [isNsfw, setIsNsfw] = useState(false);
@@ -70,7 +71,7 @@ const ImageModal = ({ isOpen, onClose, initialData, onSubmit, onDelete }: ImageM
     }, [initialData, isOpen]);
 
     const loadUsers = async (query: string) => {
-        const { data } = await api.get<PaginatedList<User>>('/users', { params: { search: query, pageSize: 20 } });
+        const { data } = await api.get<PaginatedList<User>>('/users', { params: { search: query, pageSize: usersPageSize } });
         return data.items.map(u => ({ id: u.id, name: u.name }));
     };
 

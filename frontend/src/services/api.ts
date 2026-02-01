@@ -41,8 +41,12 @@ api.interceptors.response.use(
             // 1. Handle 401 Unauthorized globally
             if (status === 401) {
                 localStorage.removeItem('token');
+                // Only redirect if we are not already on the login page
                 if (!window.location.pathname.includes('/login')) {
-                    window.location.href = '/login';
+                    // Use history.pushState or similar if possible, but window.location is safer for full reset
+                    // However, to avoid infinite loops or bad UX, we should be careful.
+                    // For now, let's just clear the token. The UI (useRequireAuth) will handle the redirect.
+                    // window.location.href = '/login';
                 }
                 return Promise.reject(new Error("Session expired. Please login again."));
             }

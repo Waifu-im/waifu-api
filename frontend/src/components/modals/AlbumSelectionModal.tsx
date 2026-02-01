@@ -15,6 +15,7 @@ interface AlbumSelectionModalProps {
 }
 
 const AlbumSelectionModal = ({ isOpen, onClose, image, onUpdate }: AlbumSelectionModalProps) => {
+    const albumPageSize = 100;
     const { user } = useAuth();
     const { showNotification } = useNotification();
     const [userAlbums, setUserAlbums] = useState<AlbumDto[]>([]);
@@ -24,7 +25,7 @@ const AlbumSelectionModal = ({ isOpen, onClose, image, onUpdate }: AlbumSelectio
     const loadAlbums = async () => {
         if (isAlbumsLoaded || !user) return;
         try {
-            const { data } = await api.get<PaginatedList<AlbumDto>>('/users/me/albums', { params: { pageSize: 100 }, skipGlobalErrorHandler: true });
+            const { data } = await api.get<PaginatedList<AlbumDto>>('/users/me/albums', { params: { pageSize: albumPageSize }, skipGlobalErrorHandler: true });
             setUserAlbums(data.items);
             setIsAlbumsLoaded(true);
         } catch (e) {

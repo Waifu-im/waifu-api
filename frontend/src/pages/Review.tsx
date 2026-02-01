@@ -10,11 +10,11 @@ import TagModal, { TagFormData } from '../components/modals/TagModal';
 import ConfirmModal from '../components/modals/ConfirmModal';
 import ImageGrid from '../components/ImageGrid';
 import Pagination from '../components/Pagination'; // Import Pagination
-import { useAuth } from '../context/AuthContext';
+import { useRequireAuth } from '../hooks/useRequireAuth';
 
 const Review = () => {
+    const user = useRequireAuth();
     const { showNotification } = useNotification();
-    const { user } = useAuth();
     const [tab, setTab] = useState<'images' | 'artists' | 'tags'>('images');
     const [loading, setLoading] = useState(false);
 
@@ -37,6 +37,7 @@ const Review = () => {
     const isAdmin = user?.role === Role.Admin;
 
     const fetchData = async () => {
+        if (!user) return;
         setLoading(true);
         try {
             if (tab === 'images') {
@@ -61,7 +62,11 @@ const Review = () => {
         setPage(1);
     }, [tab]);
 
-    useEffect(() => { fetchData(); }, [tab, page]);
+    useEffect(() => { 
+        if (user) {
+            fetchData(); 
+        }
+    }, [tab, page, user]);
 
     const handleUpdateImage = async (data: ImageFormData) => {
         if (!editingImage) return;
@@ -145,6 +150,8 @@ const Review = () => {
             // showNotification('error', err.message); // Handled globally
         }
     };
+
+    if (!user) return null;
 
     return (
         <div className="container mx-auto p-6 md:p-10 h-full flex flex-col">

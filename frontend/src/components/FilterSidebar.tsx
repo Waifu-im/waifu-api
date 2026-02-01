@@ -13,6 +13,8 @@ interface FilterSidebarProps {
 }
 
 const FilterSidebar = ({ searchParams, setSearchParams, showFilters, setShowFilters, sortOptions }: FilterSidebarProps) => {
+    const tagsPageSize = 30;
+    const artistsPageSize = 30;
     const [initialTags, setInitialTags] = useState<Option[]>([]);
     const [initialArtists, setInitialArtists] = useState<Option[]>([]);
 
@@ -23,22 +25,22 @@ const FilterSidebar = ({ searchParams, setSearchParams, showFilters, setShowFilt
     useEffect(() => {
         // We can load a small batch initially or just rely on async search
         // For better UX, let's load the first 50 of each to populate the list initially
-        api.get<PaginatedList<Tag>>('/tags', { params: { pageSize: 50 } })
+        api.get<PaginatedList<Tag>>('/tags', { params: { pageSize: tagsPageSize } })
             .then(res => setInitialTags(res.data.items.map(t => ({ id: t.id, name: t.name, slug: t.slug }))))
             .catch(console.error);
 
-        api.get<PaginatedList<Artist>>('/artists', { params: { pageSize: 50 } })
+        api.get<PaginatedList<Artist>>('/artists', { params: { pageSize: artistsPageSize } })
             .then(res => setInitialArtists(res.data.items.map(a => ({ id: a.id, name: a.name }))))
             .catch(console.error);
     }, []);
 
     const loadTags = async (query: string, page: number = 1) => {
-        const { data } = await api.get<PaginatedList<Tag>>('/tags', { params: { search: query, pageSize: 50, page } });
+        const { data } = await api.get<PaginatedList<Tag>>('/tags', { params: { name: query, pageSize: tagsPageSize, page } });
         return data.items.map(t => ({ id: t.id, name: t.name, slug: t.slug }));
     };
 
     const loadArtists = async (query: string, page: number = 1) => {
-        const { data } = await api.get<PaginatedList<Artist>>('/artists', { params: { search: query, pageSize: 50, page } });
+        const { data } = await api.get<PaginatedList<Artist>>('/artists', { params: { name: query, pageSize: artistsPageSize, page } });
         return data.items.map(a => ({ id: a.id, name: a.name }));
     };
 

@@ -1,15 +1,15 @@
 ﻿import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import SearchableSelect from '../components/SearchableSelect';
 import { UploadCloud, Info, Loader2 } from 'lucide-react';
 import { useNotification } from '../context/NotificationContext';
-import { useAuth } from '../context/AuthContext';
 import TagModal from '../components/modals/TagModal';
 import ArtistModal from '../components/modals/ArtistModal';
 import { useMetadata } from '../hooks/useMetadata';
 import { ImageDto } from '../types';
+import { useRequireAuth } from '../hooks/useRequireAuth';
 
 interface UploadForm {
   file: FileList;
@@ -18,11 +18,10 @@ interface UploadForm {
 }
 
 const Upload = () => {
+  const user = useRequireAuth();
   const { register, handleSubmit, watch, formState: { errors } } = useForm<UploadForm>();
   const navigate = useNavigate();
-  const location = useLocation();
   const { showNotification } = useNotification();
-  const { user } = useAuth();
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -52,14 +51,6 @@ const Upload = () => {
       setPreviewUrl(null);
     }
   }, [fileList]);
-
-  useEffect(() => {
-    if (!user) {
-      showNotification('warning', 'You must be logged in to upload images.');
-      navigate('/login', { state: { from: location } });
-      return;
-    }
-  }, [user, navigate, showNotification, location]);
 
   const onSubmit = async (data: UploadForm) => {
     setIsUploading(true);

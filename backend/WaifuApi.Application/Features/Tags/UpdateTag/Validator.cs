@@ -15,6 +15,6 @@ public class UpdateTagCommandValidator : AbstractValidator<UpdateTagCommand>
 
         RuleFor(x => x.Description)
             .NotEmpty().WithMessage("Description is required.")
-            .MaximumLength(60).WithMessage("Description must not exceed 60 characters.");
+            .MaximumLength(150).WithMessage("Description must not exceed 150 characters.");
     }
 }

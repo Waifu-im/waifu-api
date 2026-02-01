@@ -23,7 +23,7 @@ const Home = () => {
     const fetchHero = async () => {
       try {
         const { data } = await api.get<PaginatedList<ImageDto>>('/images', {
-          params: { isNsfw: 0, pageSize: 1, orientation: 'LANDSCAPE' },
+          params: { isNsfw: 0, pageSize: 30, orientation: 'LANDSCAPE' },
           skipGlobalErrorHandler: true
         });
         if (data.items.length > 0) {

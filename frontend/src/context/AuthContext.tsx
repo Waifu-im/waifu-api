@@ -17,7 +17,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
 
   // Use React Query to fetch user
-  const { data: user, isLoading, isError } = useUser(!!token);
+  const { data: user, isLoading: userLoading, isError } = useUser(!!token);
+
+  // If no token, we are not loading (we are logged out). 
+  // If token exists, we are loading until userLoading is false.
+  const isLoading = !!token && userLoading;
 
   useEffect(() => {
     if (token) {

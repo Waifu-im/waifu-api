@@ -8,8 +8,10 @@ import SearchableSelect from '../components/SearchableSelect';
 import SearchInput from '../components/SearchInput';
 import Pagination from '../components/Pagination'; // Import Pagination
 import { useResource } from '../hooks/useResource';
+import { useRequireAuth } from '../hooks/useRequireAuth';
 
 const Users = () => {
+    const user = useRequireAuth();
     const { showNotification } = useNotification();
 
     const {
@@ -62,6 +64,8 @@ const Users = () => {
         { id: Role.Moderator.toString(), name: 'Moderator' },
         { id: Role.Admin.toString(), name: 'Admin' }
     ];
+
+    if (!user) return null;
 
     return (
         <div className="container mx-auto p-6 md:p-10">

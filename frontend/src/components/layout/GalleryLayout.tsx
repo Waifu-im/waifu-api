@@ -1,0 +1,180 @@
+﻿import { useState, ReactNode } from 'react';
+import { ImageDto, Role, ImageFormData, ImageSort } from '../../types';
+import { useAuth } from '../../context/AuthContext';
+import { useNotification } from '../../context/NotificationContext';
+import api from '../../services/api';
+import ImageGrid from '../ImageGrid';
+import Pagination from '../Pagination';
+import FilterSidebar from '../FilterSidebar';
+import FilterToggleButton from '../FilterToggleButton';
+import FloatingRefreshButton from '../FloatingRefreshButton';
+import ConfirmModal from '../modals/ConfirmModal';
+import ImageModal from '../modals/ImageModal';
+import { Option } from '../SearchableSelect';
+import { Search } from 'lucide-react';
+
+interface GalleryLayoutProps {
+    images: ImageDto[];
+    isLoading: boolean;
+    error?: any;
+    refetch: () => void;
+    page: number;
+    totalPages: number;
+    setPage: (page: number) => void;
+    searchParams: URLSearchParams;
+    setSearchParams: (params: URLSearchParams | ((prev: URLSearchParams) => URLSearchParams)) => void;
+    headerContent?: ReactNode;
+    sortOptions?: Option[];
+    emptyState?: ReactNode;
+    onRemoveFromAlbum?: (id: number) => void;
+}
+
+export const GalleryLayout = ({
+                                  images,
+                                  isLoading,
+                                  error,
+                                  refetch,
+                                  page,
+                                  totalPages,
+                                  setPage,
+                                  searchParams,
+                                  setSearchParams,
+                                  headerContent,
+                                  sortOptions,
+                                  emptyState,
+                                  onRemoveFromAlbum
+                              }: GalleryLayoutProps) => {
+    const { user } = useAuth();
+    const { showNotification } = useNotification();
+
+    const [showFilters, setShowFilters] = useState(false);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [imageToDelete, setImageToDelete] = useState<number | null>(null);
+    const [editingImage, setEditingImage] = useState<ImageDto | null>(null);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
+    const isAdmin = user?.role === Role.Admin;
+    const isAdminOrModerator = user && (user.role === Role.Admin || user.role === Role.Moderator);
+
+    const confirmDelete = (id: number) => {
+        setImageToDelete(id);
+        setIsDeleteModalOpen(true);
+    };
+
+    const handleRealDelete = async () => {
+        if (!imageToDelete) return;
+        try {
+            await api.delete(`/images/${imageToDelete}`);
+            refetch();
+            setIsDeleteModalOpen(false);
+            setImageToDelete(null);
+            showNotification('success', 'Image deleted');
+        } catch(e) { }
+    };
+
+    const handleSaveEdit = async (data: ImageFormData) => {
+        if (!editingImage) return;
+        try {
+            const payload = {
+                source: data.source || null,
+                isNsfw: data.isNsfw,
+                userId: data.userId || null,
+                tags: data.tags || [],
+                artists: data.artists || [],
+                reviewStatus: data.reviewStatus
+            };
+            await api.put<ImageDto>(`/images/${editingImage.id}`, payload);
+            showNotification('success', 'Image updated');
+            refetch();
+            setIsEditModalOpen(false);
+            setEditingImage(null);
+        } catch (err) { }
+    };
+
+    const defaultSortOptions = [
+        { id: ImageSort.RANDOM, name: 'Random Shuffle' },
+        { id: ImageSort.UPLOADED_AT, name: 'Newest First' },
+        { id: ImageSort.FAVORITES, name: 'Most Popular' }
+    ];
+
+    const currentSort = searchParams.get('orderBy');
+
+    return (
+        <div className="flex h-full relative overflow-hidden">
+            <div className="flex-1 flex flex-col relative min-w-0 overflow-hidden">
+                <FloatingRefreshButton onRefresh={refetch} />
+
+                <div className="flex-1 overflow-y-auto p-4 md:p-6">
+                    <div className="flex flex-col md:flex-row md:items-start justify-between px-4 md:px-6 py-4 border-b border-border backdrop-blur-xl z-10 shrink-0 gap-4 -mx-4 md:-mx-6 -mt-4 md:-mt-6 mb-4">
+                        <div className="min-w-0 flex-1">
+                            {headerContent || (
+                                <h1 className="text-3xl font-black tracking-tight text-foreground flex items-center gap-2 mt-1">
+                                    Gallery
+                                </h1>
+                            )}
+                        </div>
+                        <div className="flex items-center self-end md:self-start shrink-0">
+                            <FilterToggleButton isOpen={showFilters} onToggle={() => setShowFilters(!showFilters)} />
+                        </div>
+                    </div>
+
+                    <ImageGrid
+                        images={images}
+                        isLoading={isLoading}
+                        error={error}
+                        onRetry={refetch}
+                        onDelete={isAdmin ? confirmDelete : undefined}
+                        onEdit={isAdminOrModerator ? (img) => { setEditingImage(img); setIsEditModalOpen(true); } : undefined}
+                        onRemove={onRemoveFromAlbum}
+                        emptyState={emptyState || (
+                            <div className="flex flex-col items-center justify-center h-[50vh] text-muted-foreground">
+                                <Search size={48} className="mb-4 opacity-20" />
+                                <p className="text-lg font-medium">No images found.</p>
+                                <button
+                                    onClick={() => { setSearchParams(new URLSearchParams()); refetch(); }}
+                                    className="mt-6 px-6 py-2 bg-secondary text-foreground rounded-lg font-bold"
+                                >
+                                    Clear All Filters
+                                </button>
+                            </div>
+                        )}
+                    />
+
+                    <Pagination
+                        currentPage={page}
+                        totalPages={totalPages}
+                        setPage={setPage}
+                        disabled={currentSort === ImageSort.RANDOM}
+                    />
+                </div>
+            </div>
+
+            <FilterSidebar
+                searchParams={searchParams}
+                setSearchParams={setSearchParams}
+                showFilters={showFilters}
+                setShowFilters={setShowFilters}
+                sortOptions={sortOptions || defaultSortOptions}
+            />
+
+            <ConfirmModal
+                isOpen={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                onConfirm={handleRealDelete}
+                title="Delete Image"
+                message="Permanently delete this image? This cannot be undone."
+                confirmText="Delete"
+                variant="destructive"
+            />
+
+            {editingImage && (
+                <ImageModal
+                    isOpen={isEditModalOpen}
+                    onClose={() => { setIsEditModalOpen(false); setEditingImage(null); }}
+                    initialData={editingImage}
+                    onSubmit={handleSaveEdit}
+                />
+            )}
+        </div>
+    );
+};

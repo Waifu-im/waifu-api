@@ -5,8 +5,10 @@ import { useNotification } from '../context/NotificationContext';
 import Modal from '../components/Modal';
 import ConfirmModal from '../components/modals/ConfirmModal';
 import { Key, Plus, Trash2, Copy, Calendar, Shield, Clock, Edit2 } from 'lucide-react';
+import { useRequireAuth } from '../hooks/useRequireAuth';
 
 const ApiKeys = () => {
+    const user = useRequireAuth();
     const { showNotification } = useNotification();
     const [keys, setKeys] = useState<ApiKeyDto[]>([]);
     const [loading, setLoading] = useState(true);
@@ -22,6 +24,7 @@ const ApiKeys = () => {
     const [selectedKey, setSelectedKey] = useState<ApiKeyDto | null>(null);
 
     const fetchKeys = async () => {
+        if (!user) return;
         setLoading(true);
         try {
             const { data } = await api.get<ApiKeyDto[]>('/auth/api-keys');
@@ -31,7 +34,11 @@ const ApiKeys = () => {
         } finally { setLoading(false); }
     };
 
-    useEffect(() => { fetchKeys(); }, []);
+    useEffect(() => { 
+        if (user) {
+            fetchKeys(); 
+        }
+    }, [user]);
 
     const handleCreate = async () => {
         try {
@@ -90,6 +97,8 @@ const ApiKeys = () => {
         setKeyFormData({ description: key.description, expirationDate: dateStr });
         setIsEditOpen(true);
     };
+
+    if (!user) return null;
 
     return (
         <div className="container mx-auto p-6 md:p-10">
