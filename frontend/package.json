@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "waifu-frontend",
   "private": true,
   "version": "0.0.0",
@@ -34,6 +34,6 @@
     "postcss": "^8.4.0",
     "tailwindcss": "^3.3.0",
     "typescript": "^5.0.0",
-    "vite": "^4.4.0"
+    "vite": "^5.4.21"
   }
 }
