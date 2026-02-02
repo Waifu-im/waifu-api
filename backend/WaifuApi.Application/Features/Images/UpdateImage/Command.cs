@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Pgvector.EntityFrameworkCore;
 using WaifuApi.Application.Common.Exceptions;
 using WaifuApi.Application.Common.Models;
 using WaifuApi.Application.Common.Utilities;
@@ -16,23 +18,36 @@ using WaifuApi.Domain.Enums;
 namespace WaifuApi.Application.Features.Images.UpdateImage;
 
 public record UpdateImageCommand(
-    long Id, 
-    string? Source, 
-    bool IsNsfw, 
-    long? UserId, 
+    long Id,
+    string? Source,
+    bool IsNsfw,
+    long? UserId,
     List<string>? TagSlugs, // Slugs
     List<long>? ArtistIds,
-    ReviewStatus? ReviewStatus
+    ReviewStatus? ReviewStatus,
+    // Optional file replacement
+    Stream? FileStream = null,
+    string? FileName = null,
+    string? ContentType = null
 ) : ICommand<ImageDto>;
 
 public class UpdateImageCommandHandler : ICommandHandler<UpdateImageCommand, ImageDto>
 {
     private readonly IWaifuDbContext _context;
+    private readonly IStorageService _storageService;
+    private readonly IImageProcessingService _imageProcessingService;
     private readonly string _cdnBaseUrl;
+    private const int HammingDistanceThreshold = 4;
 
-    public UpdateImageCommandHandler(IWaifuDbContext context, IConfiguration configuration)
+    public UpdateImageCommandHandler(
+        IWaifuDbContext context,
+        IStorageService storageService,
+        IImageProcessingService imageProcessingService,
+        IConfiguration configuration)
     {
         _context = context;
+        _storageService = storageService;
+        _imageProcessingService = imageProcessingService;
         _cdnBaseUrl = configuration["Cdn:BaseUrl"] ?? throw new InvalidOperationException("Cdn:BaseUrl is required.");
     }
 
@@ -46,6 +61,46 @@ public class UpdateImageCommandHandler : ICommandHandler<UpdateImageCommand, Ima
         if (image == null)
         {
             throw new KeyNotFoundException($"Image with ID {request.Id} not found.");
+        }
+
+        // Track old values for potential rollback and S3 cleanup
+        var oldExtension = image.Extension;
+        var oldPerceptualHash = image.PerceptualHash;
+        var oldDominantColor = image.DominantColor;
+        var oldIsAnimated = image.IsAnimated;
+        var oldWidth = image.Width;
+        var oldHeight = image.Height;
+        var oldByteSize = image.ByteSize;
+        var fileWasReplaced = false;
+        string? newContentType = null;
+
+        // Process new file if provided
+        if (request.FileStream != null)
+        {
+            var metadata = await _imageProcessingService.ProcessAsync(request.FileStream, request.FileName!);
+
+            // Check for duplicates (excluding the current image)
+            var targetHash = BitArrayHelper.FromHex(metadata.PerceptualHash);
+            var duplicate = await _context.Images
+                .Where(i => i.Id != request.Id && i.PerceptualHash.HammingDistance(targetHash) <= HammingDistanceThreshold)
+                .Select(i => new { i.Id })
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (duplicate != null)
+            {
+                throw new ConflictException($"Duplicate image found. ID: {duplicate.Id}");
+            }
+
+            // Update image metadata from new file
+            image.PerceptualHash = targetHash;
+            image.Extension = metadata.Extension;
+            image.DominantColor = metadata.DominantColor;
+            image.IsAnimated = metadata.IsAnimated;
+            image.Width = metadata.Width;
+            image.Height = metadata.Height;
+            image.ByteSize = metadata.ByteSize;
+            fileWasReplaced = true;
+            newContentType = request.ContentType;
         }
 
         image.Source = request.Source.ToNullIfEmpty()?.Trim();
@@ -118,6 +173,45 @@ public class UpdateImageCommandHandler : ICommandHandler<UpdateImageCommand, Ima
         }
 
         await _context.SaveChangesAsync(cancellationToken);
+
+        // Handle S3 upload if file was replaced
+        if (fileWasReplaced && request.FileStream != null)
+        {
+            try
+            {
+                request.FileStream.Position = 0;
+                var newS3FileName = $"{image.Id}{image.Extension}";
+                await _storageService.UploadAsync(request.FileStream, newS3FileName, newContentType!);
+
+                // If extension changed, delete the old file from S3
+                if (oldExtension != image.Extension)
+                {
+                    var oldS3FileName = $"{image.Id}{oldExtension}";
+                    try
+                    {
+                        await _storageService.DeleteAsync(oldS3FileName);
+                    }
+                    catch
+                    {
+                        // Log but don't fail if old file deletion fails
+                        // The old file will be orphaned but the new one is correctly uploaded
+                    }
+                }
+            }
+            catch
+            {
+                // Rollback: restore old metadata values
+                image.PerceptualHash = oldPerceptualHash;
+                image.Extension = oldExtension;
+                image.DominantColor = oldDominantColor;
+                image.IsAnimated = oldIsAnimated;
+                image.Width = oldWidth;
+                image.Height = oldHeight;
+                image.ByteSize = oldByteSize;
+                await _context.SaveChangesAsync(cancellationToken);
+                throw;
+            }
+        }
 
         return new ImageDto
         {

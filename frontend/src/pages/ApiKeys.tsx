@@ -63,7 +63,7 @@ const ApiKeys = () => {
             if (keyFormData.expirationDate) payload.expirationDate = new Date(keyFormData.expirationDate).toISOString();
             else payload.expirationDate = null;
 
-            await api.put(`/auth/api-keys/${selectedKey.id}`, payload);
+            await api.patch(`/auth/api-keys/${selectedKey.id}`, payload);
             showNotification('success', 'API Key updated');
             setIsEditOpen(false);
             fetchKeys();
@@ -136,7 +136,7 @@ const ApiKeys = () => {
                                     <button onClick={() => openEdit(key)} className="px-3 py-2 bg-secondary hover:bg-secondary/80 rounded-lg font-bold transition-colors text-sm flex items-center gap-2">
                                         <Edit2 size={16} /> Edit
                                     </button>
-                                    <button onClick={() => { setSelectedKey(key); setIsRevokeOpen(true); }} className="px-3 py-2 text-destructive bg-destructive/10 hover:bg-destructive hover:text-destructive-foreground rounded-lg font-bold transition-colors text-sm flex items-center gap-2">
+                                    <button onClick={() => { setSelectedKey(key); setIsRevokeOpen(true); }} className="px-3 py-2 bg-secondary text-red-600 hover:bg-red-500/10 rounded-lg font-bold transition-colors text-sm flex items-center gap-2">
                                         <Trash2 size={16} /> Revoke
                                     </button>
                                 </div>

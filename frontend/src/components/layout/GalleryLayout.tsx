@@ -2,6 +2,7 @@
 import { ImageDto, Role, ImageFormData, ImageSort } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
+import { useImageUpdate } from '../../hooks/useImageUpdate';
 import api from '../../services/api';
 import ImageGrid from '../ImageGrid';
 import Pagination from '../Pagination';
@@ -46,6 +47,7 @@ export const GalleryLayout = ({
                               }: GalleryLayoutProps) => {
     const { user } = useAuth();
     const { showNotification } = useNotification();
+    const { updateImage } = useImageUpdate();
 
     const [showFilters, setShowFilters] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -75,15 +77,7 @@ export const GalleryLayout = ({
     const handleSaveEdit = async (data: ImageFormData) => {
         if (!editingImage) return;
         try {
-            const payload = {
-                source: data.source || null,
-                isNsfw: data.isNsfw,
-                userId: data.userId || null,
-                tags: data.tags || [],
-                artists: data.artists || [],
-                reviewStatus: data.reviewStatus
-            };
-            await api.put<ImageDto>(`/images/${editingImage.id}`, payload);
+            await updateImage(editingImage.id, data);
             showNotification('success', 'Image updated');
             refetch();
             setIsEditModalOpen(false);

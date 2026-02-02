@@ -185,7 +185,7 @@ export function useResource<T extends { id: number | string }>(
 
     const updateItem = async (id: number | string, data: any, successMessage = 'Updated successfully') => {
         try {
-            await api.put(`${endpoint}/${id}`, data);
+            await api.patch(`${endpoint}/${id}`, data);
             showNotification('success', successMessage);
             fetchData();
             return true;

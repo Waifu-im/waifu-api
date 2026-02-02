@@ -55,7 +55,7 @@ public class TagsController : ControllerBase
     }
 
     [Authorize(Policy = "Moderator")]
-    [HttpPut("{id:long}")]
+    [HttpPatch("{id:long}")]
     public async Task<ActionResult<TagDto>> Update([FromRoute] long id, [FromBody] UpdateTagRequest request)
     {
         var command = new UpdateTagCommand(id, request.Name, request.Description, request.Slug, request.ReviewStatus);

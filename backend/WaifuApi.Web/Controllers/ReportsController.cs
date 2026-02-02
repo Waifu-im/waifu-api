@@ -55,7 +55,7 @@ public class ReportsController : ControllerBase
     /// </summary>
     /// <param name="id">The ID of the report to resolve.</param>
     [Authorize(Policy = "Moderator")]
-    [HttpPut("{id:long}/resolve")]
+    [HttpPatch("{id:long}/resolve")]
     public async Task<IActionResult> Resolve([FromRoute] long id)
     {
         await _mediator.Send(new ResolveReportCommand(id));

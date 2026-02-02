@@ -108,6 +108,7 @@ export interface PaginatedList<T> {
 }
 
 export interface ImageFormData {
+  file?: File;  // Optional file replacement
   source?: string;
   isNsfw: boolean;
   tags: string[];

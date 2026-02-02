@@ -69,7 +69,7 @@ public class AuthController : ControllerBase
     /// <param name="request">The update request.</param>
     /// <returns>The updated API key.</returns>
     [Authorize]
-    [HttpPut("api-keys/{id:long}")]
+    [HttpPatch("api-keys/{id:long}")]
     public async Task<ActionResult<ApiKeyDto>> UpdateApiKey([FromRoute] long id, [FromBody] UpdateApiKeyRequest request)
     {
         var userId = long.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);

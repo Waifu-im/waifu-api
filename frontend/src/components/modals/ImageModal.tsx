@@ -7,7 +7,7 @@ import TagModal from './TagModal';
 import ArtistModal from './ArtistModal';
 import { useMetadata } from '../../hooks/useMetadata';
 import { Dropdown, DropdownItem } from '../Dropdown';
-import { Check, Clock, ChevronDown, Trash2 } from 'lucide-react';
+import { Check, Clock, ChevronDown, Trash2, Upload, Loader2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 interface ImageModalProps {
@@ -25,6 +25,9 @@ const ImageModal = ({ isOpen, onClose, initialData, onSubmit, onDelete }: ImageM
     const [isNsfw, setIsNsfw] = useState(false);
     const [selectedUser, setSelectedUser] = useState<Option | null>(null);
     const [reviewStatus, setReviewStatus] = useState<ReviewStatus>(ReviewStatus.Pending);
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const {
         selectedTags, setSelectedTags,
@@ -46,6 +49,9 @@ const ImageModal = ({ isOpen, onClose, initialData, onSubmit, onDelete }: ImageM
             setSelectedTags(initialData.tags ? initialData.tags.map(t => ({ id: t.id, name: t.name, slug: t.slug, description: t.description })) : []);
             setSelectedArtists(initialData.artists ? initialData.artists.map(a => ({ id: a.id, name: a.name })) : []);
             setReviewStatus(initialData.reviewStatus ?? ReviewStatus.Pending);
+            setSelectedFile(null);
+            setPreviewUrl(null);
+            setIsSubmitting(false);
 
             if (initialData.uploaderId) {
                 // Try to fetch user details, but don't block the modal if it fails
@@ -67,8 +73,22 @@ const ImageModal = ({ isOpen, onClose, initialData, onSubmit, onDelete }: ImageM
             setSelectedArtists([]);
             setSelectedUser(null);
             setReviewStatus(ReviewStatus.Pending);
+            setSelectedFile(null);
+            setPreviewUrl(null);
+            setIsSubmitting(false);
         }
     }, [initialData, isOpen]);
+
+    // Handle file preview URL
+    useEffect(() => {
+        if (selectedFile) {
+            const url = URL.createObjectURL(selectedFile);
+            setPreviewUrl(url);
+            return () => URL.revokeObjectURL(url);
+        } else {
+            setPreviewUrl(null);
+        }
+    }, [selectedFile]);
 
     const loadUsers = async (query: string) => {
         const { data } = await api.get<PaginatedList<User>>('/users', { params: { name: query, pageSize: usersPageSize } });
@@ -77,15 +97,36 @@ const ImageModal = ({ isOpen, onClose, initialData, onSubmit, onDelete }: ImageM
 
     const handleSubmit = async (e?: React.FormEvent) => {
         if (e) e.preventDefault();
-        await onSubmit({
-            source: source || undefined,
-            isNsfw,
-            tags: selectedTags.map(t => t.slug!),
-            artists: selectedArtists.map(a => Number(a.id)),
-            userId: selectedUser ? Number(selectedUser.id) : undefined,
-            reviewStatus: reviewStatus
-        });
-        onClose();
+        if (isSubmitting) return;
+
+        setIsSubmitting(true);
+        try {
+            await onSubmit({
+                file: selectedFile || undefined,
+                source: source || undefined,
+                isNsfw,
+                tags: selectedTags.map(t => t.slug!),
+                artists: selectedArtists.map(a => Number(a.id)),
+                userId: selectedUser ? Number(selectedUser.id) : undefined,
+                reviewStatus: reviewStatus
+            });
+            onClose();
+        } catch (err) {
+            // Error handled by parent
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setSelectedFile(file);
+        }
+    };
+
+    const clearSelectedFile = () => {
+        setSelectedFile(null);
     };
 
     const getStatusBadge = (status?: ReviewStatus) => {
@@ -134,6 +175,56 @@ const ImageModal = ({ isOpen, onClose, initialData, onSubmit, onDelete }: ImageM
                 title={initialData ? `Edit Image #${initialData.id}` : 'Edit Image'}
             >
                 <div className="space-y-5">
+                    {/* Image Preview & File Upload */}
+                    <div>
+                        <label className="block text-sm font-bold mb-1.5 text-muted-foreground uppercase tracking-wider">Image</label>
+                        <div className="relative">
+                            <label className="block w-full h-48 border-2 border-dashed border-border rounded-xl cursor-pointer overflow-hidden hover:border-primary/50 transition-colors group">
+                                {previewUrl ? (
+                                    <div className="relative w-full h-full">
+                                        <img src={previewUrl} className="w-full h-full object-contain" alt="New image preview" />
+                                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white font-medium">
+                                            Click to change
+                                        </div>
+                                    </div>
+                                ) : initialData?.url ? (
+                                    <div className="relative w-full h-full">
+                                        <img src={initialData.url} className="w-full h-full object-contain" alt="Current image" />
+                                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white font-medium">
+                                            <Upload size={20} className="mr-2" /> Replace image
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                                        <Upload size={24} className="mb-2" />
+                                        <span className="text-sm">Click to upload</span>
+                                    </div>
+                                )}
+                                <input
+                                    type="file"
+                                    accept="image/jpeg,image/png,image/gif,image/webp"
+                                    onChange={handleFileChange}
+                                    className="hidden"
+                                />
+                            </label>
+                            {selectedFile && (
+                                <button
+                                    type="button"
+                                    onClick={clearSelectedFile}
+                                    className="absolute top-2 right-2 bg-destructive text-white p-1.5 rounded-full hover:bg-destructive/90 transition-colors"
+                                    title="Remove new image"
+                                >
+                                    <Trash2 size={14} />
+                                </button>
+                            )}
+                        </div>
+                        {selectedFile && (
+                            <p className="text-xs text-muted-foreground mt-2">
+                                New file: {selectedFile.name} ({(selectedFile.size / (1024 * 1024)).toFixed(2)} MB)
+                            </p>
+                        )}
+                    </div>
+
                     <div>
                         <label className="block text-sm font-bold mb-1">Review Status</label>
                         {renderStatusDropdown()}
@@ -197,14 +288,23 @@ const ImageModal = ({ isOpen, onClose, initialData, onSubmit, onDelete }: ImageM
                     <div className="flex gap-3 pt-2">
                         <button
                             onClick={() => handleSubmit()}
-                            className="flex-1 bg-primary text-primary-foreground py-3.5 rounded-xl font-bold hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
+                            disabled={isSubmitting}
+                            className="flex-1 bg-primary text-primary-foreground py-3.5 rounded-xl font-bold hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
-                            Save Changes
+                            {isSubmitting ? (
+                                <>
+                                    <Loader2 size={18} className="animate-spin" />
+                                    Saving...
+                                </>
+                            ) : (
+                                'Save Changes'
+                            )}
                         </button>
                         {onDelete && isAdmin && (
                             <button
                                 onClick={onDelete}
-                                className="px-4 py-3.5 bg-secondary text-red-600 hover:bg-red-500/10 font-bold rounded-xl flex items-center justify-center gap-2 transition-colors"
+                                disabled={isSubmitting}
+                                className="px-4 py-3.5 bg-secondary text-red-600 hover:bg-red-500/10 font-bold rounded-xl flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 <Trash2 size={20} />
                             </button>

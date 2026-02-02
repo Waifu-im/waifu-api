@@ -9,12 +9,14 @@ import ArtistModal, { ArtistFormData } from '../components/modals/ArtistModal';
 import TagModal, { TagFormData } from '../components/modals/TagModal';
 import ConfirmModal from '../components/modals/ConfirmModal';
 import ImageGrid from '../components/ImageGrid';
-import Pagination from '../components/Pagination'; // Import Pagination
+import Pagination from '../components/Pagination';
 import { useRequireAuth } from '../hooks/useRequireAuth';
+import { useImageUpdate } from '../hooks/useImageUpdate';
 
 const Review = () => {
     const user = useRequireAuth();
     const { showNotification } = useNotification();
+    const { updateImage } = useImageUpdate();
     const [tab, setTab] = useState<'images' | 'artists' | 'tags'>('images');
     const [loading, setLoading] = useState(false);
 
@@ -71,27 +73,19 @@ const Review = () => {
     const handleUpdateImage = async (data: ImageFormData) => {
         if (!editingImage) return;
         try {
-            const payload = {
-                source: data.source || null,
-                isNsfw: data.isNsfw,
-                userId: data.userId || null,
-                tags: data.tags,
-                artists: data.artists,
-                reviewStatus: data.reviewStatus
-            };
-            await api.put(`/images/${editingImage.id}`, payload);
+            await updateImage(editingImage.id, data);
             showNotification('success', 'Image updated');
             setEditingImage(null);
             fetchData();
         } catch (err: any) {
-            // showNotification('error', err.message); // Handled globally
+            // Handled globally
         }
     };
 
     const handleUpdateArtist = async (data: ArtistFormData) => {
         if (!editingArtist) return;
         try {
-            await api.put(`/artists/${editingArtist.id}`, data);
+            await api.patch(`/artists/${editingArtist.id}`, data);
             showNotification('success', 'Artist updated');
             setEditingArtist(null);
             fetchData();
@@ -103,7 +97,7 @@ const Review = () => {
     const handleUpdateTag = async (data: TagFormData) => {
         if (!editingTag) return;
         try {
-            await api.put(`/tags/${editingTag.id}`, data);
+            await api.patch(`/tags/${editingTag.id}`, data);
             showNotification('success', 'Tag updated');
             setEditingTag(null);
             fetchData();

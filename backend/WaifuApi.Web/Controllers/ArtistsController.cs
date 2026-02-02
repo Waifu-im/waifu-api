@@ -88,7 +88,7 @@ public class ArtistsController : ControllerBase
     /// <param name="request">The update request.</param>
     /// <returns>The updated artist.</returns>
     [Authorize(Policy = "Moderator")]
-    [HttpPut("{id:long}")]
+    [HttpPatch("{id:long}")]
     public async Task<ActionResult<Artist>> Update([FromRoute] long id, [FromBody] UpdateArtistRequest request)
     {
         var command = new UpdateArtistCommand(

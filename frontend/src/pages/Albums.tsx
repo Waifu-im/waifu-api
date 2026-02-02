@@ -57,7 +57,7 @@ const Albums = () => {
     const handleEdit = async (data: AlbumFormData) => {
         if (!selectedAlbum) return;
         try {
-            await api.put(`/users/me/albums/${selectedAlbum.id}`, data);
+            await api.patch(`/users/me/albums/${selectedAlbum.id}`, data);
             showNotification('success', 'Album updated');
             setIsEditOpen(false);
             fetchAlbums();
@@ -145,7 +145,7 @@ const Albums = () => {
             )}
 
             <AlbumModal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} onSubmit={handleCreate} title="Create New Album" submitLabel="Create" />
-            <AlbumModal isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} onSubmit={handleEdit} initialData={selectedAlbum || undefined} title="Edit Album" submitLabel="Save" />
+            <AlbumModal isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} onSubmit={handleEdit} initialData={selectedAlbum ? { name: selectedAlbum.name, description: selectedAlbum.description } : undefined} title="Edit Album" submitLabel="Save" />
             <ConfirmModal isOpen={isDeleteOpen} onClose={() => setIsDeleteOpen(false)} onConfirm={handleDelete} title="Delete Album" message={<>Delete album <strong>{selectedAlbum?.name}</strong>? Images inside will not be deleted.</>} />
         </div>
     );

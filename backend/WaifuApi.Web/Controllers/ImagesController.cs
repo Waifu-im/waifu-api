@@ -74,12 +74,41 @@ public class ImagesController : ControllerBase
     }
 
     [Authorize(Policy = "Moderator")]
-    [HttpPut("{id:long}")]
-    public async Task<ActionResult<ImageDto>> Update([FromRoute] long id, [FromBody] UpdateImageRequest request)
+    [HttpPatch("{id:long}")]
+    public async Task<ActionResult<ImageDto>> Update([FromRoute] long id, [FromForm] UpdateImageRequest request)
     {
-        var command = new UpdateImageCommand(id, request.Source, request.IsNsfw, request.UserId, request.Tags, request.Artists, request.ReviewStatus);
-        var image = await _mediator.Send(command);
-        return Ok(image);
+        Stream? fileStream = null;
+        string? fileName = null;
+        string? contentType = null;
+
+        if (request.File != null)
+        {
+            fileStream = request.File.OpenReadStream();
+            fileName = request.File.FileName;
+            contentType = request.File.ContentType;
+        }
+
+        try
+        {
+            var command = new UpdateImageCommand(
+                id,
+                request.Source,
+                request.IsNsfw,
+                request.UserId,
+                request.Tags,
+                request.Artists,
+                request.ReviewStatus,
+                fileStream,
+                fileName,
+                contentType
+            );
+            var image = await _mediator.Send(command);
+            return Ok(image);
+        }
+        finally
+        {
+            fileStream?.Dispose();
+        }
     }
 
     [Authorize(Policy = "Admin")]
@@ -106,6 +135,7 @@ public class UploadImageRequest
 
 public class UpdateImageRequest
 {
+    public IFormFile? File { get; set; }  // Optional file replacement
     public string? Source { get; set; }
     public bool IsNsfw { get; set; }
     public long? UserId { get; set; }

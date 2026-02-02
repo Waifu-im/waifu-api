@@ -71,7 +71,7 @@ const AlbumPage = () => {
     const handleEditAlbum = async () => {
         if (!album) return;
         try {
-            const { data } = await api.put<AlbumDto>(`/users/me/albums/${album.id}`, editAlbumFormData);
+            const { data } = await api.patch<AlbumDto>(`/users/me/albums/${album.id}`, editAlbumFormData);
             setAlbum(data);
             setIsEditAlbumOpen(false);
             showNotification('success', 'Album updated');

@@ -44,7 +44,7 @@ const Reports = () => {
 
     const handleResolve = async (id: number) => {
         try {
-            await api.put(`/reports/${id}/resolve`);
+            await api.patch(`/reports/${id}/resolve`);
             showNotification('success', 'Report resolved');
             setReports(prev => prev.filter(r => r.id !== id));
         } catch (err: any) {
@@ -57,7 +57,7 @@ const Reports = () => {
         try {
             await api.delete(`/images/${reportToDelete.imageId}`);
             // Also resolve the report since the image is gone
-            await api.put(`/reports/${reportToDelete.id}/resolve`);
+            await api.patch(`/reports/${reportToDelete.id}/resolve`);
 
             showNotification('success', 'Image deleted and report resolved');
             setReports(prev => prev.filter(r => r.id !== reportToDelete.id));

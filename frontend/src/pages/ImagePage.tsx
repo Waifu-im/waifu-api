@@ -2,13 +2,16 @@
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
 import { ImageDto, Role, ImageFormData, ReviewStatus } from '../types';
-import { Heart, Trash2, Edit, AlertTriangle, FolderPlus,  Flag } from 'lucide-react';
+import { Heart, Trash2, Edit, FolderPlus, Flag } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
+import { useNsfwConsent } from '../hooks/useNsfwConsent';
+import { useImageUpdate } from '../hooks/useImageUpdate';
 import ImageModal from '../components/modals/ImageModal';
 import ConfirmModal from '../components/modals/ConfirmModal';
 import ReportModal from '../components/modals/ReportModal';
 import AlbumSelectionModal from '../components/modals/AlbumSelectionModal';
+import NsfwWarning from '../components/NsfwWarning';
 
 const ImagePage = () => {
   const { id } = useParams<{ id: string }>();
@@ -19,7 +22,9 @@ const ImagePage = () => {
   const [image, setImage] = useState<ImageDto | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showNsfwWarning, setShowNsfwWarning] = useState(false);
+
+  const { showWarning: showNsfwWarning, setShowWarning: setShowNsfwWarning, grantConsent, hasConsent } = useNsfwConsent(false);
+  const { updateImage } = useImageUpdate();
 
   // Modals
   const [showEditModal, setShowEditModal] = useState(false);
@@ -37,9 +42,8 @@ const ImagePage = () => {
       const { data } = await api.get<ImageDto>(`/images/${id}`, { skipGlobalErrorHandler: true });
       setImage(data);
 
-      if (data.isNsfw && !silent) {
-        const hasConsented = localStorage.getItem('nsfw-consent');
-        if (!hasConsented) setShowNsfwWarning(true);
+      if (data.isNsfw && !silent && !hasConsent()) {
+        setShowNsfwWarning(true);
       }
     } catch (err) {
       console.error("Failed to fetch image", err);
@@ -52,11 +56,6 @@ const ImagePage = () => {
   useEffect(() => {
     fetchImage();
   }, [id, user?.id]); // Keep user.id dependency to refresh if user logs in/out
-
-  const handleNsfwConsent = () => {
-    localStorage.setItem('nsfw-consent', 'true');
-    setShowNsfwWarning(false);
-  };
 
   const handleDelete = async () => {
     try {
@@ -90,26 +89,13 @@ const ImagePage = () => {
   const handleSaveEdit = async (data: ImageFormData) => {
     if (!isAdminOrModerator || !image) return;
     try {
-      const payload = {
-        source: data.source || null,
-        isNsfw: data.isNsfw,
-        userId: data.userId || null,
-        tags: data.tags || [],
-        artists: data.artists || [],
-        reviewStatus: data.reviewStatus
-      };
-      const { data: updatedImage } = await api.put<ImageDto>(`/images/${id}`, payload);
-      
-      setImage(updatedImage); 
+      const updatedImage = await updateImage(image.id, data);
+      setImage(updatedImage);
       setShowEditModal(false);
       showNotification('success', 'Image updated successfully');
-      
-      // Fetch fresh data to be sure
       fetchImage(true);
-
     } catch (err) {
       console.error('Failed to update image', err);
-      // showNotification('error', 'Failed to update image'); // Handled globally
     }
   };
 
@@ -158,17 +144,11 @@ const ImagePage = () => {
             />
 
             {image.isNsfw && showNsfwWarning && (
-                <div className="absolute inset-0 bg-background/95 backdrop-blur-xl flex items-center justify-center p-4 z-10">
-                  <div className="text-center max-w-sm">
-                    <AlertTriangle size={48} className="text-destructive mx-auto mb-4" />
-                    <h3 className="text-2xl font-bold mb-2">NSFW Content</h3>
-                    <p className="text-muted-foreground mb-6">This content is flagged as 18+.</p>
-                    <div className="flex gap-3 justify-center">
-                      <button onClick={handleNsfwConsent} className="bg-primary text-primary-foreground px-6 py-2.5 rounded-lg font-bold">Show Content</button>
-                      <button onClick={() => navigate('/gallery?isNsfw=0')} className="bg-secondary px-6 py-2.5 rounded-lg font-bold">Go Back</button>
-                    </div>
-                  </div>
-                </div>
+                <NsfwWarning
+                    variant="overlay"
+                    onConsent={grantConsent}
+                    onDecline={() => navigate('/gallery?isNsfw=0')}
+                />
             )}
           </div>
 

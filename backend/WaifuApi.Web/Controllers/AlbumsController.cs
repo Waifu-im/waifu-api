@@ -92,7 +92,7 @@ public class AlbumsController : ControllerBase
     /// <param name="request">The updated album details.</param>
     /// <returns>The updated album.</returns>
     [Authorize]
-    [HttpPut("{albumId}")]
+    [HttpPatch("{albumId}")]
     public async Task<ActionResult<AlbumDto>> UpdateAlbum([FromRoute] string userId, [FromRoute] string albumId, [FromBody] UpdateAlbumRequest request)
     {
         var resolvedUserId = await _currentUserService.ResolveUserIdAsync(userId);
