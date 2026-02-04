@@ -1,0 +1,9 @@
+﻿window.env = {
+    VITE_API_URL: "",
+    VITE_DISCORD_CLIENT_ID: "",
+    VITE_DISCORD_REDIRECT_URI: "",
+    VITE_APP_TITLE: "",
+    VITE_DOCS_URL: "",
+    VITE_CONTACT_EMAIL: "",
+    VITE_DISCORD_SERVER_URL: ""
+};

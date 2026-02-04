@@ -1,2 +1,10 @@
+﻿# IDEs
+.vs
 .idea
+
+# Secrets
 .env
+.env.preprod
+
+#LLM
+.claude1
