@@ -150,8 +150,8 @@ function BottomCTA() {
             <Link className="button button--primary button--lg" to="/docs/getting-started">
               Read the Docs
             </Link>
-            <Link className="button button--outline button--secondary button--lg" href="https://github.com/Waifu-im/waifu-api">
-              GitHub
+            <Link className="button button--outline button--secondary button--lg" to="/docs/category/api">
+              API Reference
             </Link>
           </div>
         </div>
