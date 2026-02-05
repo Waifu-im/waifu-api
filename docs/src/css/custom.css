@@ -7,6 +7,8 @@
   --ifm-color-primary-lighter: #9ba3f7;
   --ifm-color-primary-lightest: #c5caf9;
   --ifm-code-font-size: 95%;
+  --ifm-font-family-base: system-ui, -apple-system, "Segoe UI", Roboto,
+    sans-serif;
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
 }
 
@@ -21,9 +23,38 @@
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
 }
 
-.hero {
-  padding: 4rem 0;
+/* Hero section */
+.hero--primary {
+  padding: 6rem 0 5rem;
   text-align: center;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(160deg, #f8f9ff 0%, #eef0ff 40%, #e4e7ff 100%);
+}
+
+[data-theme="dark"] .hero--primary {
+  background: linear-gradient(160deg, #0f1017 0%, #171926 40%, #1c1f33 100%);
+}
+
+.hero__title {
+  font-size: 4rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #5865f2 0%, #7c3aed 50%, #a855f7 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 0.5rem;
+  line-height: 1.1;
+}
+
+.hero__subtitle {
+  font-size: 1.35rem;
+  opacity: 0.7;
+  max-width: 520px;
+  margin: 0 auto;
+  font-weight: 400;
+  line-height: 1.6;
 }
 
 .heroButtons {
@@ -31,5 +62,154 @@
   align-items: center;
   justify-content: center;
   gap: 1rem;
-  margin-top: 1.5rem;
+  margin-top: 2.5rem;
+}
+
+.heroButtons .button--primary {
+  background: linear-gradient(135deg, #5865f2, #7c3aed);
+  border: none;
+  color: #fff;
+  padding: 0.75rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 10px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.heroButtons .button--primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(88, 101, 242, 0.35);
+  color: #fff;
+}
+
+.heroButtons .button--outline {
+  border: 1.5px solid var(--ifm-color-primary);
+  color: var(--ifm-color-primary);
+  padding: 0.75rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 10px;
+  background: transparent;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.heroButtons .button--outline:hover {
+  transform: translateY(-2px);
+  background: rgba(88, 101, 242, 0.08);
+  color: var(--ifm-color-primary);
+}
+
+/* Features section */
+.features {
+  padding: 5rem 0;
+}
+
+.features .section-title {
+  text-align: center;
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.features .section-subtitle {
+  text-align: center;
+  opacity: 0.6;
+  margin-bottom: 3rem;
+  font-size: 1.1rem;
+}
+
+.feature-card {
+  background: var(--ifm-background-surface-color, #fff);
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 16px;
+  padding: 2rem;
+  text-align: left;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  height: 100%;
+}
+
+.feature-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="dark"] .feature-card {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+[data-theme="dark"] .feature-card:hover {
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.25);
+  border-color: var(--ifm-color-emphasis-300);
+}
+
+.feature-icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #5865f2, #7c3aed);
+  border-radius: 12px;
+  color: #fff;
+  margin-bottom: 1.25rem;
+}
+
+.feature-card h3 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.feature-card p {
+  opacity: 0.7;
+  line-height: 1.6;
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+/* Quick Start section */
+.quickstart {
+  padding: 4rem 0 5rem;
+  border-top: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.quickstart-inner {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.quickstart h2 {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.quickstart .quickstart-desc {
+  opacity: 0.6;
+  margin-bottom: 1.5rem;
+  font-size: 1.05rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .hero__title {
+    font-size: 2.5rem;
+  }
+
+  .hero__subtitle {
+    font-size: 1.1rem;
+  }
+
+  .heroButtons {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .features {
+    padding: 3rem 0;
+  }
+
+  .feature-card {
+    margin-bottom: 1rem;
+  }
 }

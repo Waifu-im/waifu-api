@@ -4,34 +4,53 @@ sidebar_position: 3
 
 # Authentication
 
-While basic image search is available without authentication, user-specific features like favorites and albums require an API key.
+Basic image browsing is available without authentication. User-specific features like favorites, albums, and reports require an API key or a JWT token.
 
-## API Key Authentication
+## Authentication Methods
 
-Include your API key in the `Authorization` header:
+The API supports two authentication methods:
+
+### API Key
+
+Generate an API key from your dashboard and include it in the `X-Api-Key` header:
 
 ```bash
-curl -H "Authorization: Bearer YOUR_API_KEY" https://api.waifu.im/search
+curl -H "X-Api-Key: YOUR_API_KEY" https://api.waifu.im/users/me/albums
+```
+
+API keys are the recommended method for programmatic access. You can create and manage your keys via the `/auth/api-keys` endpoint once authenticated.
+
+### JWT Token (Discord OAuth2)
+
+For browser-based flows, authenticate via Discord OAuth2:
+
+1. Redirect the user to the Discord OAuth2 authorization URL.
+2. The user authorizes the application.
+3. Discord redirects back with a `code` parameter.
+4. Exchange the code for a JWT token via `POST /auth/discord`.
+
+Include the JWT in the `Authorization` header:
+
+```bash
+curl -H "Authorization: Bearer YOUR_JWT_TOKEN" https://api.waifu.im/users/me/albums
 ```
 
 ## Getting an API Key
 
 1. Visit [waifu.im](https://waifu.im) and log in with your Discord account.
-2. Navigate to your account settings.
-3. Generate an API key.
+2. Navigate to your dashboard.
+3. Generate an API key and store it securely -- the full key is only shown once.
 
 ## Authenticated Endpoints
 
 The following features require authentication:
 
-- **Favorites** - Add/remove images from your personal favorites.
-- **Albums** - Create and manage image collections.
-- **Reports** - Report inappropriate content.
-
-## Rate Limiting
-
-The API implements rate limiting to ensure fair usage. If you exceed the rate limit, you will receive a `429 Too Many Requests` response. Implement exponential backoff in your application to handle rate limits gracefully.
+- **Favorites** -- Add or remove images from your favorites album.
+- **Albums** -- Create and manage image collections.
+- **Reports** -- Report inappropriate content.
+- **API Key Management** -- Create or revoke API keys.
 
 ## Next Steps
 
-Browse the [API Reference](/docs/category/api) for detailed endpoint documentation.
+- Learn about [Rate Limiting](./rate-limiting.md) to avoid hitting usage limits.
+- Browse the [API Reference](/docs/category/api) for detailed endpoint documentation.

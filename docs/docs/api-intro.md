@@ -18,14 +18,14 @@ https://api.waifu.im
 
 The API supports two authentication methods:
 
-- **Bearer Token (JWT)** - Obtained via Discord OAuth2 login
-- **API Key** - Passed in the `Authorization` header as `Bearer <key>`
+- **JWT Token** -- Obtained via Discord OAuth2 (`POST /auth/discord`). Passed as `Authorization: Bearer <token>`.
+- **API Key** -- Passed in the `X-Api-Key` header.
 
-Most read endpoints are public. Write operations (favorites, albums, uploads) require authentication.
+Most read endpoints are public. Write operations (favorites, albums, reports) require authentication. See the [Authentication](./authentication.md) page for details.
 
 ## Response Format
 
-All responses are returned as JSON. Paginated endpoints return:
+All responses are JSON. Paginated endpoints return:
 
 ```json
 {
