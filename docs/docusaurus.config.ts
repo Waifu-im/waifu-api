@@ -6,7 +6,7 @@ import type * as OpenApiPlugin from "docusaurus-plugin-openapi-docs";
 const config: Config = {
   title: "Waifu.im",
   tagline: "The versatile anime image API",
-  favicon: "img/favicon.ico",
+  favicon: "img/favicon.png",
 
   // GitHub Pages deployment config
   // If using a custom domain (e.g. docs.waifu.im), set url to "https://docs.waifu.im" and baseUrl to "/"
@@ -75,6 +75,10 @@ const config: Config = {
     },
     navbar: {
       title: "Waifu.im",
+      logo: {
+        alt: "Waifu.im Logo",
+        src: "img/favicon.png",
+      },
       items: [
         {
           type: "docSidebar",

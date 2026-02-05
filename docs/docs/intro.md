@@ -37,11 +37,3 @@ Fetch images with a specific tag:
 curl "https://api.waifu.im/images?IncludedTags=waifu"
 ```
 
-## Next Steps
-
-- [Getting Started](./getting-started.md) -- Make your first API request.
-- [Authentication](./authentication.md) -- Access user-specific features.
-- [Tags](./tags.md) -- Learn how the tagging system works.
-- [Versioning](./versioning.md) -- Pin your requests to a specific API version.
-- [Rate Limiting](./rate-limiting.md) -- Understand usage limits.
-- [API Reference](/docs/category/api) -- Full endpoint documentation.

@@ -8,39 +8,40 @@ Tags are used to categorize images in the Waifu.im archive. Each image can have 
 
 ## How Tags Work
 
-A tag is simply a label attached to images. There is no distinction between "versatile" and "NSFW" tag categories -- every tag works the same way.
-
-However, some tags only categorize explicit (NSFW) images. If you search for one of these tags without adjusting the `IsNsfw` parameter, you will get no results because `IsNsfw` defaults to `false` (SFW only).
+A tag is simply a label attached to images. Every tag works the same way, but some tags may only have NSFW images associated with them. If you search for such a tag without adjusting the `IsNsfw` parameter, you will get no results because `IsNsfw` defaults to `False` (SFW only).
 
 ### Example
 
-If the tag `hentai` only has explicit images associated with it:
+If the tag `hentai` only has NSFW images:
 
 ```bash
-# Returns no results because IsNsfw defaults to false
+# Returns no results because IsNsfw defaults to False
 curl "https://api.waifu.im/images?IncludedTags=hentai"
 
 # Returns results
-curl "https://api.waifu.im/images?IncludedTags=hentai&IsNsfw=true"
+curl "https://api.waifu.im/images?IncludedTags=hentai&IsNsfw=True"
 ```
 
-Tags like `waifu` have both SFW and NSFW images, so they return results regardless:
+Tags like `waifu` have both SFW and NSFW images. Using `IsNsfw=All` lets you get both at once:
 
 ```bash
-# Returns SFW waifu images (default)
+# Returns SFW waifu images only (default)
 curl "https://api.waifu.im/images?IncludedTags=waifu"
 
-# Returns NSFW waifu images
-curl "https://api.waifu.im/images?IncludedTags=waifu&IsNsfw=true"
+# Returns NSFW waifu images only
+curl "https://api.waifu.im/images?IncludedTags=waifu&IsNsfw=True"
+
+# Returns both SFW and NSFW waifu images
+curl "https://api.waifu.im/images?IncludedTags=waifu&IsNsfw=All"
 ```
 
 ## The `IsNsfw` Parameter
 
 | Value   | Behavior                       |
 | ------- | ------------------------------ |
-| `false` | SFW images only **(default)**  |
-| `true`  | NSFW images only               |
-| `null`  | Both SFW and NSFW images       |
+| `False` | SFW images only **(default)**  |
+| `True`  | NSFW images only               |
+| `All`   | Both SFW and NSFW images       |
 
 ## Listing Available Tags
 

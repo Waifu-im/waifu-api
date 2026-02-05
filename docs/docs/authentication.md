@@ -41,16 +41,3 @@ curl -H "Authorization: Bearer YOUR_JWT_TOKEN" https://api.waifu.im/users/me/alb
 2. Navigate to your dashboard.
 3. Generate an API key and store it securely -- the full key is only shown once.
 
-## Authenticated Endpoints
-
-The following features require authentication:
-
-- **Favorites** -- Add or remove images from your favorites album.
-- **Albums** -- Create and manage image collections.
-- **Reports** -- Report inappropriate content.
-- **API Key Management** -- Create or revoke API keys.
-
-## Next Steps
-
-- Learn about [Rate Limiting](./rate-limiting.md) to avoid hitting usage limits.
-- Browse the [API Reference](/docs/category/api) for detailed endpoint documentation.

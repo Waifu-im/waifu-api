@@ -21,7 +21,7 @@ The API supports two authentication methods:
 - **JWT Token** -- Obtained via Discord OAuth2 (`POST /auth/discord`). Passed as `Authorization: Bearer <token>`.
 - **API Key** -- Passed in the `X-Api-Key` header.
 
-Most read endpoints are public. Write operations (favorites, albums, reports) require authentication. See the [Authentication](./authentication.md) page for details.
+Some endpoints require authentication. Check the endpoint details below or the [Authentication](./authentication.md) page for more information.
 
 ## Response Format
 

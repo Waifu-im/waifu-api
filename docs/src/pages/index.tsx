@@ -2,6 +2,7 @@ import React from "react";
 import Layout from "@theme/Layout";
 import Link from "@docusaurus/Link";
 import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
+import useBaseUrl from "@docusaurus/useBaseUrl";
 import CodeBlock from "@theme/CodeBlock";
 
 const features = [
@@ -49,7 +50,7 @@ const features = [
   {
     title: "Advanced Filtering",
     description:
-      "Filter by tags, artists, resolution, file size, and more. Sort by date, popularity, or randomly.",
+      "Filter by tags, artists, resolution, orientation, file size, and more. Sort by date, popularity, or randomly.",
     icon: (
       <svg
         width="24"
@@ -65,23 +66,70 @@ const features = [
       </svg>
     ),
   },
+  {
+    title: "Favorites & Albums",
+    description:
+      "Authenticate to save favorites, create custom albums, and manage your personal collections.",
+    icon: (
+      <svg
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+      </svg>
+    ),
+  },
 ];
 
-function HomepageHeader() {
+const stats = [
+  { value: "4000+", label: "Images" },
+  { value: "REST", label: "API" },
+  { value: "Free", label: "To Use" },
+  { value: "Open", label: "Source" },
+];
+
+const exampleResponse = `{
+  "items": [
+    {
+      "id": 8008,
+      "url": "https://cdn.waifu.im/example.jpg",
+      "width": 1920,
+      "height": 1080,
+      "tags": [{ "name": "waifu" }],
+      "artists": [{ "name": "artist_name" }],
+      "favorites": 42
+    }
+  ]
+}`;
+
+function HomepageHero() {
   const { siteConfig } = useDocusaurusContext();
   return (
-    <header className="hero hero--primary">
-      <div className="container">
-        <h1 className="hero__title">{siteConfig.title}</h1>
-        <p className="hero__subtitle">{siteConfig.tagline}</p>
-        <div className="heroButtons">
-          <Link className="button button--primary button--lg" to="/docs/intro">
+    <header className="hero-section">
+      <div className="hero-bg">
+        <div className="hero-orb hero-orb--1" />
+        <div className="hero-orb hero-orb--2" />
+        <div className="hero-orb hero-orb--3" />
+      </div>
+      <div className="container hero-content">
+        <img
+          src={useBaseUrl("/img/favicon.png")}
+          alt="Waifu.im"
+          className="hero-logo"
+        />
+        <h1 className="hero-title">{siteConfig.title}</h1>
+        <p className="hero-tagline">{siteConfig.tagline}</p>
+        <div className="hero-buttons">
+          <Link className="hero-btn hero-btn--primary" to="/docs/getting-started">
             Get Started
           </Link>
-          <Link
-            className="button button--outline button--lg"
-            to="/docs/category/api"
-          >
+          <Link className="hero-btn hero-btn--secondary" to="/docs/category/api">
             API Reference
           </Link>
         </div>
@@ -90,22 +138,15 @@ function HomepageHeader() {
   );
 }
 
-function Features() {
+function Stats() {
   return (
-    <section className="features">
+    <section className="stats-bar">
       <div className="container">
-        <h2 className="section-title">Built for developers</h2>
-        <p className="section-subtitle">
-          Everything you need to integrate anime images into your project.
-        </p>
-        <div className="row">
-          {features.map((feature, idx) => (
-            <div key={idx} className="col col--4">
-              <div className="feature-card">
-                <div className="feature-icon">{feature.icon}</div>
-                <h3>{feature.title}</h3>
-                <p>{feature.description}</p>
-              </div>
+        <div className="stats-grid">
+          {stats.map((stat, idx) => (
+            <div key={idx} className="stat-item">
+              <span className="stat-value">{stat.value}</span>
+              <span className="stat-label">{stat.label}</span>
             </div>
           ))}
         </div>
@@ -114,18 +155,80 @@ function Features() {
   );
 }
 
-function QuickStart() {
+function Features() {
   return (
-    <section className="quickstart">
+    <section className="features-section">
       <div className="container">
-        <div className="quickstart-inner">
-          <h2>Quick Start</h2>
-          <p className="quickstart-desc">
-            Fetch a random image with a single request. No API key required.
+        <div className="section-header">
+          <h2 className="section-title">Built for developers</h2>
+          <p className="section-subtitle">
+            Everything you need to integrate anime images into your project.
           </p>
-          <CodeBlock language="bash">
-            {"curl https://api.waifu.im/images"}
-          </CodeBlock>
+        </div>
+        <div className="features-grid">
+          {features.map((feature, idx) => (
+            <div key={idx} className="feature-card">
+              <div className="feature-icon">{feature.icon}</div>
+              <h3 className="feature-title">{feature.title}</h3>
+              <p className="feature-desc">{feature.description}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function CodePreview() {
+  return (
+    <section className="code-section">
+      <div className="container">
+        <div className="code-layout">
+          <div className="code-text">
+            <h2 className="section-title">Try it now</h2>
+            <p className="section-subtitle" style={{ textAlign: "left" }}>
+              Fetch a random anime image with a single request. No API key
+              required for public endpoints.
+            </p>
+            <div className="code-request">
+              <CodeBlock language="bash">
+                {"curl https://api.waifu.im/images"}
+              </CodeBlock>
+            </div>
+          </div>
+          <div className="code-response">
+            <div className="code-response-label">Response</div>
+            <CodeBlock language="json">{exampleResponse}</CodeBlock>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function CallToAction() {
+  return (
+    <section className="cta-section">
+      <div className="container">
+        <div className="cta-inner">
+          <h2 className="cta-title">Ready to get started?</h2>
+          <p className="cta-desc">
+            Start building with the Waifu.im API in minutes.
+          </p>
+          <div className="hero-buttons">
+            <Link
+              className="hero-btn hero-btn--primary"
+              to="/docs/getting-started"
+            >
+              Read the Docs
+            </Link>
+            <Link
+              className="hero-btn hero-btn--secondary"
+              href="https://github.com/Waifu-im/waifu-api"
+            >
+              View on GitHub
+            </Link>
+          </div>
         </div>
       </div>
     </section>
@@ -136,10 +239,12 @@ export default function Home(): React.JSX.Element {
   const { siteConfig } = useDocusaurusContext();
   return (
     <Layout title="Home" description={siteConfig.tagline}>
-      <HomepageHeader />
+      <HomepageHero />
       <main>
+        <Stats />
         <Features />
-        <QuickStart />
+        <CodePreview />
+        <CallToAction />
       </main>
     </Layout>
   );

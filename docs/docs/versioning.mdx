@@ -2,6 +2,9 @@
 sidebar_position: 5
 ---
 
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # Versioning
 
 The API supports versioning through the `Accept-Version` header. Pinning your requests to a specific version protects your integration from breaking changes.
@@ -14,11 +17,24 @@ The latest API version is **v1**.
 
 Include the `Accept-Version` header in your requests:
 
+<Tabs>
+<TabItem value="curl" label="cURL">
+
 ```bash
 curl -H "Accept-Version: v1" https://api.waifu.im/images
 ```
 
-### Python
+</TabItem>
+<TabItem value="javascript" label="JavaScript">
+
+```javascript
+const response = await fetch("https://api.waifu.im/images", {
+  headers: { "Accept-Version": "v1" },
+});
+```
+
+</TabItem>
+<TabItem value="python" label="Python">
 
 ```python
 import requests
@@ -29,13 +45,17 @@ response = requests.get(
 )
 ```
 
-### JavaScript
+</TabItem>
+<TabItem value="csharp" label="C#">
 
-```javascript
-const response = await fetch("https://api.waifu.im/images", {
-  headers: { "Accept-Version": "v1" },
-});
+```csharp
+using var client = new HttpClient();
+client.DefaultRequestHeaders.Add("Accept-Version", "v1");
+var response = await client.GetAsync("https://api.waifu.im/images");
 ```
+
+</TabItem>
+</Tabs>
 
 ## Default Behavior
 
