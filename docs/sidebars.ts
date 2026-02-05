@@ -14,6 +14,9 @@ const sidebars: SidebarsConfig = {
     "intro",
     "getting-started",
     "authentication",
+    "rate-limiting",
+    "versioning",
+    "tags",
   ],
   api: [
     {

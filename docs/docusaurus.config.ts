@@ -5,7 +5,7 @@ import type * as OpenApiPlugin from "docusaurus-plugin-openapi-docs";
 
 const config: Config = {
   title: "Waifu.im",
-  tagline: "The versatile waifu image provider",
+  tagline: "The versatile anime image API",
   favicon: "img/favicon.ico",
 
   // GitHub Pages deployment config
@@ -108,6 +108,7 @@ const config: Config = {
           items: [
             { label: "Introduction", to: "/docs/intro" },
             { label: "Getting Started", to: "/docs/getting-started" },
+            { label: "Tags", to: "/docs/tags" },
             { label: "API Reference", to: "/docs/category/api" },
           ],
         },
@@ -128,7 +129,7 @@ const config: Config = {
     prism: {
       theme: prismThemes.github,
       darkTheme: prismThemes.dracula,
-      additionalLanguages: ["bash", "json", "csharp"],
+      additionalLanguages: ["bash", "json", "python", "csharp"],
     },
   } satisfies Preset.ThemeConfig,
 };
