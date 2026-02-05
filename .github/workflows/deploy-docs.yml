@@ -32,6 +32,8 @@ jobs:
 
       - name: Generate OpenAPI spec from backend build
         run: dotnet build backend/WaifuApi.Web/WaifuApi.Web.csproj -c Release
+        env:
+          ASPNETCORE_ENVIRONMENT: CI
 
       - uses: actions/setup-node@v4
         with:
