@@ -54,8 +54,8 @@ const config: Config = {
         config: {
           waifuApi: {
             // Generated at build time by Microsoft.Extensions.ApiDescription.Server
-            // The spec is output to ../openapi/v1.json by `dotnet build`
-            specPath: "../openapi/v1.json",
+            // The spec is output to ../openapi/{ProjectName}.json by `dotnet build`
+            specPath: "../openapi/WaifuApi.Web.json",
             outputDir: "docs/api",
             sidebarOptions: {
               groupPathsBy: "tag",
