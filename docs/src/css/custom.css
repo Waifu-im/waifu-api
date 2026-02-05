@@ -113,6 +113,25 @@
   z-index: 1;
 }
 
+.hero-logo {
+  width: 96px;
+  height: 96px;
+  margin-bottom: 1.5rem;
+  border-radius: 24px;
+  box-shadow: 0 8px 32px rgba(88, 101, 242, 0.2);
+  animation: logoFloat 6s ease-in-out infinite;
+}
+
+@keyframes logoFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
 .hero-badge {
   display: inline-block;
   padding: 0.35rem 1rem;

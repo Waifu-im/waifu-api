@@ -2,6 +2,9 @@
 sidebar_position: 2
 ---
 
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # Getting Started
 
 This guide walks you through making your first requests to the Waifu.im API.
@@ -140,7 +143,15 @@ curl -X POST -H "X-Api-Key: YOUR_API_KEY" \
 
 ## Code Examples
 
-### JavaScript
+<Tabs>
+<TabItem value="curl" label="cURL">
+
+```bash
+curl "https://api.waifu.im/images?IncludedTags=waifu"
+```
+
+</TabItem>
+<TabItem value="javascript" label="JavaScript">
 
 ```javascript
 const response = await fetch("https://api.waifu.im/images?IncludedTags=waifu");
@@ -148,7 +159,8 @@ const data = await response.json();
 console.log(data.items[0].url);
 ```
 
-### Python
+</TabItem>
+<TabItem value="python" label="Python">
 
 ```python
 import requests
@@ -160,4 +172,17 @@ response = requests.get(
 data = response.json()
 print(data["items"][0]["url"])
 ```
+
+</TabItem>
+<TabItem value="csharp" label="C#">
+
+```csharp
+using var client = new HttpClient();
+var response = await client.GetAsync("https://api.waifu.im/images?IncludedTags=waifu");
+var json = await response.Content.ReadAsStringAsync();
+Console.WriteLine(json);
+```
+
+</TabItem>
+</Tabs>
 

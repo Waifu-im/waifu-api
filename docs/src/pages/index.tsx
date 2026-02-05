@@ -2,6 +2,7 @@ import React from "react";
 import Layout from "@theme/Layout";
 import Link from "@docusaurus/Link";
 import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
+import useBaseUrl from "@docusaurus/useBaseUrl";
 import CodeBlock from "@theme/CodeBlock";
 
 const features = [
@@ -117,7 +118,11 @@ function HomepageHero() {
         <div className="hero-orb hero-orb--3" />
       </div>
       <div className="container hero-content">
-        <div className="hero-badge">Anime Image API</div>
+        <img
+          src={useBaseUrl("/img/favicon.png")}
+          alt="Waifu.im"
+          className="hero-logo"
+        />
         <h1 className="hero-title">{siteConfig.title}</h1>
         <p className="hero-tagline">{siteConfig.tagline}</p>
         <div className="hero-buttons">
