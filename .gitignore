@@ -14,3 +14,6 @@ docs/node_modules
 docs/build
 docs/.docusaurus
 docs/docs/api
+
+# Generated OpenAPI spec (produced by dotnet build)
+openapi
