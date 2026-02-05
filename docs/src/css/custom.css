@@ -20,19 +20,26 @@
 }
 
 [data-theme="dark"] {
-  --ifm-color-primary: #7983f5;
-  --ifm-color-primary-dark: #5865f2;
-  --ifm-color-primary-darker: #4752c4;
-  --ifm-color-primary-darkest: #3c45a5;
-  --ifm-color-primary-light: #9ba3f7;
-  --ifm-color-primary-lighter: #c5caf9;
-  --ifm-color-primary-lightest: #e0e3fc;
-  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+  --ifm-color-primary: #ffffff;
+  --ifm-color-primary-dark: #e6e6e6;
+  --ifm-color-primary-darker: #d9d9d9;
+  --ifm-color-primary-darkest: #b3b3b3;
+  --ifm-color-primary-light: #ffffff;
+  --ifm-color-primary-lighter: #ffffff;
+  --ifm-color-primary-lightest: #ffffff;
+  --ifm-background-color: #121212;
+  --ifm-navbar-background-color: #252525;
+  --docusaurus-highlighted-code-line-bg: rgba(255, 255, 255, 0.1);
 
-  --homepage-surface: #161b22;
+  --homepage-surface: #1a1a1a;
   --homepage-border: rgba(255, 255, 255, 0.1);
-  --homepage-text-muted: #8b949e;
-  --homepage-bg-subtle: #0d1117;
+  --homepage-text-muted: #999999;
+  --homepage-bg-subtle: #0d0d0d;
+}
+
+[data-theme="dark"] .footer {
+  background-color: #1a1a1a;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 /* ── GitHub Navbar Icon ───────────────────────────────────── */
@@ -54,9 +61,9 @@
 /* ── Hero Section ─────────────────────────────────────────── */
 
 .homepage-hero {
-  padding: 5rem 0 4rem;
+  padding: 5rem 0 2rem;
   text-align: center;
-  border-bottom: 1px solid var(--homepage-border);
+  border-bottom: none;
 }
 
 .homepage-hero__inner {
@@ -96,53 +103,67 @@
 /* ── Features Section ─────────────────────────────────────── */
 
 .homepage-features {
-  padding: 3.5rem 0;
-  border-bottom: 1px solid var(--homepage-border);
+  padding: 2rem 0 2rem;
+  border-bottom: none;
 }
 
 .homepage-features__grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 1.5rem;
-  max-width: 820px;
+  gap: 2rem;
+  max-width: 960px;
   margin: 0 auto;
 }
 
 .homepage-features__card {
   display: flex;
-  gap: 1rem;
-  padding: 1.25rem;
-  border-radius: 8px;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 1.5rem;
+  padding: 2rem;
+  border-radius: 12px;
   border: 1px solid var(--homepage-border);
   background: var(--homepage-surface);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.homepage-features__card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px rgba(0,0,0,0.05);
 }
 
 .homepage-features__icon {
   flex-shrink: 0;
-  width: 40px;
-  height: 40px;
+  width: 64px;
+  height: 64px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
+  border-radius: 16px;
   background: var(--homepage-bg-subtle);
   color: var(--ifm-color-primary);
 }
 
+.homepage-features__icon svg {
+  width: 32px;
+  height: 32px;
+}
+
 [data-theme="dark"] .homepage-features__icon {
-  background: rgba(121, 131, 245, 0.1);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .homepage-features__title {
-  font-size: 0.95rem;
-  font-weight: 600;
-  margin-bottom: 0.25rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
 }
 
 .homepage-features__desc {
-  font-size: 0.875rem;
+  font-size: 1rem;
   color: var(--homepage-text-muted);
-  line-height: 1.5;
+  line-height: 1.6;
   margin: 0;
 }
 
@@ -195,7 +216,7 @@
 /* ── CTA Section ──────────────────────────────────────────── */
 
 .homepage-cta {
-  padding: 4rem 0;
+  padding: 2rem 0 4rem;
 }
 
 .homepage-cta__inner {
@@ -232,7 +253,7 @@ body {
 
 @media (max-width: 768px) {
   .homepage-hero {
-    padding: 3.5rem 0 3rem;
+    padding: 3.5rem 0 2rem;
   }
 
   .homepage-hero__title {

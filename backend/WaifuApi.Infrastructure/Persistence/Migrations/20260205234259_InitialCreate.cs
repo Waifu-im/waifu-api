@@ -5,7 +5,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace WaifuApi.Infrastructure.Migrations
+namespace WaifuApi.Infrastructure.Persistence.Migrations
 {
     /// <inheritdoc />
     public partial class InitialCreate : Migration
@@ -35,12 +35,39 @@ namespace WaifuApi.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "DailyStats",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Date = table.Column<DateOnly>(type: "date", nullable: false),
+                    RequestCount = table.Column<int>(type: "integer", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_DailyStats", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "GlobalStats",
+                columns: table => new
+                {
+                    Key = table.Column<string>(type: "text", nullable: false),
+                    Value = table.Column<long>(type: "bigint", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_GlobalStats", x => x.Key);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Tags",
                 columns: table => new
                 {
                     Id = table.Column<long>(type: "bigint", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     Name = table.Column<string>(type: "text", nullable: false),
+                    Slug = table.Column<string>(type: "text", nullable: false),
                     Description = table.Column<string>(type: "text", nullable: false),
                     ReviewStatus = table.Column<int>(type: "integer", nullable: false)
                 },
@@ -56,10 +83,13 @@ namespace WaifuApi.Infrastructure.Migrations
                     Id = table.Column<long>(type: "bigint", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     Name = table.Column<string>(type: "text", nullable: false),
-                    Email = table.Column<string>(type: "text", nullable: true),
                     DiscordId = table.Column<string>(type: "text", nullable: false),
+                    AvatarUrl = table.Column<string>(type: "text", nullable: true),
                     Role = table.Column<int>(type: "integer", nullable: false),
-                    IsBlacklisted = table.Column<bool>(type: "boolean", nullable: false)
+                    IsBlacklisted = table.Column<bool>(type: "boolean", nullable: false),
+                    RequestCount = table.Column<long>(type: "bigint", nullable: false),
+                    ApiKeyRequestCount = table.Column<long>(type: "bigint", nullable: false),
+                    JwtRequestCount = table.Column<long>(type: "bigint", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -122,8 +152,7 @@ namespace WaifuApi.Infrastructure.Migrations
                     Extension = table.Column<string>(type: "text", nullable: false),
                     DominantColor = table.Column<string>(type: "text", nullable: false),
                     Source = table.Column<string>(type: "text", nullable: true),
-                    ArtistId = table.Column<long>(type: "bigint", nullable: true),
-                    UploaderId = table.Column<long>(type: "bigint", nullable: false),
+                    UploaderId = table.Column<long>(type: "bigint", nullable: true),
                     UploadedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     IsNsfw = table.Column<bool>(type: "boolean", nullable: false),
                     IsAnimated = table.Column<bool>(type: "boolean", nullable: false),
@@ -136,16 +165,11 @@ namespace WaifuApi.Infrastructure.Migrations
                 {
                     table.PrimaryKey("PK_Images", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_Images_Artists_ArtistId",
-                        column: x => x.ArtistId,
-                        principalTable: "Artists",
-                        principalColumn: "Id");
-                    table.ForeignKey(
                         name: "FK_Images_Users_UploaderId",
                         column: x => x.UploaderId,
                         principalTable: "Users",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.SetNull);
                 });
 
             migrationBuilder.CreateTable(
@@ -168,6 +192,30 @@ namespace WaifuApi.Infrastructure.Migrations
                     table.ForeignKey(
                         name: "FK_AlbumItems_Images_ImageId",
                         column: x => x.ImageId,
+                        principalTable: "Images",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "ArtistImage",
+                columns: table => new
+                {
+                    ArtistsId = table.Column<long>(type: "bigint", nullable: false),
+                    ImagesId = table.Column<long>(type: "bigint", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ArtistImage", x => new { x.ArtistsId, x.ImagesId });
+                    table.ForeignKey(
+                        name: "FK_ArtistImage_Artists_ArtistsId",
+                        column: x => x.ArtistsId,
+                        principalTable: "Artists",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_ArtistImage_Images_ImagesId",
+                        column: x => x.ImagesId,
                         principalTable: "Images",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -205,7 +253,7 @@ namespace WaifuApi.Infrastructure.Migrations
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     UserId = table.Column<long>(type: "bigint", nullable: false),
                     ImageId = table.Column<long>(type: "bigint", nullable: false),
-                    Description = table.Column<string>(type: "text", nullable: true),
+                    Description = table.Column<string>(type: "text", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     IsResolved = table.Column<bool>(type: "boolean", nullable: false)
                 },
@@ -248,6 +296,11 @@ namespace WaifuApi.Infrastructure.Migrations
                 column: "UserId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_ArtistImage_ImagesId",
+                table: "ArtistImage",
+                column: "ImagesId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Artists_DeviantArt",
                 table: "Artists",
                 column: "DeviantArt",
@@ -278,9 +331,10 @@ namespace WaifuApi.Infrastructure.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_Images_ArtistId",
-                table: "Images",
-                column: "ArtistId");
+                name: "IX_DailyStats_Date",
+                table: "DailyStats",
+                column: "Date",
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_Images_UploaderId",
@@ -309,6 +363,12 @@ namespace WaifuApi.Infrastructure.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_Tags_Slug",
+                table: "Tags",
+                column: "Slug",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Users_DiscordId",
                 table: "Users",
                 column: "DiscordId",
@@ -325,6 +385,15 @@ namespace WaifuApi.Infrastructure.Migrations
                 name: "ApiKeys");
 
             migrationBuilder.DropTable(
+                name: "ArtistImage");
+
+            migrationBuilder.DropTable(
+                name: "DailyStats");
+
+            migrationBuilder.DropTable(
+                name: "GlobalStats");
+
+            migrationBuilder.DropTable(
                 name: "ImageTag");
 
             migrationBuilder.DropTable(
@@ -334,13 +403,13 @@ namespace WaifuApi.Infrastructure.Migrations
                 name: "Albums");
 
             migrationBuilder.DropTable(
+                name: "Artists");
+
+            migrationBuilder.DropTable(
                 name: "Tags");
 
             migrationBuilder.DropTable(
                 name: "Images");
-
-            migrationBuilder.DropTable(
-                name: "Artists");
 
             migrationBuilder.DropTable(
                 name: "Users");

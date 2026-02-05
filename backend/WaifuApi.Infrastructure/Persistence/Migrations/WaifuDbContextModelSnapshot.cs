@@ -3,21 +3,18 @@ using System;
 using System.Collections;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using WaifuApi.Infrastructure.Persistence;
 
 #nullable disable
 
-namespace WaifuApi.Infrastructure.Migrations
+namespace WaifuApi.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(WaifuDbContext))]
-    [Migration("20260129195439_Stats")]
-    partial class Stats
+    partial class WaifuDbContextModelSnapshot : ModelSnapshot
     {
-        /// <inheritdoc />
-        protected override void BuildTargetModel(ModelBuilder modelBuilder)
+        protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -353,6 +350,12 @@ namespace WaifuApi.Infrastructure.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
+                    b.Property<long>("ApiKeyRequestCount")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("AvatarUrl")
+                        .HasColumnType("text");
+
                     b.Property<string>("DiscordId")
                         .IsRequired()
                         .HasColumnType("text");
@@ -360,9 +363,15 @@ namespace WaifuApi.Infrastructure.Migrations
                     b.Property<bool>("IsBlacklisted")
                         .HasColumnType("boolean");
 
+                    b.Property<long>("JwtRequestCount")
+                        .HasColumnType("bigint");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<long>("RequestCount")
+                        .HasColumnType("bigint");
 
                     b.Property<int>("Role")
                         .HasColumnType("integer");
@@ -451,7 +460,7 @@ namespace WaifuApi.Infrastructure.Migrations
                     b.HasOne("WaifuApi.Domain.Entities.User", "Uploader")
                         .WithMany()
                         .HasForeignKey("UploaderId")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Uploader");
                 });

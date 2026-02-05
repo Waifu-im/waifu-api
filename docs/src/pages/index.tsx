@@ -3,7 +3,6 @@ import Layout from "@theme/Layout";
 import Link from "@docusaurus/Link";
 import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
 import useBaseUrl from "@docusaurus/useBaseUrl";
-import CodeBlock from "@theme/CodeBlock";
 
 const features = [
   {
@@ -51,20 +50,6 @@ const features = [
   },
 ];
 
-const exampleResponse = `{
-  "items": [
-    {
-      "id": 8008,
-      "url": "https://cdn.waifu.im/example.jpg",
-      "width": 1920,
-      "height": 1080,
-      "tags": [{ "name": "waifu" }],
-      "artists": [{ "name": "artist_name" }],
-      "favorites": 42
-    }
-  ]
-}`;
-
 function HomepageHero() {
   const { siteConfig } = useDocusaurusContext();
   return (
@@ -73,7 +58,7 @@ function HomepageHero() {
         <div className="homepage-hero__inner">
           <img
             src={useBaseUrl("/img/favicon.png")}
-            alt="Waifu.im"
+            alt={siteConfig.title}
             className="homepage-hero__logo"
           />
           <h1 className="homepage-hero__title">{siteConfig.title}</h1>
@@ -112,31 +97,6 @@ function Features() {
   );
 }
 
-function QuickStart() {
-  return (
-    <section className="homepage-quickstart">
-      <div className="container">
-        <h2 className="homepage-quickstart__heading">Quick start</h2>
-        <p className="homepage-quickstart__sub">
-          Fetch a random anime image with a single request. No API key required for public endpoints.
-        </p>
-        <div className="homepage-quickstart__layout">
-          <div className="homepage-quickstart__block">
-            <span className="homepage-quickstart__label">Request</span>
-            <CodeBlock language="bash">
-              {"curl https://api.waifu.im/images"}
-            </CodeBlock>
-          </div>
-          <div className="homepage-quickstart__block">
-            <span className="homepage-quickstart__label">Response</span>
-            <CodeBlock language="json">{exampleResponse}</CodeBlock>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
 function BottomCTA() {
   return (
     <section className="homepage-cta">
@@ -167,7 +127,6 @@ export default function Home(): React.JSX.Element {
       <HomepageHero />
       <main>
         <Features />
-        <QuickStart />
         <BottomCTA />
       </main>
     </Layout>

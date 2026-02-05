@@ -1,39 +1,49 @@
 name: waifu-api
 services:
   backend:
-    image: ghcr.io/waifu-im/waifu-api-backend:latest
+    image: ghcr.io/waifu-im/waifu-api-backend:${IMAGE_TAG}
     env_file:
       - .env
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__DefaultConnection=Host=${POSTGRES_HOST};Port=${POSTGRES_PORT};Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
     ports:
-      - "8085:8080"
+      - "${BACKEND_PORT}:8080"
     depends_on:
       db:
         condition: service_healthy
     restart: always
 
   frontend:
-    image: ghcr.io/waifu-im/waifu-api-frontend:latest
-    env_file:
-      - .env
+    image: ghcr.io/waifu-im/waifu-api-frontend:${IMAGE_TAG}
+    environment:
+      - VITE_API_URL=${API_BASE_URL}
+      - VITE_DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID}
+      - VITE_DISCORD_REDIRECT_URI=${FRONTEND_URL}/auth/callback
+      - VITE_APP_TITLE=${APP_NAME}
+      - VITE_DOCS_URL=${DOCS_URL}
+      - VITE_CONTACT_EMAIL=${CONTACT_EMAIL}
+      - VITE_DISCORD_SERVER_URL=${DISCORD_SERVER_URL}
+      - VITE_STATUS_URL=${STATUS_URL}
     ports:
-      - "8084:80"
+      - "${FRONTEND_PORT}:80"
     depends_on:
       - backend
     restart: always
 
   db:
     image: pgvector/pgvector:pg18
-    env_file:
-      - .env
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql
     restart: always
-    ports:
-      - "54330:5432"
+    # ports:
+    #   - "${POSTGRES_PORT_EXTERNAL}:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-waifuapi}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 5

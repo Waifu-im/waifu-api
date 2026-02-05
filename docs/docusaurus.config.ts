@@ -2,19 +2,44 @@ import { themes as prismThemes } from "prism-react-renderer";
 import type { Config } from "@docusaurus/types";
 import type * as Preset from "@docusaurus/preset-classic";
 import type * as OpenApiPlugin from "docusaurus-plugin-openapi-docs";
+import * as fs from "fs";
+import * as path from "path";
+
+function getApiMajorVersion(): string {
+  try {
+    const specPath = path.join(__dirname, "../openapi/WaifuApi.Web.json");
+    const spec = JSON.parse(fs.readFileSync(specPath, "utf-8"));
+    const version = spec.info?.version || "1.0.0";
+    const major = version.split(".")[0];
+    return `v${major}`;
+  } catch {
+    return "v1";
+  }
+}
+
+const appName = process.env.APP_NAME!;
+const appTagline = process.env.APP_TAGLINE!;
+const frontendUrl = process.env.FRONTEND_URL!;
+const githubUrl = process.env.GITHUB_URL!;
 
 const config: Config = {
-  title: "Waifu.im",
-  tagline: "The versatile anime image API",
+  title: appName,
+  tagline: appTagline,
   favicon: "img/favicon.png",
 
-  // GitHub Pages deployment config
-  // If using a custom domain (e.g. docs.waifu.im), set url to "https://docs.waifu.im" and baseUrl to "/"
-  url: "https://waifu-im.github.io",
-  baseUrl: "/waifu-api/",
+  url: process.env.DOCS_URL!,
+  baseUrl: process.env.DOCS_BASE_URL!,
 
-  organizationName: "Waifu-im",
-  projectName: "waifu-api",
+  organizationName: process.env.DOCS_ORG_NAME!,
+  projectName: process.env.DOCS_PROJECT_NAME!,
+
+  customFields: {
+    apiVersion: getApiMajorVersion(),
+    apiBaseUrl: process.env.API_BASE_URL!,
+    appName,
+    frontendUrl,
+    githubUrl,
+  },
 
   onBrokenLinks: "warn",
 
@@ -60,7 +85,7 @@ const config: Config = {
             sidebarOptions: {
               groupPathsBy: "tag",
             },
-          } satisfies OpenApiPlugin.OpenApiDocConfig,
+          },
         },
       },
     ],
@@ -68,15 +93,49 @@ const config: Config = {
 
   themes: ["docusaurus-theme-openapi-docs"],
 
+  headTags: [
+    {
+      tagName: "meta",
+      attributes: {
+        property: "og:image",
+        content: "img/favicon.png",
+      },
+    },
+    {
+      tagName: "meta",
+      attributes: {
+        name: "twitter:card",
+        content: "summary",
+      },
+    },
+    {
+      tagName: "meta",
+      attributes: {
+        name: "twitter:image",
+        content: "img/favicon.png",
+      },
+    },
+  ],
+
   themeConfig: {
+    metadata: [
+      {
+        name: "description",
+        content: appTagline,
+      },
+      {
+        property: "og:description",
+        content: appTagline,
+      },
+    ],
     colorMode: {
       defaultMode: "dark",
       respectPrefersColorScheme: true,
     },
     navbar: {
-      title: "Waifu.im",
+      title: appName,
       logo: {
-        alt: "Waifu.im Logo",
+        alt: `${appName} Logo`,
         src: "img/favicon.png",
       },
       items: [
@@ -93,12 +152,12 @@ const config: Config = {
           label: "API Reference",
         },
         {
-          href: "https://waifu.im",
+          href: frontendUrl,
           label: "Website",
           position: "right",
         },
         {
-          href: "https://github.com/Waifu-im/waifu-api",
+          href: githubUrl,
           position: "right",
           className: "header-github-link",
           "aria-label": "GitHub repository",
@@ -120,16 +179,16 @@ const config: Config = {
         {
           title: "Links",
           items: [
-            { label: "Website", href: "https://waifu.im" },
+            { label: "Website", href: frontendUrl },
             {
               label: "GitHub",
-              href: "https://github.com/Waifu-im/waifu-api",
+              href: githubUrl,
             },
-            { label: "Support", href: "https://waifu.im/contact/" },
+            { label: "Support", href: `${frontendUrl}/contact/` },
           ],
         },
       ],
-      copyright: `Copyright \u00a9 ${new Date().getFullYear()} Waifu.im`,
+      copyright: `Copyright \u00a9 ${new Date().getFullYear()} ${appName}`,
     },
     prism: {
       theme: prismThemes.github,

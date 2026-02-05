@@ -31,9 +31,10 @@
     <!-- MinVer configuration -->
     <MinVerTagPrefix>v</MinVerTagPrefix>
     <!-- Build-time OpenAPI spec generation (used by docs CI) -->
+    <!-- Enable with: dotnet build /p:OpenApiGenerateDocumentsOnBuild=true -->
     <OpenApiDocumentsDirectory>$(MSBuildThisFileDirectory)../../openapi</OpenApiDocumentsDirectory>
     <OpenApiGenerateDocuments>true</OpenApiGenerateDocuments>
-    <OpenApiGenerateDocumentsOnBuild>true</OpenApiGenerateDocumentsOnBuild>
+    <OpenApiGenerateDocumentsOnBuild>false</OpenApiGenerateDocumentsOnBuild>
   </PropertyGroup>
 
 </Project>

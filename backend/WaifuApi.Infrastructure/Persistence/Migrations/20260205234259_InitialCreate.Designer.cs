@@ -10,11 +10,11 @@ using WaifuApi.Infrastructure.Persistence;
 
 #nullable disable
 
-namespace WaifuApi.Infrastructure.Migrations
+namespace WaifuApi.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(WaifuDbContext))]
-    [Migration("20260129204621_UserStats")]
-    partial class UserStats
+    [Migration("20260205234259_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -353,12 +353,21 @@ namespace WaifuApi.Infrastructure.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
+                    b.Property<long>("ApiKeyRequestCount")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("AvatarUrl")
+                        .HasColumnType("text");
+
                     b.Property<string>("DiscordId")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<bool>("IsBlacklisted")
                         .HasColumnType("boolean");
+
+                    b.Property<long>("JwtRequestCount")
+                        .HasColumnType("bigint");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -454,7 +463,7 @@ namespace WaifuApi.Infrastructure.Migrations
                     b.HasOne("WaifuApi.Domain.Entities.User", "Uploader")
                         .WithMany()
                         .HasForeignKey("UploaderId")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Uploader");
                 });

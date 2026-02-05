@@ -29,24 +29,38 @@ public class ImageProcessingService : IImageProcessingService
         var width = image.Width;
         var height = image.Height;
 
-        // Resolution Check
-        var minWidth = int.Parse(_configuration["Image:MinWidth"] ?? throw new InvalidOperationException("Image:MinWidth is required."));
-        var minHeight = int.Parse(_configuration["Image:MinHeight"] ?? throw new InvalidOperationException("Image:MinHeight is required."));
-        var maxWidth = int.Parse(_configuration["Image:MaxWidth"] ?? throw new InvalidOperationException("Image:MaxWidth is required."));
-        var maxHeight = int.Parse(_configuration["Image:MaxHeight"] ?? throw new InvalidOperationException("Image:MaxHeight is required."));
+        var extension = Path.GetExtension(fileName).ToLower();
+        var isAnimated = image.Frames.Count > 1;
+
+        // Resolution Check — animated images (GIFs etc.) use separate limits, falling back to static ones
+        var minWidth = int.Parse(
+            (isAnimated ? _configuration["Image:AnimatedMinWidth"] : null)
+            ?? _configuration["Image:MinWidth"]
+            ?? throw new InvalidOperationException("Image:MinWidth is required."));
+        var minHeight = int.Parse(
+            (isAnimated ? _configuration["Image:AnimatedMinHeight"] : null)
+            ?? _configuration["Image:MinHeight"]
+            ?? throw new InvalidOperationException("Image:MinHeight is required."));
+        var maxWidth = int.Parse(
+            (isAnimated ? _configuration["Image:AnimatedMaxWidth"] : null)
+            ?? _configuration["Image:MaxWidth"]
+            ?? throw new InvalidOperationException("Image:MaxWidth is required."));
+        var maxHeight = int.Parse(
+            (isAnimated ? _configuration["Image:AnimatedMaxHeight"] : null)
+            ?? _configuration["Image:MaxHeight"]
+            ?? throw new InvalidOperationException("Image:MaxHeight is required."));
 
         if (width < minWidth || height < minHeight)
         {
-            throw new InvalidOperationException("Image resolution is too low.");
+            throw new InvalidOperationException(
+                $"Image resolution is too low ({width}x{height}). Minimum is {minWidth}x{minHeight}{(isAnimated ? " for animated images" : "")}.");
         }
 
         if (width > maxWidth || height > maxHeight)
         {
-            throw new InvalidOperationException("Image resolution is too high.");
+            throw new InvalidOperationException(
+                $"Image resolution is too high ({width}x{height}). Maximum is {maxWidth}x{maxHeight}{(isAnimated ? " for animated images" : "")}.");
         }
-
-        var extension = Path.GetExtension(fileName).ToLower();
-        var isAnimated = image.Frames.Count > 1;
         var byteSize = stream.Length;
 
         // Dominant Color

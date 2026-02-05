@@ -20,7 +20,7 @@ COPY . .
 
 # Build and publish with MinVer version override
 WORKDIR "/src/WaifuApi.Web"
-RUN dotnet publish "WaifuApi.Web.csproj" -c Release -o /app/publish /p:UseAppHost=false /p:MinVerVersionOverride=${MINVER_VERSION}
+RUN dotnet publish "WaifuApi.Web.csproj" -c Release -o /app/publish /p:UseAppHost=false /p:MinVerVersionOverride=${MINVER_VERSION} /p:OpenApiGenerateDocumentsOnBuild=false
 
 # Runtime stage
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final

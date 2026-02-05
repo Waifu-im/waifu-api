@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import {
     Sun, Moon, Menu, X, LogOut, Upload as UploadIcon,
     Home, Image as ImageIcon, Tag as TagIcon, ChevronRight, PanelLeft,
-    User as UserIcon, Library, ChevronDown, Palette, Key, FileCheck, Users as UsersIcon, Flag, BarChart, Monitor, Book, Mail
+    User as UserIcon, Library, ChevronDown, Palette, Key, FileCheck, Users as UsersIcon, Flag, BarChart, Monitor, Book, Mail, Activity
 } from 'lucide-react';
 import { useState } from 'react';
 import GlobalErrorHandler from '../GlobalErrorHandler';
@@ -31,6 +31,7 @@ const Layout = () => {
     const docsUrl = getEnv('VITE_DOCS_URL');
     const contactEmail = getEnv('VITE_CONTACT_EMAIL');
     const discordServerUrl = getEnv('VITE_DISCORD_SERVER_URL');
+    const statusUrl = getEnv('VITE_STATUS_URL');
     const showContact = !!contactEmail || !!discordServerUrl;
 
     const navItems = [
@@ -185,10 +186,10 @@ const Layout = () => {
                         </Link>
 
                         {/* Dynamic Links Section */}
-                        {(docsUrl || showContact) && (
+                        {(docsUrl || showContact || statusUrl) && (
                             <>
                                 <div className="my-4 border-t border-border mx-2 opacity-50"></div>
-                                
+
                                 {docsUrl && (
                                     <a
                                         href={docsUrl}
@@ -199,6 +200,19 @@ const Layout = () => {
                                     >
                                         <Book size={22} className="shrink-0" />
                                         {!isSidebarCollapsed && <span>Documentation</span>}
+                                    </a>
+                                )}
+
+                                {statusUrl && (
+                                    <a
+                                        href={statusUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all text-muted-foreground hover:bg-secondary hover:text-foreground ${isSidebarCollapsed ? 'justify-center' : ''}`}
+                                        title={isSidebarCollapsed ? 'Status' : ''}
+                                    >
+                                        <Activity size={22} className="shrink-0" />
+                                        {!isSidebarCollapsed && <span>Status</span>}
                                     </a>
                                 )}
 
@@ -265,10 +279,10 @@ const Layout = () => {
                                     <UploadIcon size={20} /> Upload
                                 </Link>
 
-                                {(docsUrl || showContact) && (
+                                {(docsUrl || showContact || statusUrl) && (
                                     <>
                                         <div className="my-2 border-t border-border opacity-50"></div>
-                                        
+
                                         {docsUrl && (
                                             <a
                                                 href={docsUrl}
@@ -277,6 +291,17 @@ const Layout = () => {
                                                 className="flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
                                             >
                                                 <Book size={20} /> Documentation
+                                            </a>
+                                        )}
+
+                                        {statusUrl && (
+                                            <a
+                                                href={statusUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
+                                            >
+                                                <Activity size={20} /> Status
                                             </a>
                                         )}
 

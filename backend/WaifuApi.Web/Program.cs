@@ -78,6 +78,10 @@ void ValidateConfiguration(IConfiguration configuration)
         ConfigurationKeys.Image.MinHeight,
         ConfigurationKeys.Image.MaxWidth,
         ConfigurationKeys.Image.MaxHeight,
+        ConfigurationKeys.Image.AnimatedMinWidth,
+        ConfigurationKeys.Image.AnimatedMinHeight,
+        ConfigurationKeys.Image.AnimatedMaxWidth,
+        ConfigurationKeys.Image.AnimatedMaxHeight,
         ConfigurationKeys.Tag.DefaultPageSize,
         ConfigurationKeys.Tag.MaxPageSize,
         ConfigurationKeys.Artist.DefaultPageSize,
@@ -155,11 +159,15 @@ builder.Services.AddOpenApi(options =>
    options.AddDocumentTransformer((document, context, cancellationToken) =>
     {
         document.Info = new OpenApiInfo { Title = "Waifu API", Version = apiVersion };
-        
-        document.Servers = new List<OpenApiServer>
+
+        // Only add server if basePath is not just "/" to avoid "//path" in docs
+        if (!string.IsNullOrEmpty(basePath) && basePath != "/")
         {
-            new OpenApiServer { Url = basePath }
-        };
+            document.Servers = new List<OpenApiServer>
+            {
+                new OpenApiServer { Url = basePath }
+            };
+        }
 
         IOpenApiSecurityScheme bearerScheme = new OpenApiSecurityScheme
         {

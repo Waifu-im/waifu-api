@@ -44,48 +44,73 @@ public class RequestLoggingMiddleware
             var dbContext = scope.ServiceProvider.GetRequiredService<IWaifuDbContext>();
 
             var today = DateOnly.FromDateTime(DateTime.UtcNow);
-            
-            // 1. Upsert DailyStat
-            var dailyStat = await dbContext.DailyStats.FirstOrDefaultAsync(s => s.Date == today);
-            if (dailyStat == null)
-            {
-                dailyStat = new DailyStat { Date = today, RequestCount = 1 };
-                dbContext.DailyStats.Add(dailyStat);
-            }
-            else
-            {
-                dailyStat.RequestCount++;
-            }
-            
-            // 2. Upsert GlobalStat
-            var globalStat = await dbContext.GlobalStats.FirstOrDefaultAsync(s => s.Key == "TotalRequests");
-            if (globalStat == null)
-            {
-                globalStat = new GlobalStat { Key = "TotalRequests", Value = 1 };
-                dbContext.GlobalStats.Add(globalStat);
-            }
-            else
-            {
-                globalStat.Value++;
-            }
 
-            // 3. Increment User Stats if authenticated
+            // 1. Atomic upsert DailyStat
+            await AtomicUpsertDailyStat(dbContext, today);
+
+            // 2. Atomic upsert GlobalStat
+            await AtomicUpsertGlobalStat(dbContext);
+
+            // 3. Atomic increment User Stats if authenticated
             if (userId.HasValue)
             {
-                var user = await dbContext.Users.FindAsync(userId.Value);
-                if (user != null)
-                {
-                    user.RequestCount++;
-                    if (isApiKey) user.ApiKeyRequestCount++;
-                    if (isJwt) user.JwtRequestCount++;
-                }
+                await dbContext.Users
+                    .Where(u => u.Id == userId.Value)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(u => u.RequestCount, u => u.RequestCount + 1)
+                        .SetProperty(u => u.ApiKeyRequestCount, u => u.ApiKeyRequestCount + (isApiKey ? 1 : 0))
+                        .SetProperty(u => u.JwtRequestCount, u => u.JwtRequestCount + (isJwt ? 1 : 0)));
             }
-
-            await dbContext.SaveChangesAsync(CancellationToken.None);
         }
         catch
         {
             // Silently fail logging to not affect application stability
+        }
+    }
+
+    private static async Task AtomicUpsertDailyStat(IWaifuDbContext dbContext, DateOnly today)
+    {
+        var updated = await dbContext.DailyStats
+            .Where(s => s.Date == today)
+            .ExecuteUpdateAsync(s => s.SetProperty(p => p.RequestCount, p => p.RequestCount + 1));
+
+        if (updated == 0)
+        {
+            try
+            {
+                dbContext.DailyStats.Add(new DailyStat { Date = today, RequestCount = 1 });
+                await dbContext.SaveChangesAsync(CancellationToken.None);
+            }
+            catch (DbUpdateException)
+            {
+                // Another request already inserted for today, just increment
+                await dbContext.DailyStats
+                    .Where(s => s.Date == today)
+                    .ExecuteUpdateAsync(s => s.SetProperty(p => p.RequestCount, p => p.RequestCount + 1));
+            }
+        }
+    }
+
+    private static async Task AtomicUpsertGlobalStat(IWaifuDbContext dbContext)
+    {
+        var updated = await dbContext.GlobalStats
+            .Where(s => s.Key == "TotalRequests")
+            .ExecuteUpdateAsync(s => s.SetProperty(p => p.Value, p => p.Value + 1));
+
+        if (updated == 0)
+        {
+            try
+            {
+                dbContext.GlobalStats.Add(new GlobalStat { Key = "TotalRequests", Value = 1 });
+                await dbContext.SaveChangesAsync(CancellationToken.None);
+            }
+            catch (DbUpdateException)
+            {
+                // Another request already inserted the key, just increment
+                await dbContext.GlobalStats
+                    .Where(s => s.Key == "TotalRequests")
+                    .ExecuteUpdateAsync(s => s.SetProperty(p => p.Value, p => p.Value + 1));
+            }
         }
     }
 }

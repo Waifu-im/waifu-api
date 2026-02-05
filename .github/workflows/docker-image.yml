@@ -2,11 +2,11 @@ name: Docker
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "main" ]
     # Publish semver tags as releases.
     tags: [ 'v*.*.*' ]
   pull_request:
-    branches: [ "master" ]
+    branches: [ "main" ]
 
 env:
   # Use docker.io for Docker Hub if empty
@@ -33,21 +33,34 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
-      # Setup .NET to calculate MinVer version
+      - name: Fetch all tags
+        run: git fetch --tags --force
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
 
-      # Calculate version using MinVer
+      - name: Install MinVer
+        run: dotnet tool install --global minver-cli
+
+      # Calculate version using MinVer CLI
       - name: Calculate version
         id: version
         working-directory: ./backend
         run: |
-          dotnet restore WaifuApi.Web/WaifuApi.Web.csproj
-          VERSION=$(dotnet msbuild WaifuApi.Web/WaifuApi.Web.csproj -getProperty:Version -nologo)
+          # On utilise minver CLI pour calculer la version.
+          # Important : Il faut spécifier le prefix 'v' comme dans votre csproj.
+          VERSION=$(minver --tag-prefix v)
+          
+          MAJOR=$(echo $VERSION | cut -d. -f1)
+          MINOR=$(echo $VERSION | cut -d. -f2)
+          
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-          echo "Calculated version: $VERSION"
+          echo "MAJOR=$MAJOR" >> $GITHUB_OUTPUT
+          echo "MAJOR_MINOR=$MAJOR.$MINOR" >> $GITHUB_OUTPUT
+          
+          echo "Calculated version: $VERSION (major: $MAJOR, major.minor: $MAJOR.$MINOR)"
 
       # Install the cosign tool except on PR
       # https://github.com/sigstore/cosign-installer
@@ -79,12 +92,10 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=raw,value=${{ steps.version.outputs.VERSION }},enable={{is_default_branch}}
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest
+            type=raw,value=v${{ steps.version.outputs.VERSION }}
+            type=raw,value=v${{ steps.version.outputs.MAJOR_MINOR }}
+            type=raw,value=v${{ steps.version.outputs.MAJOR }}
 
       # Build and push Docker image with Buildx (don't push on PR)
       # https://github.com/docker/build-push-action
@@ -108,11 +119,10 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest
+            type=raw,value=v${{ steps.version.outputs.VERSION }}
+            type=raw,value=v${{ steps.version.outputs.MAJOR_MINOR }}
+            type=raw,value=v${{ steps.version.outputs.MAJOR }}
 
       # Build and push Docker image with Buildx (don't push on PR)
       - name: Build and push Frontend Docker image
