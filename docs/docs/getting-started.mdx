@@ -95,14 +95,14 @@ curl "https://api.waifu.im/images?PageSize=10&Page=1"
 
 ### NSFW Content
 
-By default, only SFW images are returned (`IsNsfw=false`). The parameter accepts three values: `false`, `true`, and `all`.
+By default, only SFW images are returned (`IsNsfw=False`). The parameter accepts three values: `False`, `True`, and `All`.
 
 ```bash
 # NSFW images only
-curl "https://api.waifu.im/images?IsNsfw=true"
+curl "https://api.waifu.im/images?IsNsfw=True"
 
 # Both SFW and NSFW images
-curl "https://api.waifu.im/images?IsNsfw=all"
+curl "https://api.waifu.im/images?IsNsfw=All"
 ```
 
 See the [Tags](./tags.md) page for more details on how tags and NSFW filtering interact.
