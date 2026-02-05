@@ -99,8 +99,9 @@ const config: Config = {
         },
         {
           href: "https://github.com/Waifu-im/waifu-api",
-          label: "GitHub",
           position: "right",
+          className: "header-github-link",
+          "aria-label": "GitHub repository",
         },
       ],
     },
