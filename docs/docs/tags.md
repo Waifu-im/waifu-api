@@ -8,13 +8,11 @@ Tags are used to categorize images in the Waifu.im archive. Each image can have 
 
 ## How Tags Work
 
-A tag is simply a label attached to images. There is no distinction between "versatile" and "NSFW" tag categories -- every tag works the same way.
-
-However, some tags only categorize explicit (NSFW) images. If you search for one of these tags without adjusting the `IsNsfw` parameter, you will get no results because `IsNsfw` defaults to `false` (SFW only).
+A tag is simply a label attached to images. Every tag works the same way, but some tags may only have NSFW images associated with them. If you search for such a tag without adjusting the `IsNsfw` parameter, you will get no results because `IsNsfw` defaults to `false` (SFW only).
 
 ### Example
 
-If the tag `hentai` only has explicit images associated with it:
+If the tag `hentai` only has NSFW images:
 
 ```bash
 # Returns no results because IsNsfw defaults to false
@@ -24,14 +22,17 @@ curl "https://api.waifu.im/images?IncludedTags=hentai"
 curl "https://api.waifu.im/images?IncludedTags=hentai&IsNsfw=true"
 ```
 
-Tags like `waifu` have both SFW and NSFW images, so they return results regardless:
+Tags like `waifu` have both SFW and NSFW images. Using `IsNsfw=all` lets you get both at once:
 
 ```bash
-# Returns SFW waifu images (default)
+# Returns SFW waifu images only (default)
 curl "https://api.waifu.im/images?IncludedTags=waifu"
 
-# Returns NSFW waifu images
+# Returns NSFW waifu images only
 curl "https://api.waifu.im/images?IncludedTags=waifu&IsNsfw=true"
+
+# Returns both SFW and NSFW waifu images
+curl "https://api.waifu.im/images?IncludedTags=waifu&IsNsfw=all"
 ```
 
 ## The `IsNsfw` Parameter
@@ -40,7 +41,7 @@ curl "https://api.waifu.im/images?IncludedTags=waifu&IsNsfw=true"
 | ------- | ------------------------------ |
 | `false` | SFW images only **(default)**  |
 | `true`  | NSFW images only               |
-| `null`  | Both SFW and NSFW images       |
+| `all`   | Both SFW and NSFW images       |
 
 ## Listing Available Tags
 
