@@ -88,6 +88,18 @@ public class GetAdminStatsQueryHandler : IRequestHandler<GetAdminStatsQuery, Adm
             .Take(10)
             .ToListAsync(cancellationToken);
 
+        var topAlbumUsers = await _context.Users
+            .Select(u => new AlbumUserStatDto
+            {
+                Id = u.Id,
+                Name = u.Name,
+                AlbumImageCount = _context.AlbumItems.Count(ai => _context.Albums.Any(a => a.Id == ai.AlbumId && a.UserId == u.Id))
+            })
+            .Where(u => u.AlbumImageCount > 0)
+            .OrderByDescending(u => u.AlbumImageCount)
+            .Take(10)
+            .ToListAsync(cancellationToken);
+
         // Calculate authenticated vs unauthenticated
         var totalAuthenticatedRequests = await _context.Users.SumAsync(u => u.RequestCount, cancellationToken);
         var totalApiKeyRequests = await _context.Users.SumAsync(u => u.ApiKeyRequestCount, cancellationToken);
@@ -104,6 +116,7 @@ public class GetAdminStatsQueryHandler : IRequestHandler<GetAdminStatsQuery, Adm
             TopApiKeyUsers = topApiKeyUsers,
             TopJwtUsers = topJwtUsers,
             TopUploaders = topUploaders,
+            TopAlbumUsers = topAlbumUsers,
             TotalRequests = publicStats.TotalRequests,
             TotalAuthenticatedRequests = totalAuthenticatedRequests,
             TotalUnauthenticatedRequests = totalUnauthenticatedRequests,
@@ -124,6 +137,7 @@ public class AdminStatsDto
     public List<UserStatDto> TopApiKeyUsers { get; set; } = new();
     public List<UserStatDto> TopJwtUsers { get; set; } = new();
     public List<UploaderStatDto> TopUploaders { get; set; } = new();
+    public List<AlbumUserStatDto> TopAlbumUsers { get; set; } = new();
     
     // Public stats included
     public long TotalRequests { get; set; }
@@ -156,4 +170,11 @@ public class UploaderStatDto
     public long Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public long UploadedImageCount { get; set; }
+}
+
+public class AlbumUserStatDto
+{
+    public long Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public long AlbumImageCount { get; set; }
 }

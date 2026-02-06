@@ -16,6 +16,7 @@ public class UserDto
     public long ApiKeyRequestCount { get; set; }
     public long JwtRequestCount { get; set; }
     public long UploadedImageCount { get; set; }
+    public long AlbumImageCount { get; set; }
 }
 
 public class UserMinimalDto

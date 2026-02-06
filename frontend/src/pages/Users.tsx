@@ -2,7 +2,7 @@
 import api from '../services/api';
 import { User, Role } from '../types';
 import { useNotification } from '../context/NotificationContext';
-import { Users as UsersIcon, Shield, Ban, CheckCircle, Image } from 'lucide-react';
+import { Users as UsersIcon, Shield, Ban, CheckCircle, Upload, Images } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import ConfirmModal from '../components/modals/ConfirmModal';
 import SearchableSelect from '../components/SearchableSelect';
@@ -93,6 +93,7 @@ const Users = () => {
                             <th className="p-4 font-bold text-sm text-muted-foreground">User</th>
                             <th className="p-4 font-bold text-sm text-muted-foreground">Discord ID</th>
                             <th className="p-4 font-bold text-sm text-muted-foreground">Uploads</th>
+                            <th className="p-4 font-bold text-sm text-muted-foreground">Albums</th>
                             <th className="p-4 font-bold text-sm text-muted-foreground">Total Req</th>
                             <th className="p-4 font-bold text-sm text-muted-foreground">API Key</th>
                             <th className="p-4 font-bold text-sm text-muted-foreground">Web</th>
@@ -103,7 +104,7 @@ const Users = () => {
                         </thead>
                         <tbody>
                         {loading ? (
-                            [...Array(5)].map((_, i) => <tr key={i}><td colSpan={10} className="p-4"><div className="h-10 bg-muted rounded animate-pulse"/></td></tr>)
+                            [...Array(5)].map((_, i) => <tr key={i}><td colSpan={11} className="p-4"><div className="h-10 bg-muted rounded animate-pulse"/></td></tr>)
                         ) : users.map(user => (
                             <tr key={user.id} className="border-b border-border last:border-0 hover:bg-secondary/30 transition-colors">
                                 <td className="p-4 font-mono text-sm">{user.id}</td>
@@ -115,9 +116,15 @@ const Users = () => {
                                         className="inline-flex items-center gap-1.5 text-sm font-mono text-primary hover:underline"
                                         title="View uploaded images"
                                     >
-                                        <Image size={14} />
+                                        <Upload size={14} />
                                         {user.uploadedImageCount?.toLocaleString() || 0}
                                     </Link>
+                                </td>
+                                <td className="p-4">
+                                    <span className="inline-flex items-center gap-1.5 text-sm font-mono text-pink-500" title="Images in albums">
+                                        <Images size={14} />
+                                        {user.albumImageCount?.toLocaleString() || 0}
+                                    </span>
                                 </td>
                                 <td className="p-4 font-mono text-sm">{user.requestCount?.toLocaleString() || 0}</td>
                                 <td className="p-4 font-mono text-sm text-blue-500">{user.apiKeyRequestCount?.toLocaleString() || 0}</td>
