@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect } from 'react';
 import api from '../services/api';
-import { BarChart, Activity, Calendar, Image as ImageIcon, Tag as TagIcon, Users, Trophy, ShieldCheck, UserX, Key, Globe, Scale, Upload } from 'lucide-react';
+import { BarChart, Activity, Calendar, Image as ImageIcon, Images, Tag as TagIcon, Users, Trophy, ShieldCheck, UserX, Key, Globe, Scale, Upload } from 'lucide-react';
 import { useRequireAuth } from '../hooks/useRequireAuth';
 import { Role } from '../types';
 import { Link } from 'react-router-dom';
@@ -24,6 +24,12 @@ interface UploaderStat {
     uploadedImageCount: number;
 }
 
+interface AlbumUserStat {
+    id: number;
+    name: string;
+    albumImageCount: number;
+}
+
 interface AdminStats {
     requestsToday: number;
     history: DailyStat[];
@@ -31,6 +37,7 @@ interface AdminStats {
     topApiKeyUsers: UserStat[];
     topJwtUsers: UserStat[];
     topUploaders: UploaderStat[];
+    topAlbumUsers: AlbumUserStat[];
     totalRequests: number;
     totalAuthenticatedRequests: number;
     totalUnauthenticatedRequests: number;
@@ -367,6 +374,29 @@ const AdminStats = () => {
                             </div>
                         ))}
                         {(!stats?.topUploaders || stats.topUploaders.length === 0) && (
+                            <div className="text-center text-muted-foreground py-4">No data yet.</div>
+                        )}
+                    </div>
+                </div>
+
+                {/* TOP ALBUM USERS */}
+                <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm p-6">
+                    <h2 className="text-xl font-bold flex items-center gap-2 mb-6">
+                        <Images size={20} className="text-pink-500" /> Top Album Users
+                    </h2>
+                    <div className="space-y-4">
+                        {stats?.topAlbumUsers.map((u, i) => (
+                            <div key={u.id} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg">
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <div className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${i === 0 ? 'bg-pink-500/20 text-pink-600' : i === 1 ? 'bg-gray-400/20 text-gray-500' : i === 2 ? 'bg-orange-500/20 text-orange-600' : 'bg-secondary text-muted-foreground'}`}>
+                                        {i + 1}
+                                    </div>
+                                    <Link to={`/users?includedIds=${u.id}`} className="font-medium truncate hover:text-primary hover:underline" title={u.name}>{u.name}</Link>
+                                </div>
+                                <span className="font-mono text-sm font-bold shrink-0">{u.albumImageCount.toLocaleString()}</span>
+                            </div>
+                        ))}
+                        {(!stats?.topAlbumUsers || stats.topAlbumUsers.length === 0) && (
                             <div className="text-center text-muted-foreground py-4">No data yet.</div>
                         )}
                     </div>

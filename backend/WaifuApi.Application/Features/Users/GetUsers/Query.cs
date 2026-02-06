@@ -54,7 +54,8 @@ public class GetUsersQueryHandler : IQueryHandler<GetUsersQuery, PaginatedList<U
                 RequestCount = u.RequestCount,
                 ApiKeyRequestCount = u.ApiKeyRequestCount,
                 JwtRequestCount = u.JwtRequestCount,
-                UploadedImageCount = _context.Images.Count(i => i.UploaderId == u.Id && i.ReviewStatus == ReviewStatus.Accepted)
+                UploadedImageCount = _context.Images.Count(i => i.UploaderId == u.Id && i.ReviewStatus == ReviewStatus.Accepted),
+                AlbumImageCount = _context.AlbumItems.Count(ai => _context.Albums.Any(a => a.Id == ai.AlbumId && a.UserId == u.Id))
             }).ToListAsync(cancellationToken);
 
             return new PaginatedList<UserDto>(result, result.Count, 1, result.Count);
@@ -81,7 +82,8 @@ public class GetUsersQueryHandler : IQueryHandler<GetUsersQuery, PaginatedList<U
             RequestCount = u.RequestCount,
             ApiKeyRequestCount = u.ApiKeyRequestCount,
             JwtRequestCount = u.JwtRequestCount,
-            UploadedImageCount = _context.Images.Count(i => i.UploaderId == u.Id && i.ReviewStatus == ReviewStatus.Accepted)
+            UploadedImageCount = _context.Images.Count(i => i.UploaderId == u.Id && i.ReviewStatus == ReviewStatus.Accepted),
+            AlbumImageCount = _context.AlbumItems.Count(ai => _context.Albums.Any(a => a.Id == ai.AlbumId && a.UserId == u.Id))
         }).OrderByDescending(u => u.UploadedImageCount);
 
         var count = await query.CountAsync(cancellationToken);

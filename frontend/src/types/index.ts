@@ -51,6 +51,7 @@ export interface User {
   apiKeyRequestCount?: number;
   jwtRequestCount?: number;
   uploadedImageCount?: number;
+  albumImageCount?: number;
 }
 
 export interface AlbumDto {
