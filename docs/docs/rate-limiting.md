@@ -9,9 +9,10 @@ The API enforces rate limits to ensure fair usage for all consumers.
 
 ## Limits
 
-- **Threshold**: 1 request every 200 milliseconds (5 requests per second).
-- **Queue**: Up to 10 pending requests can be queued before the API starts rejecting them.
-- **Rejection**: When the queue is full, the API responds with HTTP `429 Too Many Requests`.
+- **Rate**: 20 requests per second (1 request every 50 milliseconds).
+- **Burst**: Up to 30 excess requests are accepted beyond the base rate. The first 15 are served immediately; the remaining 15 are queued and processed at the base rate (one every 50 ms).
+- **Rejection**: When the burst buffer is full, the API responds with HTTP `429 Too Many Requests`.
+- **`Retry-After` header**: `0.250` seconds (250 ms). At the base rate of 20 req/s, one slot frees every 50 ms, so 250 ms is enough for ~5 slots to drain from the queue.
 
 ## Handling Rate Limits
 
@@ -28,7 +29,7 @@ def fetch_with_backoff(url, max_retries=5):
         response = requests.get(url)
         if response.status_code != 429:
             return response
-        wait = int(response.headers.get("Retry-After", 2 ** attempt))
+        wait = float(response.headers.get("Retry-After", 2 ** attempt))
         time.sleep(wait)
     return response
 ```
