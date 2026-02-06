@@ -77,11 +77,11 @@ const Home = () => {
             <div className="absolute inset-0 z-0 overflow-hidden select-none">
               <img
                   src={heroImage.url}
-                  className="w-full h-full object-cover opacity-20 dark:opacity-[0.07] scale-110 blur-md grayscale-[20%]"
+                  className="w-full h-full object-cover opacity-20 dark:opacity-[0.15] scale-110 blur-md grayscale-[20%]"
                   alt="Atmosphere"
                   onError={() => setHeroImage(null)}
               />
-              <div className="absolute inset-0 bg-gradient-to-b from-background/80 via-transparent to-background"></div>
+              <div className="absolute inset-0 bg-gradient-to-b from-background/80 dark:from-background/50 via-transparent to-background"></div>
             </div>
         )}
 
