@@ -2,7 +2,7 @@
 import api from '../services/api';
 import { User, Role } from '../types';
 import { useNotification } from '../context/NotificationContext';
-import { Users as UsersIcon, Shield, Ban, CheckCircle, Upload, GalleryHorizontal } from 'lucide-react';
+import { Users as UsersIcon, Shield, Ban, CheckCircle, Upload, Image as ImagesIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import ConfirmModal from '../components/modals/ConfirmModal';
 import SearchableSelect from '../components/SearchableSelect';
@@ -122,7 +122,7 @@ const Users = () => {
                                 </td>
                                 <td className="p-4">
                                     <span className="inline-flex items-center gap-1.5 text-sm font-mono text-pink-500" title="Images in albums">
-                                        <GalleryHorizontal size={14} />
+                                        <ImagesIcon size={14} />
                                         {user.albumImageCount?.toLocaleString() || 0}
                                     </span>
                                 </td>
