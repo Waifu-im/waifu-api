@@ -1,0 +1,38 @@
+﻿<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="The API for your Waifu content. Access thousands of categorized anime illustrations via our robust REST API or browse freely." />
+    <meta property="og:title" content="Waifu.im" />
+    <meta property="og:description" content="The API for your Waifu content. Access thousands of categorized anime illustrations via our robust REST API or browse freely." />
+    <meta property="og:image" content="/favicon.png" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Waifu.im" />
+    <meta name="twitter:description" content="The API for your Waifu content. Access thousands of categorized anime illustrations via our robust REST API or browse freely." />
+    <meta name="twitter:image" content="/favicon.png" />
+    <script src="/config.js"></script>
+    <script>
+      // Immediate theme application to prevent flash of unstyled content (FOUC)
+      (function() {
+        try {
+          const savedTheme = localStorage.getItem('theme');
+          const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          
+          if (savedTheme === 'dark' || (!savedTheme && systemDark) || (savedTheme === 'system' && systemDark)) {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+        } catch (e) {}
+      })();
+    </script> 
+    <title>Waifu.im</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

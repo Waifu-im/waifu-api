@@ -1,0 +1,90 @@
+---
+id: api-intro
+sidebar_position: 0
+sidebar_label: Overview
+title: Overview
+slug: /api
+---
+
+import CodeBlock from '@theme/CodeBlock';
+import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
+
+export const useApiBaseUrl = () => {
+  const { siteConfig } = useDocusaurusContext();
+  return siteConfig.customFields.apiBaseUrl;
+};
+
+export const useAppName = () => {
+  const { siteConfig } = useDocusaurusContext();
+  return siteConfig.customFields.appName;
+};
+
+export const AppName = () => <>{useAppName()}</>;
+
+export const ApiBaseUrl = () => <code>{useApiBaseUrl()}</code>;
+
+export const ApiBaseUrlBlock = () => {
+  return <CodeBlock>{useApiBaseUrl()}</CodeBlock>;
+};
+
+export const OpenApiSpecUrl = () => {
+  const baseUrl = useApiBaseUrl();
+  return <a href={`${baseUrl}/openapi/v1.json`}>{`${baseUrl}/openapi/v1.json`}</a>;
+};
+
+export const ScalarUrl = () => {
+  const baseUrl = useApiBaseUrl();
+  return <a href={`${baseUrl}/scalar/v1`}>{`${baseUrl}/scalar/v1`}</a>;
+};
+
+# API Reference
+
+This section contains the full API reference for <AppName />, auto-generated from the OpenAPI specification [<OpenApiSpecUrl />].
+
+## Base URL
+
+<ApiBaseUrlBlock />
+
+## Interactive Documentation
+
+An interactive API explorer powered by Scalar is available directly on the API at <ScalarUrl />. You can use it to test endpoints and view request/response examples.
+
+## Authentication
+
+The API supports two authentication methods:
+
+- **JWT Token** -- Obtained via Discord OAuth2 (`POST /auth/discord`). Passed as `Authorization: Bearer <token>`.
+- **API Key** -- Passed in the `X-Api-Key` header.
+
+Some endpoints require authentication. Check the endpoint details below or the [Authentication](./authentication.mdx) page for more information.
+
+## Response Format
+
+All responses are JSON. Paginated endpoints return:
+
+```json
+{
+  "items": [],
+  "pageNumber": 1,
+  "totalPages": 10,
+  "totalCount": 100,
+  "hasPreviousPage": false,
+  "hasNextPage": true
+}
+```
+
+## Error Handling
+
+Errors follow the [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) Problem Details format:
+
+```json
+{
+  "type": "https://tools.ietf.org/html/rfc9110#section-15.5.1",
+  "title": "Bad Request",
+  "status": 400,
+  "detail": "One or more validation errors occurred.",
+  "errors": {
+    "fieldName": ["Error message"]
+  }
+}
+```

@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="WaifuApi.Application/WaifuApi.Application.csproj" />
+  <Project Path="WaifuApi.Domain/WaifuApi.Domain.csproj" />
+  <Project Path="WaifuApi.Infrastructure/WaifuApi.Infrastructure.csproj" />
+  <Project Path="WaifuApi.Web/WaifuApi.Web.csproj" />
+</Solution>
