@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect } from 'react';
 import api from '../services/api';
-import { BarChart, Activity, Calendar, Image as ImageIcon, Images, Tag as TagIcon, Users, Trophy, ShieldCheck, UserX, Key, Globe, Scale, Upload } from 'lucide-react';
+import { BarChart, Activity, Calendar, Image as ImageIcon, GalleryHorizontal, Tag as TagIcon, Users, Trophy, ShieldCheck, UserX, Key, Globe, Scale, Upload } from 'lucide-react';
 import { useRequireAuth } from '../hooks/useRequireAuth';
 import { Role } from '../types';
 import { Link } from 'react-router-dom';
@@ -382,7 +382,7 @@ const AdminStats = () => {
                 {/* TOP ALBUM USERS */}
                 <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm p-6">
                     <h2 className="text-xl font-bold flex items-center gap-2 mb-6">
-                        <Images size={20} className="text-pink-500" /> Top Album Users
+                        <GalleryHorizontal size={20} className="text-pink-500" /> Top Album Users
                     </h2>
                     <div className="space-y-4">
                         {stats?.topAlbumUsers.map((u, i) => (
