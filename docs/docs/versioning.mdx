@@ -1,0 +1,88 @@
+---
+sidebar_position: 5
+sidebar_label: Versioning
+title: Versioning
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+import CodeBlock from '@theme/CodeBlock';
+import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
+
+export const useApiVersion = () => {
+  const { siteConfig } = useDocusaurusContext();
+  return siteConfig.customFields.apiVersion;
+};
+
+export const useApiBaseUrl = () => {
+  const { siteConfig } = useDocusaurusContext();
+  return siteConfig.customFields.apiBaseUrl;
+};
+
+export const ApiVersion = () => <code>{useApiVersion()}</code>;
+
+export const CurlExample = () => {
+  const v = useApiVersion();
+  const baseUrl = useApiBaseUrl();
+  return <CodeBlock language="bash">{`curl -H "Accept-Version: ${v}" ${baseUrl}/images`}</CodeBlock>;
+};
+
+export const JsExample = () => {
+  const v = useApiVersion();
+  const baseUrl = useApiBaseUrl();
+  return <CodeBlock language="javascript">{`const response = await fetch("${baseUrl}/images", {
+  headers: { "Accept-Version": "${v}" },
+});`}</CodeBlock>;
+};
+
+export const PythonExample = () => {
+  const v = useApiVersion();
+  const baseUrl = useApiBaseUrl();
+  return <CodeBlock language="python">{`import requests
+
+response = requests.get(
+    "${baseUrl}/images",
+    headers={"Accept-Version": "${v}"}
+)`}</CodeBlock>;
+};
+
+export const CsharpExample = () => {
+  const v = useApiVersion();
+  const baseUrl = useApiBaseUrl();
+  return <CodeBlock language="csharp">{`using var client = new HttpClient();
+client.DefaultRequestHeaders.Add("Accept-Version", "${v}");
+var response = await client.GetAsync("${baseUrl}/images");`}</CodeBlock>;
+};
+
+# Versioning
+
+The API supports versioning through the `Accept-Version` header. Pinning your requests to a specific version protects your integration from breaking changes.
+
+## Current Version
+
+The latest API version is <ApiVersion />.
+
+## Specifying a Version
+
+Include the `Accept-Version` header in your requests:
+
+<Tabs>
+<TabItem value="curl" label="cURL">
+<CurlExample />
+</TabItem>
+<TabItem value="javascript" label="JavaScript">
+<JsExample />
+</TabItem>
+<TabItem value="python" label="Python">
+<PythonExample />
+</TabItem>
+<TabItem value="csharp" label="C#">
+<CsharpExample />
+</TabItem>
+</Tabs>
+
+## Default Behavior
+
+If you do not specify a version, the API uses the latest available version. This can break your application if a new version introduces breaking changes.
+
+**Best practice**: always include the `Accept-Version` header in production code.

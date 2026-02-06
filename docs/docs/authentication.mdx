@@ -1,0 +1,68 @@
+---
+sidebar_position: 3
+sidebar_label: Authentication
+title: Authentication
+---
+
+import CodeBlock from '@theme/CodeBlock';
+import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
+
+export const useApiBaseUrl = () => {
+  const { siteConfig } = useDocusaurusContext();
+  return siteConfig.customFields.apiBaseUrl;
+};
+
+export const useFrontendUrl = () => {
+  const { siteConfig } = useDocusaurusContext();
+  return siteConfig.customFields.frontendUrl;
+};
+
+# Authentication
+
+Basic image browsing is available without authentication. User-specific features like favorites, albums, and reports require an API key or a JWT token.
+
+## Authentication Methods
+
+The API supports two authentication methods:
+
+### API Key
+
+Generate an API key from your dashboard and include it in the `X-Api-Key` header:
+
+export const ApiKeyExample = () => {
+  const baseUrl = useApiBaseUrl();
+  return <CodeBlock language="bash">{`curl -H "X-Api-Key: YOUR_API_KEY" ${baseUrl}/users/me/albums`}</CodeBlock>;
+};
+
+<ApiKeyExample />
+
+API keys are the recommended method for programmatic access. You can create and manage your keys via the `/auth/api-keys` endpoint once authenticated.
+
+### JWT Token (Discord OAuth2)
+
+For browser-based flows, authenticate via Discord OAuth2:
+
+1. Redirect the user to the Discord OAuth2 authorization URL.
+2. The user authorizes the application.
+3. Discord redirects back with a `code` parameter.
+4. Exchange the code for a JWT token via `POST /auth/discord`.
+
+Include the JWT in the `Authorization` header:
+
+export const JwtExample = () => {
+  const baseUrl = useApiBaseUrl();
+  return <CodeBlock language="bash">{`curl -H "Authorization: Bearer YOUR_JWT_TOKEN" ${baseUrl}/users/me/albums`}</CodeBlock>;
+};
+
+<JwtExample />
+
+## Getting an API Key
+
+export const FrontendLink = () => {
+  const url = useFrontendUrl();
+  return <a href={url}>{url.replace(/^https?:\/\//, '')}</a>;
+};
+
+1. Visit <FrontendLink /> and log in with your Discord account.
+2. Navigate to your dashboard.
+3. Generate an API key and store it securely -- the full key is only shown once.

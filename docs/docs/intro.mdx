@@ -1,0 +1,64 @@
+---
+sidebar_position: 1
+sidebar_label: Introduction
+title: Introduction
+slug: /intro
+---
+
+import CodeBlock from '@theme/CodeBlock';
+import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
+
+export const useApiBaseUrl = () => {
+  const { siteConfig } = useDocusaurusContext();
+  return siteConfig.customFields.apiBaseUrl;
+};
+
+export const useAppName = () => {
+  const { siteConfig } = useDocusaurusContext();
+  return siteConfig.customFields.appName;
+};
+
+export const ApiBaseUrl = () => <code>{useApiBaseUrl()}</code>;
+export const AppName = () => <>{useAppName()}</>;
+
+# Introduction
+
+<AppName /> is a REST API that provides access to a curated archive of over 4000 anime-style images with powerful filtering capabilities.
+
+## Features
+
+- **Extensive Archive** -- Over 4000 high-quality images, continuously growing.
+- **Tag-Based Search** -- Filter images by tags such as character types, styles, or themes.
+- **Albums** -- Organize and share collections of images.
+- **Advanced Filtering** -- Filter by resolution, file size, NSFW content, animated images, artists, and more.
+- **User Accounts** -- Discord-based authentication to manage favorites and albums.
+- **Statistics** -- Track popular tags and API usage.
+- **Flexible Sorting** -- Sort results by date, popularity, or get random results.
+
+## Base URL
+
+export const BaseUrlBlock = () => {
+  return <CodeBlock>{useApiBaseUrl()}</CodeBlock>;
+};
+
+<BaseUrlBlock />
+
+## Quick Example
+
+Fetch a random SFW image:
+
+export const RandomExample = () => {
+  const baseUrl = useApiBaseUrl();
+  return <CodeBlock language="bash">{`curl ${baseUrl}/images`}</CodeBlock>;
+};
+
+<RandomExample />
+
+Fetch images with a specific tag:
+
+export const TagExample = () => {
+  const baseUrl = useApiBaseUrl();
+  return <CodeBlock language="bash">{`curl "${baseUrl}/images?IncludedTags=waifu"`}</CodeBlock>;
+};
+
+<TagExample />

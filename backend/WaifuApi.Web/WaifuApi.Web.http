@@ -1,0 +1,6 @@
+@WaifuApi.Web_HostAddress = http://localhost:5261
+
+GET {{WaifuApi.Web_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

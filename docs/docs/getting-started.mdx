@@ -1,0 +1,235 @@
+---
+sidebar_position: 2
+sidebar_label: Getting Started
+title: Getting Started
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+import CodeBlock from '@theme/CodeBlock';
+import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
+
+export const useApiBaseUrl = () => {
+  const { siteConfig } = useDocusaurusContext();
+  return siteConfig.customFields.apiBaseUrl;
+};
+
+export const useAppName = () => {
+  const { siteConfig } = useDocusaurusContext();
+  return siteConfig.customFields.appName;
+};
+
+export const AppName = () => <>{useAppName()}</>;
+
+# Getting Started
+
+This guide walks you through making your first requests to the <AppName /> API.
+
+## Making Your First Request
+
+The simplest way to use the API is to fetch random images. No authentication is required for basic usage.
+
+### Fetch a Random Image
+
+export const FetchRandomExample = () => {
+  const baseUrl = useApiBaseUrl();
+  return <CodeBlock language="bash">{`curl ${baseUrl}/images`}</CodeBlock>;
+};
+
+<FetchRandomExample />
+
+This returns a JSON response with paginated image data:
+
+```json
+{
+  "items": [
+    {
+      "id": 6758,
+      "perceptualHash": "0000000000000000",
+      "extension": ".png",
+      "dominantColor": "#eee6eb",
+      "source": "https://www.pixiv.net/en/artworks/81300646",
+      "artists": [
+        {
+          "id": 838,
+          "name": "ネコサン＠お仕事募集中",
+          "patreon": null,
+          "pixiv": "https://www.pixiv.net/users/544561",
+          "twitter": "https://twitter.com/neko__san",
+          "deviantArt": null,
+          "reviewStatus": "Accepted",
+          "imageCount": 0
+        }
+      ],
+      "uploaderId": null,
+      "uploadedAt": "2021-11-02T11:16:19.048684Z",
+      "isNsfw": false,
+      "isAnimated": false,
+      "width": 1600,
+      "height": 2088,
+      "byteSize": 1778623,
+      "url": "https://cdn.waifu.im/6758.png",
+      "tags": [
+        {
+          "id": 7,
+          "name": "oppai",
+          "slug": "oppai",
+          "description": "Large-breasted women",
+          "reviewStatus": "Accepted",
+          "imageCount": 0
+        }
+      ],
+      "reviewStatus": "Accepted",
+      "favorites": 20,
+      "likedAt": null,
+      "addedToAlbumAt": null,
+      "albums": []
+    }
+  ],
+  "pageNumber": 1,
+  "totalPages": 1,
+  "totalCount": 1,
+  "hasPreviousPage": false,
+  "hasNextPage": false
+}
+```
+
+### Filter by Tags
+
+Include images matching specific tags using `IncludedTags` (AND logic -- all tags must match):
+
+export const FilterByTagExample = () => {
+  const baseUrl = useApiBaseUrl();
+  return <CodeBlock language="bash">{`curl "${baseUrl}/images?IncludedTags=waifu"`}</CodeBlock>;
+};
+
+<FilterByTagExample />
+
+Exclude images with certain tags using `ExcludedTags` (OR logic -- any match is excluded):
+
+export const ExcludeTagExample = () => {
+  const baseUrl = useApiBaseUrl();
+  return <CodeBlock language="bash">{`curl "${baseUrl}/images?ExcludedTags=maid"`}</CodeBlock>;
+};
+
+<ExcludeTagExample />
+
+### Pagination
+
+Control pagination with `Page` and `PageSize`:
+
+export const PaginationExample = () => {
+  const baseUrl = useApiBaseUrl();
+  return <CodeBlock language="bash">{`curl "${baseUrl}/images?PageSize=10&Page=1"`}</CodeBlock>;
+};
+
+<PaginationExample />
+
+### NSFW Content
+
+By default, only SFW images are returned (`IsNsfw=False`). The parameter accepts three values: `False`, `True`, and `All`.
+
+export const NsfwExample = () => {
+  const baseUrl = useApiBaseUrl();
+  return <CodeBlock language="bash">{`# NSFW images only
+curl "${baseUrl}/images?IsNsfw=True"
+
+# Both SFW and NSFW images
+curl "${baseUrl}/images?IsNsfw=All"`}</CodeBlock>;
+};
+
+<NsfwExample />
+
+See the [Tags](./tags.mdx) page for more details on how tags and NSFW filtering interact.
+
+### Filter by Artist
+
+You can filter images by artist ID using `IncludedArtists`:
+
+export const FilterByArtistExample = () => {
+  const baseUrl = useApiBaseUrl();
+  return <CodeBlock language="bash">{`curl "${baseUrl}/images?IncludedArtists=123"`}</CodeBlock>;
+};
+
+<FilterByArtistExample />
+
+Consult the [API Reference](/docs/category/api) for the full list of available filters (orientation, resolution, file size, animation, and more).
+
+## Available Tags
+
+To see all available tags:
+
+export const ListTagsExample = () => {
+  const baseUrl = useApiBaseUrl();
+  return <CodeBlock language="bash">{`curl ${baseUrl}/tags`}</CodeBlock>;
+};
+
+<ListTagsExample />
+
+## The `me` and `favorites` Aliases
+
+When authenticated, you can use `me` as a user ID alias to refer to yourself, and `favorites` as an album ID alias to refer to your default favorites album. These aliases simplify common operations:
+
+export const AliasesExample = () => {
+  const baseUrl = useApiBaseUrl();
+  return <CodeBlock language="bash">{`# Get your own profile
+curl -H "X-Api-Key: YOUR_API_KEY" ${baseUrl}/users/me
+
+# List your favorites
+curl -H "X-Api-Key: YOUR_API_KEY" ${baseUrl}/users/me/albums/favorites
+
+# Add an image to your favorites
+curl -X POST -H "X-Api-Key: YOUR_API_KEY" \\
+  "${baseUrl}/users/me/albums/favorites?ImageId=8008"`}</CodeBlock>;
+};
+
+<AliasesExample />
+
+## Code Examples
+
+export const CurlExample = () => {
+  const baseUrl = useApiBaseUrl();
+  return <CodeBlock language="bash">{`curl "${baseUrl}/images?IncludedTags=waifu"`}</CodeBlock>;
+};
+
+export const JsExample = () => {
+  const baseUrl = useApiBaseUrl();
+  return <CodeBlock language="javascript">{`const response = await fetch("${baseUrl}/images?IncludedTags=waifu");
+const data = await response.json();
+console.log(data.items[0].url);`}</CodeBlock>;
+};
+
+export const PythonExample = () => {
+  const baseUrl = useApiBaseUrl();
+  return <CodeBlock language="python">{`import requests
+
+response = requests.get(
+    "${baseUrl}/images",
+    params={"IncludedTags": "waifu"}
+)
+data = response.json()
+print(data["items"][0]["url"])`}</CodeBlock>;
+};
+
+export const CsharpExample = () => {
+  const baseUrl = useApiBaseUrl();
+  return <CodeBlock language="csharp">{`using var client = new HttpClient();
+var response = await client.GetAsync("${baseUrl}/images?IncludedTags=waifu");
+var json = await response.Content.ReadAsStringAsync();
+Console.WriteLine(json);`}</CodeBlock>;
+};
+
+<Tabs>
+<TabItem value="curl" label="cURL">
+<CurlExample />
+</TabItem>
+<TabItem value="javascript" label="JavaScript">
+<JsExample />
+</TabItem>
+<TabItem value="python" label="Python">
+<PythonExample />
+</TabItem>
+<TabItem value="csharp" label="C#">
+<CsharpExample />
+</TabItem>
+</Tabs>
