@@ -35,8 +35,19 @@ jobs:
         with:
           dotnet-version: "10.0.x"
 
+      - name: Install MinVer CLI
+        run: dotnet tool install --global minver-cli
+
+      - name: Calculate version
+        id: version
+        working-directory: ./backend
+        run: |
+          VERSION=$(minver --tag-prefix v)
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Calculated version: $VERSION"
+
       - name: Generate OpenAPI spec from backend build
-        run: dotnet build backend/WaifuApi.Web/WaifuApi.Web.csproj -c Release /p:OpenApiGenerateDocumentsOnBuild=true
+        run: dotnet build backend/WaifuApi.Web/WaifuApi.Web.csproj -c Release /p:OpenApiGenerateDocumentsOnBuild=true /p:MinVerVersionOverride=${{ steps.version.outputs.VERSION }}
         env:
           ASPNETCORE_ENVIRONMENT: CI
 
