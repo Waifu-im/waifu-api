@@ -184,7 +184,11 @@ curl -H "X-Api-Key: YOUR_API_KEY" ${baseUrl}/users/me/albums/favorites
 
 # Add an image to your favorites
 curl -X POST -H "X-Api-Key: YOUR_API_KEY" \\
-  "${baseUrl}/users/me/albums/favorites?ImageId=8008"`}</CodeBlock>;
+  "${baseUrl}/users/me/albums/favorites/images/8008"
+
+# Remove an image from your favorites
+curl -X DELETE -H "X-Api-Key: YOUR_API_KEY" \\
+  "${baseUrl}/users/me/albums/favorites/images/8008"`}</CodeBlock>;
 };
 
 <AliasesExample />
