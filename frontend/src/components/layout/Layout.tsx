@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import {
     Sun, Moon, Menu, X, LogOut, Upload as UploadIcon,
     Home, Image as ImageIcon, Tag as TagIcon, ChevronRight, PanelLeft,
-    User as UserIcon, Library, ChevronDown, Palette, Key, FileCheck, Users as UsersIcon, Flag, BarChart, Monitor, Book, Mail, Activity
+    User as UserIcon, Library, ChevronDown, Palette, Key, FileCheck, Users as UsersIcon, Flag, BarChart, Monitor, Book, Mail, Activity, HardDrive
 } from 'lucide-react';
 import { useState } from 'react';
 import GlobalErrorHandler from '../GlobalErrorHandler';
@@ -125,6 +125,7 @@ const Layout = () => {
                                             <>
                                                 <Link to="/users"><DropdownItem icon={<UsersIcon size={16} className="text-blue-500" />}>User Management</DropdownItem></Link>
                                                 <Link to="/stats"><DropdownItem icon={<BarChart size={16} className="text-purple-500" />}>Statistics</DropdownItem></Link>
+                                                <Link to="/storage-diff"><DropdownItem icon={<HardDrive size={16} className="text-emerald-500" />}>Storage Diff</DropdownItem></Link>
                                             </>
                                         )}
                                     </>

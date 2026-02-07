@@ -58,7 +58,7 @@ public class GetUsersQueryHandler : IQueryHandler<GetUsersQuery, PaginatedList<U
                 AlbumImageCount = _context.AlbumItems.Count(ai => _context.Albums.Any(a => a.Id == ai.AlbumId && a.UserId == u.Id))
             }).ToListAsync(cancellationToken);
 
-            return new PaginatedList<UserDto>(result, result.Count, 1, result.Count);
+            return new PaginatedList<UserDto>(result, result.Count, 1, result.Count, _maxPageSize, _defaultPageSize);
         }
 
         // Normal search/pagination flow
@@ -89,6 +89,6 @@ public class GetUsersQueryHandler : IQueryHandler<GetUsersQuery, PaginatedList<U
         var count = await query.CountAsync(cancellationToken);
         var dtos = await projectedQuery.Skip((request.Page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
 
-        return new PaginatedList<UserDto>(dtos, count, request.Page, pageSize);
+        return new PaginatedList<UserDto>(dtos, count, request.Page, pageSize, _maxPageSize, _defaultPageSize);
     }
 }

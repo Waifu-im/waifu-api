@@ -69,9 +69,14 @@ All responses are JSON. Paginated endpoints return:
   "totalPages": 10,
   "totalCount": 100,
   "hasPreviousPage": false,
-  "hasNextPage": true
+  "hasNextPage": true,
+  "maxPageSize": -1,
+  "defaultPageSize": 30
 }
 ```
+
+- `maxPageSize`: The maximum allowed page size for this endpoint. A value of `-1` means unlimited.
+- `defaultPageSize`: The default page size used when no `PageSize` parameter is provided.
 
 ## Error Handling
 

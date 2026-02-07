@@ -91,8 +91,10 @@ void ValidateConfiguration(IConfiguration configuration)
         ConfigurationKeys.Album.MaxPageSize,
         ConfigurationKeys.User.DefaultPageSize,
         ConfigurationKeys.User.MaxPageSize,
-        ConfigurationKeys.Review.DefaultPageSize,
-        ConfigurationKeys.Review.MaxPageSize
+        ConfigurationKeys.Report.DefaultPageSize,
+        ConfigurationKeys.Report.MaxPageSize,
+        ConfigurationKeys.StorageDiff.DefaultPageSize,
+        ConfigurationKeys.StorageDiff.MaxPageSize
     };
 
     var missingKeys = new List<string>();

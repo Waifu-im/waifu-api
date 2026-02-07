@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using Amazon;
 using Amazon.Runtime;
@@ -65,6 +67,32 @@ public class S3Service : IStorageService
     public async Task DeleteAsync(string fileName)
     {
         await _s3Client.DeleteObjectAsync(_bucketName, fileName);
+    }
+
+    public async Task<List<string>> ListObjectsAsync(CancellationToken ct)
+    {
+        var keys = new List<string>();
+        string? continuationToken = null;
+
+        do
+        {
+            var request = new ListObjectsV2Request
+            {
+                BucketName = _bucketName,
+                ContinuationToken = continuationToken
+            };
+
+            var response = await _s3Client.ListObjectsV2Async(request, ct);
+
+            foreach (var obj in response.S3Objects)
+            {
+                keys.Add(obj.Key);
+            }
+
+            continuationToken = response.IsTruncated == true ? response.NextContinuationToken : null;
+        } while (continuationToken != null);
+
+        return keys;
     }
 
     private class UntrustedCertClientFactory : HttpClientFactory

@@ -15,6 +15,7 @@ import Users from './pages/Users'
 import ApiKeys from './pages/ApiKeys'
 import Reports from "@/pages/Reports.tsx";
 import AdminStats from "@/pages/AdminStats.tsx";
+import StorageDiff from './pages/StorageDiff';
 import Contact from './pages/Contact';
 import NotFound from './pages/NotFound';
 
@@ -36,6 +37,7 @@ function App() {
                 <Route path="users" element={<Users />} />
                 <Route path="api-keys" element={<ApiKeys />} />
                 <Route path="stats" element={<AdminStats />} />
+                <Route path="storage-diff" element={<StorageDiff />} />
                 <Route path="contact" element={<Contact />} />
                 <Route path="auth/callback" element={<Callback />} />
                 <Route path="*" element={<NotFound />} />

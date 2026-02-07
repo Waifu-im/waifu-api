@@ -83,10 +83,16 @@ public static class ConfigurationKeys
         public const string MaxPageSize = "User:MaxPageSize";
     }
 
-    public static class Review
+    public static class Report
     {
-        public const string DefaultPageSize = "Review:DefaultPageSize";
-        public const string MaxPageSize = "Review:MaxPageSize";
+        public const string DefaultPageSize = "Report:DefaultPageSize";
+        public const string MaxPageSize = "Report:MaxPageSize";
+    }
+
+    public static class StorageDiff
+    {
+        public const string DefaultPageSize = "StorageDiff:DefaultPageSize";
+        public const string MaxPageSize = "StorageDiff:MaxPageSize";
     }
 
     public static class Permissions

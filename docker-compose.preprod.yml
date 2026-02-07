@@ -35,24 +35,24 @@ services:
       - backend
     restart: always
 
-  docs:
-    build:
-      context: .
-      dockerfile: docs/Dockerfile
-      args:
-        VERSION: ${VERSION:-0.0.0}
-        DOCS_URL: ${DOCS_URL}
-        DOCS_BASE_URL: ${DOCS_BASE_URL}
-        DOCS_ORG_NAME: ${DOCS_ORG_NAME}
-        DOCS_PROJECT_NAME: ${DOCS_PROJECT_NAME}
-        API_BASE_URL: ${API_BASE_URL}
-        APP_NAME: ${APP_NAME}
-        APP_TAGLINE: ${APP_TAGLINE}
-        FRONTEND_URL: ${FRONTEND_URL}
-        GITHUB_URL: ${GITHUB_URL}
-    ports:
-      - "${DOCS_PORT}:80"
-    restart: always
+#  docs:
+#    build:
+#      context: .
+#      dockerfile: docs/Dockerfile
+#      args:
+#        VERSION: ${VERSION:-0.0.0}
+#        DOCS_URL: ${DOCS_URL}
+#        DOCS_BASE_URL: ${DOCS_BASE_URL}
+#        DOCS_ORG_NAME: ${DOCS_ORG_NAME}
+#        DOCS_PROJECT_NAME: ${DOCS_PROJECT_NAME}
+#        API_BASE_URL: ${API_BASE_URL}
+#        APP_NAME: ${APP_NAME}
+#        APP_TAGLINE: ${APP_TAGLINE}
+#        FRONTEND_URL: ${FRONTEND_URL}
+#        GITHUB_URL: ${GITHUB_URL}
+#    ports:
+#      - "${DOCS_PORT}:80"
+#    restart: always
 
   db:
     image: pgvector/pgvector:pg18
@@ -70,6 +70,16 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - "9004:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: db
+    depends_on:
+      db:
+        condition: service_healthy
 
 volumes:
   postgres_data:
