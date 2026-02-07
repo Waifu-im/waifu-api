@@ -74,7 +74,8 @@ const Artists = () => {
             pixiv: artist.pixiv,
             patreon: artist.patreon,
             deviantArt: artist.deviantArt,
-            reviewStatus: artist.reviewStatus
+            reviewStatus: artist.reviewStatus,
+            creatorId: artist.creatorId
         });
         setIsEditOpen(true);
     };

@@ -13,7 +13,7 @@ using WaifuApi.Domain.Enums;
 
 namespace WaifuApi.Application.Features.Tags.UpdateTag;
 
-public record UpdateTagCommand(long Id, string Name, string Description, string? Slug, ReviewStatus? ReviewStatus) : ICommand<TagDto>;
+public record UpdateTagCommand(long Id, string Name, string Description, string? Slug, ReviewStatus? ReviewStatus, long? CreatorId = null) : ICommand<TagDto>;
 
 public class UpdateTagCommandHandler : ICommandHandler<UpdateTagCommand, TagDto>
 {
@@ -58,7 +58,12 @@ public class UpdateTagCommandHandler : ICommandHandler<UpdateTagCommand, TagDto>
         {
             tag.ReviewStatus = request.ReviewStatus.Value;
         }
-        
+
+        if (request.CreatorId.HasValue)
+        {
+            tag.CreatorId = request.CreatorId.Value;
+        }
+
         await _context.SaveChangesAsync(cancellationToken);
 
         return new TagDto
@@ -67,7 +72,8 @@ public class UpdateTagCommandHandler : ICommandHandler<UpdateTagCommand, TagDto>
             Name = tag.Name,
             Slug = tag.Slug,
             Description = tag.Description,
-            ReviewStatus = tag.ReviewStatus
+            ReviewStatus = tag.ReviewStatus,
+            CreatorId = tag.CreatorId
         };
     }
 }

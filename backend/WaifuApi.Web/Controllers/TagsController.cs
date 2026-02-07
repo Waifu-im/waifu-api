@@ -17,6 +17,7 @@ using WaifuApi.Application.Features.Tags.UpdateTag;
 using WaifuApi.Domain.Enums;
 using WaifuApi.Web.Constants;
 using WaifuApi.Web.Models;
+using WaifuApi.Application.Interfaces;
 using WaifuApi.Web.Services;
 
 namespace WaifuApi.Web.Controllers;
@@ -37,11 +38,13 @@ public class TagsController : ControllerBase
 {
     private readonly IMediator _mediator;
     private readonly IPermissionService _permissionService;
+    private readonly ICurrentUserService _currentUser;
 
-    public TagsController(IMediator mediator, IPermissionService permissionService)
+    public TagsController(IMediator mediator, IPermissionService permissionService, ICurrentUserService currentUser)
     {
         _mediator = mediator;
         _permissionService = permissionService;
+        _currentUser = currentUser;
     }
 
     /// <summary>
@@ -66,7 +69,8 @@ public class TagsController : ControllerBase
             IncludedIds = request.IncludedIds,
             IncludedSlugs = request.IncludedSlugs,
             Page = request.Page,
-            PageSize = request.PageSize
+            PageSize = request.PageSize,
+            IsModeratorOrAdmin = _currentUser.IsModeratorOrAdmin
         };
 
         var tags = await _mediator.Send(query);
@@ -135,7 +139,7 @@ public class TagsController : ControllerBase
     public async Task<ActionResult<TagDto>> Create([FromBody] CreateTagRequest request)
     {
         _permissionService.EnsurePermission(ConfigurationKeys.Permissions.TagCreationMinRole, "create tags");
-        var tag = await _mediator.Send(new CreateTagCommand(request.Name, request.Description, request.Slug));
+        var tag = await _mediator.Send(new CreateTagCommand(request.Name, request.Description, request.Slug, _currentUser.UserId));
         return CreatedAtAction(nameof(Get), new { id = tag.Id }, tag);
     }
 
@@ -164,7 +168,7 @@ public class TagsController : ControllerBase
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<TagDto>> Update([FromRoute] long id, [FromBody] UpdateTagRequest request)
     {
-        var command = new UpdateTagCommand(id, request.Name, request.Description, request.Slug, request.ReviewStatus);
+        var command = new UpdateTagCommand(id, request.Name, request.Description, request.Slug, request.ReviewStatus, request.CreatorId);
         var tag = await _mediator.Send(command);
         return Ok(tag);
     }
@@ -282,4 +286,9 @@ public class UpdateTagRequest
     /// The review status (Moderator only). Set to Accepted to approve a pending tag.
     /// </summary>
     public ReviewStatus? ReviewStatus { get; set; }
+
+    /// <summary>
+    /// The creator user ID. Set to reassign who created this tag.
+    /// </summary>
+    public long? CreatorId { get; set; }
 }

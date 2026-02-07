@@ -18,6 +18,7 @@ using WaifuApi.Domain.Entities;
 using WaifuApi.Domain.Enums;
 using WaifuApi.Web.Constants;
 using WaifuApi.Web.Models;
+using WaifuApi.Application.Interfaces;
 using WaifuApi.Web.Services;
 
 namespace WaifuApi.Web.Controllers;
@@ -38,11 +39,13 @@ public class ArtistsController : ControllerBase
 {
     private readonly IMediator _mediator;
     private readonly IPermissionService _permissionService;
+    private readonly ICurrentUserService _currentUser;
 
-    public ArtistsController(IMediator mediator, IPermissionService permissionService)
+    public ArtistsController(IMediator mediator, IPermissionService permissionService, ICurrentUserService currentUser)
     {
         _mediator = mediator;
         _permissionService = permissionService;
+        _currentUser = currentUser;
     }
 
     /// <summary>
@@ -64,7 +67,8 @@ public class ArtistsController : ControllerBase
             Name = request.Name,
             IncludedIds = request.IncludedIds,
             Page = request.Page,
-            PageSize = request.PageSize
+            PageSize = request.PageSize,
+            IsModeratorOrAdmin = _currentUser.IsModeratorOrAdmin
         };
 
         var artists = await _mediator.Send(query);
@@ -135,7 +139,8 @@ public class ArtistsController : ControllerBase
             request.Patreon,
             request.Pixiv,
             request.Twitter,
-            request.DeviantArt
+            request.DeviantArt,
+            _currentUser.UserId
         );
         var artist = await _mediator.Send(command);
         return CreatedAtAction(nameof(Get), new { id = artist.Id }, artist);
@@ -173,7 +178,8 @@ public class ArtistsController : ControllerBase
             request.Pixiv,
             request.Twitter,
             request.DeviantArt,
-            request.ReviewStatus
+            request.ReviewStatus,
+            request.CreatorId
         );
         var artist = await _mediator.Send(command);
         return Ok(artist);
@@ -309,4 +315,9 @@ public class UpdateArtistRequest
     /// The review status (Moderator only). Set to Accepted to approve a pending artist.
     /// </summary>
     public ReviewStatus? ReviewStatus { get; set; }
+
+    /// <summary>
+    /// The creator user ID. Set to reassign who created this artist.
+    /// </summary>
+    public long? CreatorId { get; set; }
 }

@@ -16,7 +16,8 @@ public record CreateArtistCommand(
     string? Patreon,
     string? Pixiv,
     string? Twitter,
-    string? DeviantArt
+    string? DeviantArt,
+    long? CreatorId = null
 ) : ICommand<Artist>;
 
 public class CreateArtistCommandHandler : ICommandHandler<CreateArtistCommand, Artist>
@@ -82,7 +83,8 @@ public class CreateArtistCommandHandler : ICommandHandler<CreateArtistCommand, A
             Pixiv = pixiv,
             Twitter = twitter,
             DeviantArt = deviantArt,
-            ReviewStatus = requireReview ? ReviewStatus.Pending : ReviewStatus.Accepted
+            ReviewStatus = requireReview ? ReviewStatus.Pending : ReviewStatus.Accepted,
+            CreatorId = request.CreatorId
         };
 
         _context.Artists.Add(artist);

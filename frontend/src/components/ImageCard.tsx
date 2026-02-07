@@ -2,6 +2,7 @@
 import { Heart, Trash2, Edit2, FolderMinus, FolderPlus } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useAuthGuard } from "../hooks/useRequireAuth";
 import { useState, useEffect } from "react";
 import api from "../services/api";
 import AlbumSelectionModal from "./modals/AlbumSelectionModal";
@@ -17,6 +18,7 @@ interface ImageCardProps {
 
 const ImageCard = ({ image, onDelete, onRemove, onEdit, forceOverlay = false }: ImageCardProps) => {
     const { user } = useAuth();
+    const checkAuth = useAuthGuard();
     const [isLiked, setIsLiked] = useState(!!image.likedAt);
     const [likesCount, setLikesCount] = useState(image.favorites);
     const [isLikeLoading, setIsLikeLoading] = useState(false);
@@ -38,7 +40,8 @@ const ImageCard = ({ image, onDelete, onRemove, onEdit, forceOverlay = false }: 
     const toggleLike = async (e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        if (!user || isLikeLoading) return;
+        if (!checkAuth('You must be logged in to like images.', `/images/${image.id}`)) return;
+        if (isLikeLoading) return;
 
         setIsLikeLoading(true);
         const prevLiked = isLiked;
@@ -91,15 +94,15 @@ const ImageCard = ({ image, onDelete, onRemove, onEdit, forceOverlay = false }: 
                         alt={`Img ${image.id}`}
                         loading="lazy"
                         onLoad={() => setIsImageLoaded(true)}
-                        className={`w-full h-full object-cover transition-all duration-700 group-hover:scale-105 ${
+                        className={`w-full h-full object-cover transition-all duration-700 [@media(hover:hover)]:group-hover:scale-105 ${
                             isImageLoaded ? 'opacity-100' : 'opacity-0'
                         }`}
                     />
                 </div>
             </Link>
 
-            <div className={`absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-between p-3 pointer-events-none transition-all duration-300 rounded-xl ${forceOverlay ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-                {/* Boutons d'actions */}
+            {/* Action buttons overlay (desktop hover only) */}
+            <div className={`absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-between p-3 pointer-events-none transition-all duration-300 rounded-xl ${forceOverlay ? 'opacity-100' : 'opacity-0 [@media(hover:hover)]:group-hover:opacity-100'}`}>
                 <div className="flex justify-end gap-2 pointer-events-auto">
                     {user && (
                         <>
@@ -149,22 +152,24 @@ const ImageCard = ({ image, onDelete, onRemove, onEdit, forceOverlay = false }: 
                         </button>
                     )}
                 </div>
+                <div></div>
+            </div>
 
-                {/* Footer de la carte (ID + Likes) */}
-                <div className={`transform transition-transform duration-300 text-white ${forceOverlay ? 'translate-y-0' : 'translate-y-4 group-hover:translate-y-0'}`}>
-                    <div className="flex items-center justify-between">
-                        <span className="text-xs font-mono opacity-75">#{image.id}</span>
-                        <button
-                            onClick={toggleLike}
-                            className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md transition-colors pointer-events-auto"
-                        >
-                            <Heart
-                                size={14}
-                                className={`transition-colors ${isLiked ? "fill-rose-500 text-rose-500" : "text-white"}`}
-                            />
-                            <span className="text-xs font-bold">{likesCount}</span>
-                        </button>
-                    </div>
+            {/* Footer (ID + Likes) - always visible on touch, hover on desktop */}
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3 pointer-events-none rounded-b-xl
+                [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:transition-all [@media(hover:hover)]:duration-300">
+                <div className="flex items-center justify-between text-white">
+                    <span className="text-xs font-mono opacity-75">#{image.id}</span>
+                    <button
+                        onClick={toggleLike}
+                        className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md transition-colors pointer-events-auto"
+                    >
+                        <Heart
+                            size={14}
+                            className={`transition-colors ${isLiked ? "fill-rose-500 text-rose-500" : "text-white"}`}
+                        />
+                        <span className="text-xs font-bold">{likesCount}</span>
+                    </button>
                 </div>
             </div>
         </div>

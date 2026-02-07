@@ -30,6 +30,7 @@ export interface Artist {
   deviantArt?: string;
   reviewStatus?: ReviewStatus;
   imageCount?: number;
+  creatorId?: number;
 }
 
 export interface Tag {
@@ -39,6 +40,7 @@ export interface Tag {
   description: string;
   reviewStatus?: ReviewStatus;
   imageCount?: number;
+  creatorId?: number;
 }
 export interface User {
   id: number;
@@ -47,6 +49,7 @@ export interface User {
   discordId?: string;
   avatarUrl?: string;
   isBlacklisted: boolean;
+  blacklistReason?: string;
   requestCount?: number;
   apiKeyRequestCount?: number;
   jwtRequestCount?: number;

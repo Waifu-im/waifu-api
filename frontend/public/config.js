@@ -6,5 +6,7 @@
     VITE_DOCS_URL: "",
     VITE_CONTACT_EMAIL: "",
     VITE_DISCORD_SERVER_URL: "",
-    VITE_STATUS_URL: ""
+    VITE_STATUS_URL: "",
+    VITE_GITHUB_URL: "",
+    VITE_TOS_URL: ""
 };

@@ -147,6 +147,9 @@ namespace WaifuApi.Infrastructure.Persistence.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
+                    b.Property<long?>("CreatorId")
+                        .HasColumnType("bigint");
+
                     b.Property<string>("DeviantArt")
                         .HasColumnType("text");
 
@@ -167,6 +170,8 @@ namespace WaifuApi.Infrastructure.Persistence.Migrations
                         .HasColumnType("text");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CreatorId");
 
                     b.HasIndex("DeviantArt")
                         .IsUnique();
@@ -316,6 +321,9 @@ namespace WaifuApi.Infrastructure.Persistence.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
+                    b.Property<long?>("CreatorId")
+                        .HasColumnType("bigint");
+
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasColumnType("text");
@@ -332,6 +340,8 @@ namespace WaifuApi.Infrastructure.Persistence.Migrations
                         .HasColumnType("text");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CreatorId");
 
                     b.HasIndex("Name")
                         .IsUnique();
@@ -362,6 +372,9 @@ namespace WaifuApi.Infrastructure.Persistence.Migrations
 
                     b.Property<bool>("IsBlacklisted")
                         .HasColumnType("boolean");
+
+                    b.Property<string>("BlacklistReason")
+                        .HasColumnType("text");
 
                     b.Property<long>("JwtRequestCount")
                         .HasColumnType("bigint");
@@ -455,6 +468,16 @@ namespace WaifuApi.Infrastructure.Persistence.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("WaifuApi.Domain.Entities.Artist", b =>
+                {
+                    b.HasOne("WaifuApi.Domain.Entities.User", "Creator")
+                        .WithMany()
+                        .HasForeignKey("CreatorId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Creator");
+                });
+
             modelBuilder.Entity("WaifuApi.Domain.Entities.Image", b =>
                 {
                     b.HasOne("WaifuApi.Domain.Entities.User", "Uploader")
@@ -463,6 +486,16 @@ namespace WaifuApi.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Uploader");
+                });
+
+            modelBuilder.Entity("WaifuApi.Domain.Entities.Tag", b =>
+                {
+                    b.HasOne("WaifuApi.Domain.Entities.User", "Creator")
+                        .WithMany()
+                        .HasForeignKey("CreatorId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Creator");
                 });
 
             modelBuilder.Entity("WaifuApi.Domain.Entities.Report", b =>

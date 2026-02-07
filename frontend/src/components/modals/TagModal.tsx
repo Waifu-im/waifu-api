@@ -1,15 +1,18 @@
-﻿import { useState, useEffect } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import Modal from '../Modal';
 import { Info, Loader2, Link as LinkIcon, Check, Clock, ChevronDown, Trash2 } from 'lucide-react';
-import { ReviewStatus, Role } from '../../types';
+import { ReviewStatus, Role, PaginatedList, User } from '../../types';
 import { Dropdown, DropdownItem } from '../Dropdown';
 import { useAuth } from '../../context/AuthContext';
+import SearchableSelect, { Option } from '../SearchableSelect';
+import api from '../../services/api';
 
 export interface TagFormData {
     name: string;
     slug: string;
     description: string;
     reviewStatus?: ReviewStatus;
+    creatorId?: number;
 }
 
 const slugify = (text: string) => {
@@ -27,7 +30,7 @@ interface TagModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSubmit: (data: TagFormData) => Promise<void> | void;
-    initialData?: Partial<TagFormData> & { id?: number };
+    initialData?: Partial<TagFormData> & { id?: number; creatorId?: number };
     title: string;
     isReviewMode?: boolean;
     submitLabel?: string;
@@ -36,37 +39,56 @@ interface TagModalProps {
 
 const TagModal = ({ isOpen, onClose, onSubmit, initialData, title, isReviewMode, submitLabel = "Save", onDelete }: TagModalProps) => {
     const { user } = useAuth();
-    const [formData, setFormData] = useState<TagFormData>({ 
-        name: '', 
-        slug: '', 
+    const [formData, setFormData] = useState<TagFormData>({
+        name: '',
+        slug: '',
         description: '',
         reviewStatus: ReviewStatus.Pending
     });
+    const [selectedCreator, setSelectedCreator] = useState<Option | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSlugManuallyEdited, setIsSlugManuallyEdited] = useState(false);
+    const hasInitialized = useRef(false);
 
     const isEditMode = !!initialData?.id;
     const isAdmin = user?.role === Role.Admin;
 
     useEffect(() => {
-        if (isOpen) {
-            const initialName = initialData?.name || '';
-            const initialSlug = initialData?.slug || '';
-            
-            // If we have a name but no slug (e.g. creating from dropdown), generate the slug automatically
-            const derivedSlug = initialSlug || (initialName ? slugify(initialName) : '');
+        if (!isOpen) {
+            hasInitialized.current = false;
+            return;
+        }
+        if (hasInitialized.current) return;
+        hasInitialized.current = true;
 
-            setFormData({
-                name: initialName,
-                slug: derivedSlug,
-                description: initialData?.description || '',
-                reviewStatus: initialData?.reviewStatus ?? ReviewStatus.Pending
-            });
-            setIsSubmitting(false);
-            // Only consider it manually edited if an explicit slug was passed in
-            setIsSlugManuallyEdited(!!initialSlug);
+        const initialName = initialData?.name || '';
+        const initialSlug = initialData?.slug || '';
+
+        const derivedSlug = initialSlug || (initialName ? slugify(initialName) : '');
+
+        setFormData({
+            name: initialName,
+            slug: derivedSlug,
+            description: initialData?.description || '',
+            reviewStatus: initialData?.reviewStatus ?? ReviewStatus.Pending
+        });
+        setIsSubmitting(false);
+        setIsSlugManuallyEdited(!!initialSlug);
+
+        if (initialData?.creatorId) {
+            const creatorId = initialData.creatorId;
+            api.get<User>(`/users/${creatorId}`, { skipGlobalErrorHandler: true })
+                .then(res => setSelectedCreator({ id: res.data.id, name: res.data.name }))
+                .catch(() => setSelectedCreator({ id: creatorId, name: `User #${creatorId}` }));
+        } else {
+            setSelectedCreator(null);
         }
     }, [isOpen, initialData]);
+
+    const loadUsers = async (query: string, page: number = 1) => {
+        const { data } = await api.get<PaginatedList<User>>('/users', { params: { name: query, pageSize: 30, page } });
+        return data.items.map(u => ({ id: u.id, name: u.name }));
+    };
 
     const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const name = e.target.value;
@@ -86,7 +108,10 @@ const TagModal = ({ isOpen, onClose, onSubmit, initialData, title, isReviewMode,
         if (isSubmitting) return;
         setIsSubmitting(true);
         try {
-            await onSubmit(formData);
+            await onSubmit({
+                ...formData,
+                creatorId: selectedCreator ? Number(selectedCreator.id) : undefined
+            });
         } finally {
             setIsSubmitting(false);
         }
@@ -155,6 +180,18 @@ const TagModal = ({ isOpen, onClose, onSubmit, initialData, title, isReviewMode,
                         <label className="block text-sm font-bold mb-1">Review Status</label>
                         {renderStatusDropdown()}
                     </div>
+                )}
+
+                {isEditMode && (
+                    <SearchableSelect
+                        label="Creator"
+                        placeholder="Search and select a user..."
+                        loadOptions={loadUsers}
+                        selectedOptions={selectedCreator ? [selectedCreator] : []}
+                        onSelect={(o) => setSelectedCreator(o)}
+                        onRemove={() => setSelectedCreator(null)}
+                        isMulti={false}
+                    />
                 )}
 
                 <div>

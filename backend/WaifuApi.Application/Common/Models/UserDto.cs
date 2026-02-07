@@ -12,6 +12,7 @@ public class UserDto
     public string? AvatarUrl { get; set; }
     public Role Role { get; set; }
     public bool IsBlacklisted { get; set; }
+    public string? BlacklistReason { get; set; }
     public long RequestCount { get; set; }
     public long ApiKeyRequestCount { get; set; }
     public long JwtRequestCount { get; set; }

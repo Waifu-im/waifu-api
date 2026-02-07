@@ -76,6 +76,10 @@ public class WaifuDbContext : DbContext, IWaifuDbContext
             entity.HasIndex(e => e.Pixiv).IsUnique();
             entity.HasIndex(e => e.Twitter).IsUnique();
             entity.HasIndex(e => e.DeviantArt).IsUnique();
+            entity.HasOne(e => e.Creator)
+                .WithMany()
+                .HasForeignKey(e => e.CreatorId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<Tag>(entity =>
@@ -83,11 +87,15 @@ public class WaifuDbContext : DbContext, IWaifuDbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Name).IsRequired();
             entity.HasIndex(e => e.Name).IsUnique();
-            
+
             entity.Property(e => e.Slug).IsRequired();
             entity.HasIndex(e => e.Slug).IsUnique();
-            
+
             entity.Property(e => e.Description).IsRequired();
+            entity.HasOne(e => e.Creator)
+                .WithMany()
+                .HasForeignKey(e => e.CreatorId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<Album>(entity =>

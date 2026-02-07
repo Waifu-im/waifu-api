@@ -1,9 +1,11 @@
-﻿import { useState, useEffect } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import Modal from '../Modal';
 import { Info, Loader2, Check, Clock, ChevronDown, Trash2 } from 'lucide-react';
-import { ReviewStatus, Role } from '../../types';
+import { ReviewStatus, Role, PaginatedList, User } from '../../types';
 import { Dropdown, DropdownItem } from '../Dropdown';
 import { useAuth } from '../../context/AuthContext';
+import SearchableSelect, { Option } from '../SearchableSelect';
+import api from '../../services/api';
 
 export interface ArtistFormData {
     name: string;
@@ -12,13 +14,14 @@ export interface ArtistFormData {
     patreon?: string;
     deviantArt?: string;
     reviewStatus?: ReviewStatus;
+    creatorId?: number;
 }
 
 interface ArtistModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSubmit: (data: ArtistFormData) => Promise<void> | void;
-    initialData?: Partial<ArtistFormData> & { id?: number };
+    initialData?: Partial<ArtistFormData> & { id?: number; creatorId?: number };
     title: string;
     isReviewMode?: boolean;
     submitLabel?: string;
@@ -27,38 +30,62 @@ interface ArtistModalProps {
 
 const ArtistModal = ({ isOpen, onClose, onSubmit, initialData, title, isReviewMode, submitLabel = "Save", onDelete }: ArtistModalProps) => {
     const { user } = useAuth();
-    const [formData, setFormData] = useState<ArtistFormData>({ 
-        name: '', 
-        twitter: '', 
-        pixiv: '', 
-        patreon: '', 
+    const [formData, setFormData] = useState<ArtistFormData>({
+        name: '',
+        twitter: '',
+        pixiv: '',
+        patreon: '',
         deviantArt: '',
-        reviewStatus: ReviewStatus.Pending 
+        reviewStatus: ReviewStatus.Pending
     });
+    const [selectedCreator, setSelectedCreator] = useState<Option | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const hasInitialized = useRef(false);
 
     const isEditMode = !!initialData?.id;
     const isAdmin = user?.role === Role.Admin;
 
     useEffect(() => {
-        if (isOpen) {
-            setFormData({
-                name: initialData?.name || '',
-                twitter: initialData?.twitter || '',
-                pixiv: initialData?.pixiv || '',
-                patreon: initialData?.patreon || '',
-                deviantArt: initialData?.deviantArt || '',
-                reviewStatus: initialData?.reviewStatus ?? ReviewStatus.Pending
-            });
-            setIsSubmitting(false);
+        if (!isOpen) {
+            hasInitialized.current = false;
+            return;
+        }
+        if (hasInitialized.current) return;
+        hasInitialized.current = true;
+
+        setFormData({
+            name: initialData?.name || '',
+            twitter: initialData?.twitter || '',
+            pixiv: initialData?.pixiv || '',
+            patreon: initialData?.patreon || '',
+            deviantArt: initialData?.deviantArt || '',
+            reviewStatus: initialData?.reviewStatus ?? ReviewStatus.Pending
+        });
+        setIsSubmitting(false);
+
+        if (initialData?.creatorId) {
+            const creatorId = initialData.creatorId;
+            api.get<User>(`/users/${creatorId}`, { skipGlobalErrorHandler: true })
+                .then(res => setSelectedCreator({ id: res.data.id, name: res.data.name }))
+                .catch(() => setSelectedCreator({ id: creatorId, name: `User #${creatorId}` }));
+        } else {
+            setSelectedCreator(null);
         }
     }, [isOpen, initialData]);
+
+    const loadUsers = async (query: string, page: number = 1) => {
+        const { data } = await api.get<PaginatedList<User>>('/users', { params: { name: query, pageSize: 30, page } });
+        return data.items.map(u => ({ id: u.id, name: u.name }));
+    };
 
     const handleSubmit = async () => {
         if (isSubmitting) return;
         setIsSubmitting(true);
         try {
-            await onSubmit(formData);
+            await onSubmit({
+                ...formData,
+                creatorId: selectedCreator ? Number(selectedCreator.id) : undefined
+            });
         } finally {
             setIsSubmitting(false);
         }
@@ -127,6 +154,18 @@ const ArtistModal = ({ isOpen, onClose, onSubmit, initialData, title, isReviewMo
                         <label className="block text-sm font-bold mb-1">Review Status</label>
                         {renderStatusDropdown()}
                     </div>
+                )}
+
+                {isEditMode && (
+                    <SearchableSelect
+                        label="Creator"
+                        placeholder="Search and select a user..."
+                        loadOptions={loadUsers}
+                        selectedOptions={selectedCreator ? [selectedCreator] : []}
+                        onSelect={(o) => setSelectedCreator(o)}
+                        onRemove={() => setSelectedCreator(null)}
+                        isMulti={false}
+                    />
                 )}
 
                 <div>

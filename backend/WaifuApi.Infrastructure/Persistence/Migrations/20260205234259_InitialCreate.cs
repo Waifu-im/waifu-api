@@ -27,7 +27,8 @@ namespace WaifuApi.Infrastructure.Persistence.Migrations
                     Pixiv = table.Column<string>(type: "text", nullable: true),
                     Twitter = table.Column<string>(type: "text", nullable: true),
                     DeviantArt = table.Column<string>(type: "text", nullable: true),
-                    ReviewStatus = table.Column<int>(type: "integer", nullable: false)
+                    ReviewStatus = table.Column<int>(type: "integer", nullable: false),
+                    CreatorId = table.Column<long>(type: "bigint", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -69,7 +70,8 @@ namespace WaifuApi.Infrastructure.Persistence.Migrations
                     Name = table.Column<string>(type: "text", nullable: false),
                     Slug = table.Column<string>(type: "text", nullable: false),
                     Description = table.Column<string>(type: "text", nullable: false),
-                    ReviewStatus = table.Column<int>(type: "integer", nullable: false)
+                    ReviewStatus = table.Column<int>(type: "integer", nullable: false),
+                    CreatorId = table.Column<long>(type: "bigint", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -87,6 +89,7 @@ namespace WaifuApi.Infrastructure.Persistence.Migrations
                     AvatarUrl = table.Column<string>(type: "text", nullable: true),
                     Role = table.Column<int>(type: "integer", nullable: false),
                     IsBlacklisted = table.Column<bool>(type: "boolean", nullable: false),
+                    BlacklistReason = table.Column<string>(type: "text", nullable: true),
                     RequestCount = table.Column<long>(type: "bigint", nullable: false),
                     ApiKeyRequestCount = table.Column<long>(type: "bigint", nullable: false),
                     JwtRequestCount = table.Column<long>(type: "bigint", nullable: false)
@@ -373,6 +376,32 @@ namespace WaifuApi.Infrastructure.Persistence.Migrations
                 table: "Users",
                 column: "DiscordId",
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Artists_CreatorId",
+                table: "Artists",
+                column: "CreatorId");
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_Artists_Users_CreatorId",
+                table: "Artists",
+                column: "CreatorId",
+                principalTable: "Users",
+                principalColumn: "Id",
+                onDelete: ReferentialAction.SetNull);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Tags_CreatorId",
+                table: "Tags",
+                column: "CreatorId");
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_Tags_Users_CreatorId",
+                table: "Tags",
+                column: "CreatorId",
+                principalTable: "Users",
+                principalColumn: "Id",
+                onDelete: ReferentialAction.SetNull);
         }
 
         /// <inheritdoc />

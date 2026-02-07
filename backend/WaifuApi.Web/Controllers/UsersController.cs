@@ -162,7 +162,7 @@ public class UsersController : ControllerBase
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<User>> Ban(long id, [FromBody] BanUserRequest request)
     {
-        var user = await _mediator.Send(new BanUserCommand(id, request.IsBlacklisted));
+        var user = await _mediator.Send(new BanUserCommand(id, request.IsBlacklisted, request.Reason));
         return Ok(user);
     }
 }
@@ -188,4 +188,9 @@ public class BanUserRequest
     /// Set to true to ban the user, false to unban.
     /// </summary>
     public bool IsBlacklisted { get; set; }
+
+    /// <summary>
+    /// Optional reason for the ban.
+    /// </summary>
+    public string? Reason { get; set; }
 }

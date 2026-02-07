@@ -67,7 +67,7 @@ const Tags = () => {
         e.preventDefault();
         e.stopPropagation();
         setSelectedTag(tag);
-        setFormData({ name: tag.name, slug: tag.slug, description: tag.description, reviewStatus: tag.reviewStatus });
+        setFormData({ name: tag.name, slug: tag.slug, description: tag.description, reviewStatus: tag.reviewStatus, creatorId: tag.creatorId });
         setIsEditOpen(true);
     };
 

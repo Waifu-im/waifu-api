@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import {
     Sun, Moon, Menu, X, LogOut, Upload as UploadIcon,
     Home, Image as ImageIcon, Tag as TagIcon, ChevronRight, PanelLeft,
-    User as UserIcon, Library, ChevronDown, Palette, Key, FileCheck, Users as UsersIcon, Flag, BarChart, Monitor, Book, Mail, Activity, HardDrive
+    User as UserIcon, Library, ChevronDown, Palette, Key, FileCheck, Users as UsersIcon, Flag, BarChart, Monitor, Book, Mail, Activity, HardDrive, Github, FileText
 } from 'lucide-react';
 import { useState } from 'react';
 import GlobalErrorHandler from '../GlobalErrorHandler';
@@ -32,6 +32,8 @@ const Layout = () => {
     const contactEmail = getEnv('VITE_CONTACT_EMAIL');
     const discordServerUrl = getEnv('VITE_DISCORD_SERVER_URL');
     const statusUrl = getEnv('VITE_STATUS_URL');
+    const githubUrl = getEnv('VITE_GITHUB_URL');
+    const tosUrl = getEnv('VITE_TOS_URL');
     const showContact = !!contactEmail || !!discordServerUrl;
 
     const navItems = [
@@ -187,7 +189,7 @@ const Layout = () => {
                         </Link>
 
                         {/* Dynamic Links Section */}
-                        {(docsUrl || showContact || statusUrl) && (
+                        {(docsUrl || showContact || statusUrl || githubUrl || tosUrl) && (
                             <>
                                 <div className="my-4 border-t border-border mx-2 opacity-50"></div>
 
@@ -204,6 +206,19 @@ const Layout = () => {
                                     </a>
                                 )}
 
+                                {githubUrl && (
+                                    <a
+                                        href={githubUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all text-muted-foreground hover:bg-secondary hover:text-foreground ${isSidebarCollapsed ? 'justify-center' : ''}`}
+                                        title={isSidebarCollapsed ? 'GitHub' : ''}
+                                    >
+                                        <Github size={22} className="shrink-0" />
+                                        {!isSidebarCollapsed && <span>GitHub</span>}
+                                    </a>
+                                )}
+
                                 {statusUrl && (
                                     <a
                                         href={statusUrl}
@@ -214,6 +229,19 @@ const Layout = () => {
                                     >
                                         <Activity size={22} className="shrink-0" />
                                         {!isSidebarCollapsed && <span>Status</span>}
+                                    </a>
+                                )}
+
+                                {tosUrl && (
+                                    <a
+                                        href={tosUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all text-muted-foreground hover:bg-secondary hover:text-foreground ${isSidebarCollapsed ? 'justify-center' : ''}`}
+                                        title={isSidebarCollapsed ? 'Terms of Service' : ''}
+                                    >
+                                        <FileText size={22} className="shrink-0" />
+                                        {!isSidebarCollapsed && <span>Terms of Service</span>}
                                     </a>
                                 )}
 
@@ -280,7 +308,7 @@ const Layout = () => {
                                     <UploadIcon size={20} /> Upload
                                 </Link>
 
-                                {(docsUrl || showContact || statusUrl) && (
+                                {(docsUrl || showContact || statusUrl || githubUrl || tosUrl) && (
                                     <>
                                         <div className="my-2 border-t border-border opacity-50"></div>
 
@@ -295,6 +323,17 @@ const Layout = () => {
                                             </a>
                                         )}
 
+                                        {githubUrl && (
+                                            <a
+                                                href={githubUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
+                                            >
+                                                <Github size={20} /> GitHub
+                                            </a>
+                                        )}
+
                                         {statusUrl && (
                                             <a
                                                 href={statusUrl}
@@ -303,6 +342,17 @@ const Layout = () => {
                                                 className="flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
                                             >
                                                 <Activity size={20} /> Status
+                                            </a>
+                                        )}
+
+                                        {tosUrl && (
+                                            <a
+                                                href={tosUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
+                                            >
+                                                <FileText size={20} /> Terms of Service
                                             </a>
                                         )}
 

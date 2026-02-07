@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import Modal from '../Modal';
 import { ImageDto, ImageFormData, PaginatedList, User, ReviewStatus, Role } from '../../types';
 import SearchableSelect, { Option } from '../SearchableSelect';
@@ -41,9 +41,17 @@ const ImageModal = ({ isOpen, onClose, initialData, onSubmit, onDelete }: ImageM
     } = useMetadata();
 
     const isAdmin = user?.role === Role.Admin;
+    const hasInitialized = useRef(false);
 
     useEffect(() => {
-        if (isOpen && initialData) {
+        if (!isOpen) {
+            hasInitialized.current = false;
+            return;
+        }
+        if (hasInitialized.current) return;
+        hasInitialized.current = true;
+
+        if (initialData) {
             setSource(initialData.source || '');
             setIsNsfw(initialData.isNsfw);
             setSelectedTags(initialData.tags ? initialData.tags.map(t => ({ id: t.id, name: t.name, slug: t.slug, description: t.description })) : []);
@@ -55,19 +63,17 @@ const ImageModal = ({ isOpen, onClose, initialData, onSubmit, onDelete }: ImageM
 
             if (initialData.uploaderId) {
                 const uploaderId = initialData.uploaderId;
-                // Try to fetch user details, but don't block the modal if it fails
                 api.get<User>(`/users/${uploaderId}`, { skipGlobalErrorHandler: true })
                     .then(res => {
                          setSelectedUser({ id: res.data.id, name: res.data.name });
                     })
                     .catch(() => {
-                        // Fallback if user not found or error
                         setSelectedUser({ id: uploaderId, name: `User #${uploaderId}` });
                     });
             } else {
                 setSelectedUser(null);
             }
-        } else if (isOpen) {
+        } else {
             setSource('');
             setIsNsfw(false);
             setSelectedTags([]);
@@ -78,7 +84,7 @@ const ImageModal = ({ isOpen, onClose, initialData, onSubmit, onDelete }: ImageM
             setPreviewUrl(null);
             setIsSubmitting(false);
         }
-    }, [initialData, isOpen]);
+    }, [isOpen, initialData]);
 
     // Handle file preview URL
     useEffect(() => {
@@ -91,8 +97,8 @@ const ImageModal = ({ isOpen, onClose, initialData, onSubmit, onDelete }: ImageM
         }
     }, [selectedFile]);
 
-    const loadUsers = async (query: string) => {
-        const { data } = await api.get<PaginatedList<User>>('/users', { params: { name: query, pageSize: usersPageSize } });
+    const loadUsers = async (query: string, page: number = 1) => {
+        const { data } = await api.get<PaginatedList<User>>('/users', { params: { name: query, pageSize: usersPageSize, page } });
         return data.items.map(u => ({ id: u.id, name: u.name }));
     };
 

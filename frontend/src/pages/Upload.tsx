@@ -10,6 +10,7 @@ import ArtistModal from '../components/modals/ArtistModal';
 import { useMetadata } from '../hooks/useMetadata';
 import { ImageDto, Role } from '../types';
 import { useRequireAuth } from '../hooks/useRequireAuth';
+import { getEnv } from '../utils/env';
 
 interface UploadForm {
   file: FileList;
@@ -25,7 +26,9 @@ const Upload = () => {
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [agreedToTos, setAgreedToTos] = useState(false);
 
+  const tosUrl = getEnv('VITE_TOS_URL');
   const isReviewMode = !(user?.role === Role.Moderator || user?.role === Role.Admin);
 
   const {
@@ -142,9 +145,25 @@ const Upload = () => {
                   <div><span className="block font-bold">NSFW Content</span><span className="text-xs text-muted-foreground">Contains adult material</span></div>
                 </label>
               </div>
-              <button 
-                type="submit" 
-                disabled={isUploading}
+              {tosUrl && (
+                <label className="flex items-start gap-3 p-4 border border-border rounded-xl cursor-pointer hover:bg-secondary/50 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={agreedToTos}
+                    onChange={e => setAgreedToTos(e.target.checked)}
+                    className="w-5 h-5 rounded text-primary focus:ring-primary mt-0.5"
+                  />
+                  <span className="text-sm text-muted-foreground">
+                    By uploading, I agree to the{' '}
+                    <a href={tosUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium">
+                      Terms of Service
+                    </a>
+                  </span>
+                </label>
+              )}
+              <button
+                type="submit"
+                disabled={isUploading || (!!tosUrl && !agreedToTos)}
                 className="w-full py-4 rounded-xl bg-foreground text-background font-bold text-lg hover:opacity-90 transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isUploading ? (

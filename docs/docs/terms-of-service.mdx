@@ -1,0 +1,124 @@
+---
+sidebar_position: 7
+sidebar_label: Terms of Service
+title: Terms of Service
+---
+
+import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
+
+export const useAppName = () => {
+  const { siteConfig } = useDocusaurusContext();
+  return siteConfig.customFields.appName;
+};
+
+export const useFrontendUrl = () => {
+  const { siteConfig } = useDocusaurusContext();
+  return siteConfig.customFields.frontendUrl;
+};
+
+export const useGithubUrl = () => {
+  const { siteConfig } = useDocusaurusContext();
+  return siteConfig.customFields.githubUrl;
+};
+
+export const AppName = () => <>{useAppName()}</>;
+export const ContactLink = () => <a href={`${useFrontendUrl()}/contact`}>contact page</a>;
+export const GithubLink = () => <a href={useGithubUrl()}>GitHub repository</a>;
+
+:::info
+By accessing or using the <AppName /> API, you agree to be bound by these Terms of Service.
+:::
+
+# Terms of Service
+
+**Last updated: February 7, 2026**
+
+## 1. Acceptance of Terms
+
+By accessing or using the <AppName /> API ("Service"), you agree to be bound by these Terms of Service ("Terms") and all applicable laws. If you do not agree with any of these terms, you are prohibited from using or accessing this Service.
+
+## 2. Eligibility and Age Restriction
+
+**General Access:** To access the general (SFW) parts of the <AppName /> API, you must be at least 13 years of age (or the minimum age of digital consent in your country). If you are under 13, you are not permitted to use this Service.
+
+**NSFW Content:** Some content available via the API is flagged as "NSFW" (Not Safe For Work) and may contain adult themes or nudity. Access to NSFW endpoints or content is strictly prohibited for users under the age of 18 (or the age of majority in your jurisdiction). By disabling the NSFW filters or accessing NSFW endpoints, you represent and warrant that you are of legal age.
+
+## 3. API License and Restrictions
+
+**Service Usage:** Subject to your compliance with these Terms, <AppName /> grants you a limited, non-exclusive, revocable license to access and use the API specifically as permitted by these Terms.
+
+**Source Code License:** The underlying software source code for the <AppName /> API is distinct from the Service itself and is licensed under the Mozilla Public License Version 2.0 ("MPL"). The source code is available on the <GithubLink />.
+
+## 4. Commercial Use and Attribution
+
+The <AppName /> API is free to use for non-commercial purposes. If you use the API for commercial purposes, you must credit <AppName /> by including a visible attribution link to our website on your application. Failure to provide attribution for commercial use constitutes a breach of these Terms.
+
+## 5. Disclaimer
+
+The materials and services on <AppName /> are provided "AS IS". <AppName /> makes no warranties, expressed or implied, and hereby disclaims all other warranties, including without limitation, implied warranties or conditions of merchantability.
+
+## 6. Limitation of Liability
+
+In no event shall <AppName /> or its suppliers be liable for any damages (including, without limitation, damages for loss of data or profit) arising out of the use or inability to use the <AppName /> API.
+
+## 7. Accuracy of Materials
+
+<AppName /> does not warrant that any of the materials on its website or API are accurate, complete, or current. We may make changes to the materials contained on the Service at any time without notice.
+
+## 8. Third-Party Links
+
+<AppName /> has not reviewed all of the sites linked to its API and is not responsible for the contents of any such linked site. The inclusion of any link does not imply endorsement by <AppName />. Use of any such linked website is at the user's own risk.
+
+## 9. Copyright and Reporting
+
+**Hosting Provider Status:** <AppName /> acts as a passive hosting service for user-generated content. We do not claim ownership of any images uploaded to the API. All intellectual property rights remain with the original creators.
+
+**Reporting Infringement:** We respect the intellectual property rights of others. If you believe that any content on the API infringes upon your copyrights or violates the law, please report it immediately by:
+
+- Using the **Report** button available directly on the image page; or
+- Contacting us via our <ContactLink />.
+
+Upon receipt of a valid report, we will act quickly to remove the infringing material.
+
+## 10. User Warranties
+
+By uploading content to <AppName />, you represent and warrant that:
+
+- You own the content or have the necessary licenses, rights, consents, and permissions to upload and share it.
+- Your contribution does not infringe any patent, trademark, copyright, or other proprietary rights of any party.
+
+You agree that you are solely responsible for the content you upload. You agree to indemnify and hold <AppName /> harmless from any claims or damages resulting from copyright violations caused by your uploads.
+
+## 11. Prohibited Content and Illegal Activities
+
+You agree strictly **NOT** to upload, post, or transmit any content that:
+
+- Is unlawful, harmful, threatening, abusive, harassing, defamatory, or otherwise objectionable.
+- Violates any applicable local, national, or international law or regulation.
+- Depicts children in a pornographic, sexually suggestive, or violent manner (CSAM).
+
+<AppName /> reserves the right to determine what content is appropriate for the Service.
+
+## 12. User Accounts
+
+If you register an account, you are responsible for maintaining the confidentiality of your credentials. You accept responsibility for all activities that occur under your account.
+
+## 13. Albums
+
+The "Albums" or "Collections" feature is provided for convenience only. <AppName /> does not guarantee the permanence of this data. We explicitly reserve the right to modify, reset, or remove user data at any time without notice.
+
+## 14. Termination and Account Control
+
+We reserve the right, at our sole discretion, to suspend, disable, or terminate your account and your access to the Service at any time, for any reason or no reason, with or without prior notice. This includes, but is not limited to, a violation of these Terms, court orders, or if we believe your actions may cause legal liability or harm to <AppName />, its users, or others.
+
+## 15. Changes to Terms
+
+<AppName /> reserves the right to revise these Terms at any time without notice. By continuing to use the API after those revisions become effective, you agree to be bound by the revised terms.
+
+## 16. Governing Law
+
+These Terms shall be governed and construed in accordance with the laws of the jurisdiction in which <AppName /> is registered.
+
+## 17. Contact Us
+
+If you have any questions about these Terms, please visit our <ContactLink />.
