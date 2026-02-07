@@ -261,7 +261,7 @@ public class UploadImageRequest
     public List<long>? Artists { get; set; }
 
     /// <summary>
-    /// List of tag slugs to associate with this image (e.g., "waifu", "blonde-hair").
+    /// List of tag slugs to associate with this image (e.g., "waifu", "maid").
     /// </summary>
     public List<string>? Tags { get; set; }
 

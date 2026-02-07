@@ -52,7 +52,7 @@ public class ArtistsController : ControllerBase
     /// List all artists with optional filtering.
     /// </summary>
     /// <remarks>
-    /// Returns a paginated list of artists. Use the `name` parameter to search by artist name.
+    /// Returns a paginated list of artists. Use the `Name` parameter to search by artist name.
     /// By default, only approved artists are returned.
     /// </remarks>
     /// <param name="request">Search and pagination parameters.</param>
@@ -220,15 +220,15 @@ public class ArtistsController : ControllerBase
 public class GetArtistsRequest
 {
     /// <summary>
-    /// Filter by artist name (partial match, case-insensitive). Example: ?name=sakimichan
+    /// Filter by artist name (partial match, case-insensitive). Example: ?Name=fourthwallzart
     /// </summary>
-    [Description("Filter by artist name (partial match, case-insensitive). Example: ?name=sakimichan")]
+    [Description("Filter by artist name (partial match, case-insensitive). Example: ?Name=fourthwallzart")]
     public string? Name { get; set; }
 
     /// <summary>
-    /// Filter by specific artist IDs (exact match). Example: ?includedIds=1&amp;includedIds=2
+    /// Filter by specific artist IDs (exact match). Example: ?IncludedIds=1
     /// </summary>
-    [Description("Filter by specific artist IDs (exact match). Example: ?includedIds=1&includedIds=2")]
+    [Description("Filter by specific artist IDs (exact match). Example: ?IncludedIds=1")]
     public List<long> IncludedIds { get; set; } = new();
 
     /// <summary>
