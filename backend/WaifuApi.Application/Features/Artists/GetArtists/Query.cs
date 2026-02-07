@@ -59,7 +59,7 @@ public class GetArtistsQueryHandler : IQueryHandler<GetArtistsQuery, PaginatedLi
                 ImageCount = a.Images.Count(i => i.ReviewStatus == ReviewStatus.Accepted)
             }).ToListAsync(cancellationToken);
 
-            return new PaginatedList<ArtistDto>(result, result.Count, 1, result.Count);
+            return new PaginatedList<ArtistDto>(result, result.Count, 1, result.Count, _maxPageSize, _defaultPageSize);
         }
 
         // Normal search/pagination flow
@@ -96,6 +96,6 @@ public class GetArtistsQueryHandler : IQueryHandler<GetArtistsQuery, PaginatedLi
         var count = await query.CountAsync(cancellationToken);
         var dtos = await projectedQuery.Skip((request.Page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
 
-        return new PaginatedList<ArtistDto>(dtos, count, request.Page, pageSize);
+        return new PaginatedList<ArtistDto>(dtos, count, request.Page, pageSize, _maxPageSize, _defaultPageSize);
     }
 }

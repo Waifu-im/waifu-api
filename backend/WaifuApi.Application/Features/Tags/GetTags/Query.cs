@@ -64,7 +64,7 @@ public class GetTagsQueryHandler : IQueryHandler<GetTagsQuery, PaginatedList<Tag
                 ImageCount = t.Images.Count(i => i.ReviewStatus == ReviewStatus.Accepted)
             }).ToListAsync(cancellationToken);
 
-            return new PaginatedList<TagDto>(result, result.Count, 1, result.Count);
+            return new PaginatedList<TagDto>(result, result.Count, 1, result.Count, _maxPageSize, _defaultPageSize);
         }
 
         // Normal search/pagination flow
@@ -99,6 +99,6 @@ public class GetTagsQueryHandler : IQueryHandler<GetTagsQuery, PaginatedList<Tag
         var count = await query.CountAsync(cancellationToken);
         var dtos = await projectedQuery.Skip((request.Page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
 
-        return new PaginatedList<TagDto>(dtos, count, request.Page, pageSize);
+        return new PaginatedList<TagDto>(dtos, count, request.Page, pageSize, _maxPageSize, _defaultPageSize);
     }
 }

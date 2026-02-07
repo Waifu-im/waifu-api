@@ -58,6 +58,6 @@ public class GetAlbumsQueryHandler : IQueryHandler<GetAlbumsQuery, PaginatedList
                 ImageCount = a.Items.Count // Changed from AlbumItems to Items
             });
 
-        return await PaginatedList<AlbumDto>.CreateAsync(query, request.Page, pageSize, cancellationToken);
+        return await PaginatedList<AlbumDto>.CreateAsync(query, request.Page, pageSize, _maxPageSize, _defaultPageSize, cancellationToken);
     }
 }

@@ -160,6 +160,6 @@ public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList
             return dto;
         }).ToList();
 
-        return new PaginatedList<ImageDto>(imageDtos, totalCount, request.Page, pageSize);
+        return new PaginatedList<ImageDto>(imageDtos, totalCount, request.Page, pageSize, _maxPageSize, _defaultPageSize);
     }
 }

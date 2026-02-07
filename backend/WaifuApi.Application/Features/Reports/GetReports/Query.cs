@@ -1,6 +1,7 @@
 ﻿using Mediator;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using WaifuApi.Application.Common.Constants;
 using WaifuApi.Application.Common.Models;
 using WaifuApi.Application.Common.Utilities;
 using WaifuApi.Application.Interfaces;
@@ -35,8 +36,8 @@ public class GetReportsQueryHandler : IQueryHandler<GetReportsQuery, PaginatedLi
     {
         _context = context;
         _cdnBaseUrl = configuration["Cdn:BaseUrl"] ?? throw new InvalidOperationException("Cdn:BaseUrl is required.");
-        _defaultPageSize = int.Parse(configuration["Review:DefaultPageSize"] ?? "30");
-        _maxPageSize = int.Parse(configuration["Review:MaxPageSize"] ?? "-1");
+        _defaultPageSize = int.Parse(configuration[ConfigurationKeys.Report.DefaultPageSize] ?? throw new InvalidOperationException($"{ConfigurationKeys.Report.DefaultPageSize} is required."));
+        _maxPageSize = int.Parse(configuration[ConfigurationKeys.Report.MaxPageSize] ?? throw new InvalidOperationException($"{ConfigurationKeys.Report.MaxPageSize} is required."));
     }
 
     public async ValueTask<PaginatedList<ReportDto>> Handle(GetReportsQuery request, CancellationToken cancellationToken)
@@ -60,7 +61,7 @@ public class GetReportsQueryHandler : IQueryHandler<GetReportsQuery, PaginatedLi
         
         query = query.OrderByDescending(r => r.CreatedAt);
 
-        var paginatedReports = await PaginatedList<Report>.CreateAsync(query, request.Page, pageSize, cancellationToken);
+        var paginatedReports = await PaginatedList<Report>.CreateAsync(query, request.Page, pageSize, _maxPageSize, _defaultPageSize, cancellationToken);
 
         var reportDtos = paginatedReports.Items.Select(report => new ReportDto
         {
@@ -107,6 +108,6 @@ public class GetReportsQueryHandler : IQueryHandler<GetReportsQuery, PaginatedLi
             CreatedAt = report.CreatedAt
         }).ToList();
 
-        return new PaginatedList<ReportDto>(reportDtos, paginatedReports.TotalCount, paginatedReports.PageNumber, pageSize);
+        return new PaginatedList<ReportDto>(reportDtos, paginatedReports.TotalCount, paginatedReports.PageNumber, pageSize, _maxPageSize, _defaultPageSize);
     }
 }

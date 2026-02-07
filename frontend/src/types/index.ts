@@ -132,6 +132,8 @@ export interface PaginatedList<T> {
   totalCount: number;
   hasPreviousPage: boolean;
   hasNextPage: boolean;
+  maxPageSize: number;
+  defaultPageSize: number;
 }
 
 export interface ImageFormData {

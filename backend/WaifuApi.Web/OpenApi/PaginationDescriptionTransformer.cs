@@ -48,6 +48,7 @@ public class PaginationDescriptionTransformer : IOpenApiOperationTransformer
         if (path.Contains("albums", StringComparison.OrdinalIgnoreCase)) return "Album";
         if (path.Contains("review", StringComparison.OrdinalIgnoreCase)) return "Review";
         if (path.Contains("users", StringComparison.OrdinalIgnoreCase)) return "User";
+        if (path.Contains("storage-diff", StringComparison.OrdinalIgnoreCase)) return "StorageDiff";
 
         return null;
     }
