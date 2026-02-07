@@ -85,7 +85,7 @@ Only return images that have **all** of the specified tags:
 
 export const IncludeTagsExample = () => {
   const baseUrl = useApiBaseUrl();
-  return <CodeBlock language="bash">{`curl "${baseUrl}/images?IncludedTags=waifu&IncludedTags=blonde-hair"`}</CodeBlock>;
+  return <CodeBlock language="bash">{`curl "${baseUrl}/images?IncludedTags=waifu&IncludedTags=maid"`}</CodeBlock>;
 };
 
 <IncludeTagsExample />
@@ -96,7 +96,7 @@ Exclude images that have **any** of the specified tags:
 
 export const ExcludeTagsExample = () => {
   const baseUrl = useApiBaseUrl();
-  return <CodeBlock language="bash">{`curl "${baseUrl}/images?ExcludedTags=maid&ExcludedTags=school-uniform"`}</CodeBlock>;
+  return <CodeBlock language="bash">{`curl "${baseUrl}/images?ExcludedTags=maid&ExcludedTags=uniform"`}</CodeBlock>;
 };
 
 <ExcludeTagsExample />

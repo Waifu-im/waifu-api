@@ -77,7 +77,7 @@ public class ReportsController : ControllerBase
     /// List all reports.
     /// </summary>
     /// <remarks>
-    /// Returns a paginated list of image reports. Use the `isResolved` filter to show
+    /// Returns a paginated list of image reports. Use the `IsResolved` filter to show
     /// only pending reports (false) or completed reports (true).
     ///
     /// **Requires:** Moderator role or higher.

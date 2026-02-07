@@ -146,7 +146,7 @@ const ImagePage = () => {
                 <NsfwWarning
                     variant="overlay"
                     onConsent={grantConsent}
-                    onDecline={() => navigate('/gallery?isNsfw=0')}
+                    onDecline={() => window.history.length > 1 ? navigate(-1) : navigate('/gallery')}
                 />
             )}
           </div>

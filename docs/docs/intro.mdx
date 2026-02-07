@@ -27,6 +27,15 @@ export const AppName = () => <>{useAppName()}</>;
 By using the <AppName /> API, you agree to our [Terms of Service](/docs/terms-of-service).
 :::
 
+export const LogoLink = () => {
+  const frontendUrl = useDocusaurusContext().siteConfig.customFields.frontendUrl;
+  return <a href={`${frontendUrl}/images/7289`}>image #7289</a>;
+};
+
+:::info Logo
+The source image for the <AppName /> logo is <LogoLink />.
+:::
+
 <AppName /> is a REST API that provides access to a curated archive of over 4000 anime-style images with powerful filtering capabilities.
 
 ## Features

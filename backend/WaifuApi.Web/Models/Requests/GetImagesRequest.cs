@@ -16,39 +16,39 @@ public class GetImagesRequest
     public NsfwMode IsNsfw { get; set; } = NsfwMode.False;
 
     /// <summary>
-    /// Only include images with ALL these tags (AND logic). Example: ?includedTags=waifu&amp;includedTags=blonde-hair
+    /// Only include images with ALL these tags (AND logic). Example: ?IncludedTags=waifu&amp;IncludedTags=maid
     /// </summary>
-    [Description("Only include images with ALL these tags (AND logic). Example: ?includedTags=waifu&includedTags=blonde-hair")]
+    [Description("Only include images with ALL these tags (AND logic). Example: ?IncludedTags=waifu&IncludedTags=maid")]
     public List<string> IncludedTags { get; set; } = new();
 
     /// <summary>
-    /// Exclude images with ANY of these tags. Example: ?excludedTags=maid&amp;excludedTags=school-uniform
+    /// Exclude images with ANY of these tags. Example: ?ExcludedTags=uniform&amp;ExcludedTags=maid
     /// </summary>
-    [Description("Exclude images with ANY of these tags. Example: ?excludedTags=maid&excludedTags=school-uniform")]
+    [Description("Exclude images with ANY of these tags. Example: ?ExcludedTags=uniform&ExcludedTags=maid")]
     public List<string> ExcludedTags { get; set; } = new();
 
     /// <summary>
-    /// Only include images by these artists (by ID, AND logic). Example: ?includedArtists=123&amp;includedArtists=456
+    /// Only include images by these artists (by ID, AND logic). Example: ?IncludedArtists=1
     /// </summary>
-    [Description("Only include images by these artists (by ID, AND logic). Example: ?includedArtists=123&includedArtists=456")]
+    [Description("Only include images by these artists (by ID, AND logic). Example: ?IncludedArtists=1")]
     public List<string> IncludedArtists { get; set; } = new();
 
     /// <summary>
-    /// Exclude images by these artists (by ID). Example: ?excludedArtists=789
+    /// Exclude images by these artists (by ID). Example: ?ExcludedArtists=1
     /// </summary>
-    [Description("Exclude images by these artists (by ID). Example: ?excludedArtists=789")]
+    [Description("Exclude images by these artists (by ID). Example: ?ExcludedArtists=1")]
     public List<string> ExcludedArtists { get; set; } = new();
 
     /// <summary>
-    /// Only include these specific image IDs. Example: ?includedIds=1001&amp;includedIds=1002
+    /// Only include these specific image IDs. Example: ?IncludedIds=8108&amp;IncludedIds=8008
     /// </summary>
-    [Description("Only include these specific image IDs. Example: ?includedIds=1001&includedIds=1002")]
+    [Description("Only include these specific image IDs. Example: ?IncludedIds=8108&IncludedIds=8008")]
     public List<string> IncludedIds { get; set; } = new();
 
     /// <summary>
-    /// Exclude these specific image IDs. Example: ?excludedIds=999
+    /// Exclude these specific image IDs. Example: ?ExcludedIds=8108
     /// </summary>
-    [Description("Exclude these specific image IDs. Example: ?excludedIds=999")]
+    [Description("Exclude these specific image IDs. Example: ?ExcludedIds=8108")]
     public List<string> ExcludedIds { get; set; } = new();
 
     /// <summary>
@@ -58,9 +58,9 @@ public class GetImagesRequest
     public AnimatedMode IsAnimated { get; set; } = AnimatedMode.All;
 
     /// <summary>
-    /// Sort order. Default: random. Note: addedToAlbum only works on album images endpoint.
+    /// Sort order. Default: random. Note: AddedToAlbum only works on album images endpoint.
     /// </summary>
-    [Description("Sort order. Default: random. Note: addedToAlbum only works on album images endpoint.")]
+    [Description("Sort order. Default: random. Note: AddedToAlbum only works on album images endpoint.")]
     public ImageOrderBy OrderBy { get; set; } = ImageOrderBy.Random;
 
     /// <summary>

@@ -51,7 +51,7 @@ public class TagsController : ControllerBase
     /// List all tags with optional filtering.
     /// </summary>
     /// <remarks>
-    /// Returns a paginated list of tags. Use the `name` parameter to search by tag name.
+    /// Returns a paginated list of tags. Use the `Name` parameter to search by tag name.
     /// By default, only approved tags are returned.
     /// </remarks>
     /// <param name="request">Search and pagination parameters.</param>
@@ -97,7 +97,7 @@ public class TagsController : ControllerBase
     /// Get a tag by its slug.
     /// </summary>
     /// <remarks>
-    /// Slugs are URL-friendly identifiers (e.g., "blonde-hair", "blue-eyes").
+    /// Slugs are URL-friendly identifiers (e.g., "waifu", "marin-kitagawa").
     /// This endpoint is useful when you know the tag slug but not its ID.
     /// </remarks>
     /// <param name="slug">The URL-friendly slug of the tag.</param>
@@ -208,21 +208,21 @@ public class TagsController : ControllerBase
 public class GetTagsRequest
 {
     /// <summary>
-    /// Filter by tag name (partial match, case-insensitive). Example: ?name=blonde
+    /// Filter by tag name (partial match, case-insensitive). Example: ?Name=Waifu
     /// </summary>
-    [Description("Filter by tag name (partial match, case-insensitive). Example: ?name=blonde")]
+    [Description("Filter by tag name (partial match, case-insensitive). Example: ?Name=Waifu")]
     public string? Name { get; set; }
 
     /// <summary>
-    /// Filter by specific tag IDs (exact match). Example: ?includedIds=1&amp;includedIds=2
+    /// Filter by specific tag IDs (exact match). Example: ?IncludedIds=12&amp;IncludedIds=13
     /// </summary>
-    [Description("Filter by specific tag IDs (exact match). Example: ?includedIds=1&includedIds=2")]
+    [Description("Filter by specific tag IDs (exact match). Example: ?IncludedIds=12&IncludedIds=13")]
     public List<long> IncludedIds { get; set; } = new();
 
     /// <summary>
-    /// Filter by specific tag slugs (exact match). Example: ?includedSlugs=blonde-hair&amp;includedSlugs=blue-eyes
+    /// Filter by specific tag slugs (exact match). Example: ?IncludedSlugs=waifu&amp;IncludedSlugs=maid
     /// </summary>
-    [Description("Filter by specific tag slugs (exact match). Example: ?includedSlugs=blonde-hair&includedSlugs=blue-eyes")]
+    [Description("Filter by specific tag slugs (exact match). Example: ?IncludedSlugs=waifu&IncludedSlugs=maid")]
     public List<string> IncludedSlugs { get; set; } = new();
 
     /// <summary>
@@ -244,7 +244,7 @@ public class GetTagsRequest
 public class CreateTagRequest
 {
     /// <summary>
-    /// The display name of the tag (e.g., "Blonde Hair").
+    /// The display name of the tag (e.g., "Waifu").
     /// </summary>
     [Required]
     public string Name { get; set; } = string.Empty;
@@ -257,7 +257,7 @@ public class CreateTagRequest
     /// <summary>
     /// Optional URL-friendly slug. If not provided, will be auto-generated from the name.
     /// </summary>
-    /// <example>blonde-hair</example>
+    /// <example>marin-kitagawa</example>
     public string? Slug { get; set; }
 }
 
