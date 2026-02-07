@@ -35,10 +35,11 @@ export const useAuthGuard = () => {
   const location = useLocation();
   const { showNotification } = useNotification();
 
-  const checkAuth = useCallback((message = 'You must be logged in to perform this action.') => {
+  const checkAuth = useCallback((message = 'You must be logged in to perform this action.', redirectBack?: string) => {
     if (!user) {
       showNotification('warning', message);
-      navigate('/login', { state: { from: location } });
+      const from = redirectBack ? { pathname: redirectBack } : location;
+      navigate('/login', { state: { from } });
       return false;
     }
     return true;

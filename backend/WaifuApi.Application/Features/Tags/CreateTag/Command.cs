@@ -13,7 +13,7 @@ using WaifuApi.Domain.Enums;
 
 namespace WaifuApi.Application.Features.Tags.CreateTag;
 
-public record CreateTagCommand(string Name, string Description, string? Slug) : ICommand<TagDto>;
+public record CreateTagCommand(string Name, string Description, string? Slug, long? CreatorId = null) : ICommand<TagDto>;
 
 public class CreateTagCommandHandler : ICommandHandler<CreateTagCommand, TagDto>
 {
@@ -56,7 +56,8 @@ public class CreateTagCommandHandler : ICommandHandler<CreateTagCommand, TagDto>
             Name = trimmedName,
             Slug = slug,
             Description = request.Description?.Trim() ?? string.Empty,
-            ReviewStatus = requireReview ? ReviewStatus.Pending : ReviewStatus.Accepted
+            ReviewStatus = requireReview ? ReviewStatus.Pending : ReviewStatus.Accepted,
+            CreatorId = request.CreatorId
         };
 
         _context.Tags.Add(tag);
@@ -68,7 +69,8 @@ public class CreateTagCommandHandler : ICommandHandler<CreateTagCommand, TagDto>
             Name = tag.Name,
             Slug = tag.Slug,
             Description = tag.Description,
-            ReviewStatus = tag.ReviewStatus
+            ReviewStatus = tag.ReviewStatus,
+            CreatorId = tag.CreatorId
         };
     }
 }

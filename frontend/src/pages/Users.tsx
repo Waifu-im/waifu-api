@@ -1,10 +1,11 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import api from '../services/api';
 import { User, Role } from '../types';
 import { useNotification } from '../context/NotificationContext';
-import { Users as UsersIcon, Shield, Ban, CheckCircle, Upload, Image as ImagesIcon } from 'lucide-react';
+import { Users as UsersIcon, Shield, Ban, CheckCircle, Upload, Image as ImagesIcon, Info } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import ConfirmModal from '../components/modals/ConfirmModal';
+import ReasonModal from '../components/modals/ReasonModal';
 import SearchableSelect from '../components/SearchableSelect';
 import SearchInput from '../components/SearchInput';
 import Pagination from '../components/Pagination'; // Import Pagination
@@ -30,6 +31,8 @@ const Users = () => {
 
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [isBanModalOpen, setIsBanModalOpen] = useState(false);
+    const [isUnbanModalOpen, setIsUnbanModalOpen] = useState(false);
+    const [reasonPopoverId, setReasonPopoverId] = useState<number | null>(null);
 
     const handleRoleChange = async (userId: number, newRole: string) => {
         try {
@@ -41,12 +44,27 @@ const Users = () => {
         }
     };
 
-    const toggleBan = async () => {
+    const handleBan = async (reason: string) => {
         if (!selectedUser) return;
         try {
-            await api.put(`/users/${selectedUser.id}/ban`, { isBlacklisted: !selectedUser.isBlacklisted });
-            showNotification('success', `User ${selectedUser.isBlacklisted ? 'unbanned' : 'banned'}`);
+            await api.put(`/users/${selectedUser.id}/ban`, {
+                isBlacklisted: true,
+                reason: reason || undefined
+            });
+            showNotification('success', `User banned`);
             setIsBanModalOpen(false);
+            refresh();
+        } catch {
+            // handled globally
+        }
+    };
+
+    const handleUnban = async () => {
+        if (!selectedUser) return;
+        try {
+            await api.put(`/users/${selectedUser.id}/ban`, { isBlacklisted: false });
+            showNotification('success', `User unbanned`);
+            setIsUnbanModalOpen(false);
             refresh();
         } catch {
             // handled globally
@@ -55,7 +73,11 @@ const Users = () => {
 
     const openBanModal = (user: User) => {
         setSelectedUser(user);
-        setIsBanModalOpen(true);
+        if (user.isBlacklisted) {
+            setIsUnbanModalOpen(true);
+        } else {
+            setIsBanModalOpen(true);
+        }
     };
 
     const roleOptions = [
@@ -143,10 +165,33 @@ const Users = () => {
                                     </div>
                                 </td>
                                 <td className="p-4">
-                                    {user.isBlacklisted ?
-                                        <span className="inline-flex items-center gap-1 bg-destructive/10 text-destructive px-2 py-1 rounded text-xs font-bold"><Ban size={12}/> Banned</span> :
+                                    {user.isBlacklisted ? (
+                                        <div className="relative">
+                                            <div className="flex items-center gap-1.5">
+                                                <span className="inline-flex items-center gap-1 bg-destructive/10 text-destructive px-2 py-1 rounded text-xs font-bold"><Ban size={12}/> Banned</span>
+                                                {user.blacklistReason && (
+                                                    <button
+                                                        onClick={() => setReasonPopoverId(reasonPopoverId === user.id ? null : user.id)}
+                                                        className="p-1 rounded-full hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
+                                                        title="View reason"
+                                                    >
+                                                        <Info size={14} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                            {reasonPopoverId === user.id && user.blacklistReason && (
+                                                <>
+                                                    <div className="fixed inset-0 z-40" onClick={() => setReasonPopoverId(null)} />
+                                                    <div className="absolute z-50 top-full left-0 mt-1 w-64 p-3 bg-card border border-border rounded-lg shadow-lg text-xs text-foreground break-words">
+                                                        <p className="font-bold text-muted-foreground mb-1">Ban reason</p>
+                                                        {user.blacklistReason}
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+                                    ) : (
                                         <span className="inline-flex items-center gap-1 bg-green-500/10 text-green-600 px-2 py-1 rounded text-xs font-bold"><CheckCircle size={12}/> Active</span>
-                                    }
+                                    )}
                                 </td>
                                 <td className="p-4 text-right">
                                     <button
@@ -168,14 +213,26 @@ const Users = () => {
                 <Pagination currentPage={page} totalPages={totalPages} setPage={setPage} />
             )}
 
-            <ConfirmModal
+            <ReasonModal
                 isOpen={isBanModalOpen}
                 onClose={() => setIsBanModalOpen(false)}
-                onConfirm={toggleBan}
-                title={selectedUser?.isBlacklisted ? "Unban User" : "Ban User"}
-                message={<>Are you sure you want to {selectedUser?.isBlacklisted ? "unban" : "ban"} <strong>{selectedUser?.name}</strong>?</>}
-                confirmText={selectedUser?.isBlacklisted ? "Unban" : "Ban"}
-                variant={selectedUser?.isBlacklisted ? "warning" : "destructive"}
+                onSubmit={handleBan}
+                title="Ban User"
+                description={`Are you sure you want to ban ${selectedUser?.name}? You can optionally provide a reason.`}
+                placeholder="Reason for banning (optional)..."
+                submitText="Ban"
+                required={false}
+                maxLength={200}
+            />
+
+            <ConfirmModal
+                isOpen={isUnbanModalOpen}
+                onClose={() => setIsUnbanModalOpen(false)}
+                onConfirm={handleUnban}
+                title="Unban User"
+                message={<>Are you sure you want to unban <strong>{selectedUser?.name}</strong>?</>}
+                confirmText="Unban"
+                variant="warning"
             />
         </div>
     );

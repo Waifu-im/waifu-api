@@ -9,7 +9,9 @@ echo "  VITE_APP_TITLE: \"${VITE_APP_TITLE:-WAIFU.IM}\"," >> /usr/share/nginx/ht
 echo "  VITE_DOCS_URL: \"${VITE_DOCS_URL}\"," >> /usr/share/nginx/html/config.js
 echo "  VITE_CONTACT_EMAIL: \"${VITE_CONTACT_EMAIL}\"," >> /usr/share/nginx/html/config.js
 echo "  VITE_DISCORD_SERVER_URL: \"${VITE_DISCORD_SERVER_URL}\"," >> /usr/share/nginx/html/config.js
-echo "  VITE_STATUS_URL: \"${VITE_STATUS_URL}\"" >> /usr/share/nginx/html/config.js
+echo "  VITE_STATUS_URL: \"${VITE_STATUS_URL}\"," >> /usr/share/nginx/html/config.js
+echo "  VITE_GITHUB_URL: \"${VITE_GITHUB_URL}\"," >> /usr/share/nginx/html/config.js
+echo "  VITE_TOS_URL: \"${VITE_TOS_URL}\"" >> /usr/share/nginx/html/config.js
 echo "};" >> /usr/share/nginx/html/config.js
 
 # Execute the CMD

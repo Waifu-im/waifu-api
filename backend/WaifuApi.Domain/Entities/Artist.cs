@@ -12,5 +12,9 @@ public class Artist
     public string? Twitter { get; set; }
     public string? DeviantArt { get; set; }
     public ReviewStatus ReviewStatus { get; set; } = ReviewStatus.Pending;
+
+    public long? CreatorId { get; set; }
+    public User? Creator { get; set; }
+
     public List<Image> Images { get; set; } = new();
 }

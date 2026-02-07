@@ -10,6 +10,8 @@ interface Window {
     VITE_CONTACT_EMAIL?: string;
     VITE_DISCORD_SERVER_URL?: string;
     VITE_STATUS_URL?: string;
+    VITE_GITHUB_URL?: string;
+    VITE_TOS_URL?: string;
   }
 }
 
@@ -22,6 +24,8 @@ interface ImportMetaEnv {
   readonly VITE_CONTACT_EMAIL?: string
   readonly VITE_DISCORD_SERVER_URL?: string
   readonly VITE_STATUS_URL?: string
+  readonly VITE_GITHUB_URL?: string
+  readonly VITE_TOS_URL?: string
 }
 
 interface ImportMeta {

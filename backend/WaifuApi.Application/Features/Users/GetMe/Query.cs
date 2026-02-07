@@ -34,6 +34,7 @@ public class GetMeQueryHandler : IQueryHandler<GetMeQuery, UserDto>
             AvatarUrl = user.AvatarUrl,
             Role = user.Role,
             IsBlacklisted = user.IsBlacklisted,
+            BlacklistReason = user.BlacklistReason,
             RequestCount = user.RequestCount,
             ApiKeyRequestCount = user.ApiKeyRequestCount,
             JwtRequestCount = user.JwtRequestCount

@@ -10,7 +10,7 @@ import { useImageUpdate } from '../hooks/useImageUpdate';
 import { useAuthGuard } from '../hooks/useRequireAuth';
 import ImageModal from '../components/modals/ImageModal';
 import ConfirmModal from '../components/modals/ConfirmModal';
-import ReportModal from '../components/modals/ReportModal';
+import ReasonModal from '../components/modals/ReasonModal';
 import AlbumSelectionModal from '../components/modals/AlbumSelectionModal';
 import NsfwWarning from '../components/NsfwWarning';
 
@@ -291,10 +291,14 @@ const ImagePage = () => {
             onDelete={() => setIsDeleteModalOpen(true)}
         />
 
-        <ReportModal
+        <ReasonModal
             isOpen={isReportModalOpen}
             onClose={() => setIsReportModalOpen(false)}
             onSubmit={handleReport}
+            title="Report Image"
+            description="Please describe why you are reporting this image."
+            placeholder="Reason for reporting..."
+            submitText="Submit Report"
         />
 
         <AlbumSelectionModal

@@ -23,6 +23,7 @@ public class GetArtistsQuery : IQuery<PaginatedList<ArtistDto>>
 
     // Internal parameter (set by controller, never exposed via query string)
     public ReviewStatus? ReviewStatus { get; set; }
+    public bool IsModeratorOrAdmin { get; set; }
 }
 
 public class GetArtistsQueryHandler : IQueryHandler<GetArtistsQuery, PaginatedList<ArtistDto>>
@@ -56,6 +57,7 @@ public class GetArtistsQueryHandler : IQueryHandler<GetArtistsQuery, PaginatedLi
                 Twitter = a.Twitter,
                 DeviantArt = a.DeviantArt,
                 ReviewStatus = a.ReviewStatus,
+                CreatorId = request.IsModeratorOrAdmin ? a.CreatorId : null,
                 ImageCount = a.Images.Count(i => i.ReviewStatus == ReviewStatus.Accepted)
             }).ToListAsync(cancellationToken);
 
@@ -90,6 +92,7 @@ public class GetArtistsQueryHandler : IQueryHandler<GetArtistsQuery, PaginatedLi
             Twitter = a.Twitter,
             DeviantArt = a.DeviantArt,
             ReviewStatus = a.ReviewStatus,
+            CreatorId = request.IsModeratorOrAdmin ? a.CreatorId : null,
             ImageCount = a.Images.Count(i => i.ReviewStatus == ReviewStatus.Accepted)
         }).OrderByDescending(a => a.ImageCount);
 

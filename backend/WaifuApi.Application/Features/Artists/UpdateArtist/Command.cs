@@ -14,13 +14,14 @@ using WaifuApi.Domain.Enums;
 namespace WaifuApi.Application.Features.Artists.UpdateArtist;
 
 public record UpdateArtistCommand(
-    long Id, 
+    long Id,
     string Name,
     string? Patreon,
     string? Pixiv,
     string? Twitter,
     string? DeviantArt,
-    ReviewStatus? ReviewStatus
+    ReviewStatus? ReviewStatus,
+    long? CreatorId = null
 ) : ICommand<Artist>;
 
 public class UpdateArtistCommandHandler : ICommandHandler<UpdateArtistCommand, Artist>
@@ -86,7 +87,12 @@ public class UpdateArtistCommandHandler : ICommandHandler<UpdateArtistCommand, A
         {
             artist.ReviewStatus = request.ReviewStatus.Value;
         }
-        
+
+        if (request.CreatorId.HasValue)
+        {
+            artist.CreatorId = request.CreatorId.Value;
+        }
+
         await _context.SaveChangesAsync(cancellationToken);
 
         return artist;

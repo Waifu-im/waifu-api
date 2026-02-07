@@ -8,7 +8,7 @@ using WaifuApi.Domain.Entities;
 
 namespace WaifuApi.Application.Features.Users.BanUser;
 
-public record BanUserCommand(long UserId, bool IsBlacklisted) : ICommand<User>;
+public record BanUserCommand(long UserId, bool IsBlacklisted, string? Reason = null) : ICommand<User>;
 
 public class BanUserCommandHandler : ICommandHandler<BanUserCommand, User>
 {
@@ -35,6 +35,7 @@ public class BanUserCommandHandler : ICommandHandler<BanUserCommand, User>
         }
 
         user.IsBlacklisted = request.IsBlacklisted;
+        user.BlacklistReason = request.IsBlacklisted ? request.Reason : null;
         await _context.SaveChangesAsync(cancellationToken);
         
         return user;

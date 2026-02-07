@@ -11,5 +11,6 @@ public class ArtistDto
     public string? Twitter { get; set; }
     public string? DeviantArt { get; set; }
     public ReviewStatus ReviewStatus { get; set; }
+    public long? CreatorId { get; set; }
     public long ImageCount { get; set; }
 }

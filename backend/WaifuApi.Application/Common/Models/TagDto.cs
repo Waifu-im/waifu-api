@@ -9,5 +9,6 @@ public class TagDto
     public string Slug { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public ReviewStatus? ReviewStatus { get; set; }
+    public long? CreatorId { get; set; }
     public long ImageCount { get; set; }
 }

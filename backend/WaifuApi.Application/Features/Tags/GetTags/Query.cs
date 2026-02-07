@@ -23,6 +23,7 @@ public class GetTagsQuery : IQuery<PaginatedList<TagDto>>
 
     // Internal parameter (set by controller, never exposed via query string)
     public ReviewStatus? ReviewStatus { get; set; }
+    public bool IsModeratorOrAdmin { get; set; }
 }
 
 public class GetTagsQueryHandler : IQueryHandler<GetTagsQuery, PaginatedList<TagDto>>
@@ -61,6 +62,7 @@ public class GetTagsQueryHandler : IQueryHandler<GetTagsQuery, PaginatedList<Tag
                 Slug = t.Slug,
                 Description = t.Description,
                 ReviewStatus = t.ReviewStatus,
+                CreatorId = request.IsModeratorOrAdmin ? t.CreatorId : null,
                 ImageCount = t.Images.Count(i => i.ReviewStatus == ReviewStatus.Accepted)
             }).ToListAsync(cancellationToken);
 
@@ -93,6 +95,7 @@ public class GetTagsQueryHandler : IQueryHandler<GetTagsQuery, PaginatedList<Tag
             Slug = t.Slug,
             Description = t.Description,
             ReviewStatus = t.ReviewStatus,
+            CreatorId = request.IsModeratorOrAdmin ? t.CreatorId : null,
             ImageCount = t.Images.Count(i => i.ReviewStatus == ReviewStatus.Accepted)
         }).OrderByDescending(t => t.ImageCount);
 

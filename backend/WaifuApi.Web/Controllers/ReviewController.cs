@@ -66,7 +66,8 @@ public class ReviewController : ControllerBase
             PageSize = request.PageSize,
             ReviewStatus = ReviewStatus.Pending,
             IsNsfw = NsfwMode.All,
-            OrderBy = ImageOrderBy.UploadedAt
+            OrderBy = ImageOrderBy.UploadedAt,
+            IsModeratorOrAdmin = true
         };
         var images = await _mediator.Send(query);
         return Ok(images);
@@ -92,7 +93,8 @@ public class ReviewController : ControllerBase
         {
             Page = request.Page,
             PageSize = request.PageSize,
-            ReviewStatus = ReviewStatus.Pending
+            ReviewStatus = ReviewStatus.Pending,
+            IsModeratorOrAdmin = true
         };
         var artists = await _mediator.Send(query);
         return Ok(artists);
@@ -118,7 +120,8 @@ public class ReviewController : ControllerBase
         {
             Page = request.Page,
             PageSize = request.PageSize,
-            ReviewStatus = ReviewStatus.Pending
+            ReviewStatus = ReviewStatus.Pending,
+            IsModeratorOrAdmin = true
         };
         var tags = await _mediator.Send(query);
         return Ok(tags);

@@ -8,9 +8,10 @@ interface PaginationProps {
     disabled?: boolean;
     pageSize?: number;
     setPageSize?: (size: number) => void;
+    scrollTargetId?: string;
 }
 
-const Pagination = ({ currentPage, totalPages, setPage, disabled = false, pageSize, setPageSize }: PaginationProps) => {
+const Pagination = ({ currentPage, totalPages, setPage, disabled = false, pageSize, setPageSize, scrollTargetId }: PaginationProps) => {
     const [inputVal, setInputVal] = useState(currentPage.toString());
     const [pageSizeInput, setPageSizeInput] = useState(pageSize?.toString() ?? '');
 
@@ -26,6 +27,16 @@ const Pagination = ({ currentPage, totalPages, setPage, disabled = false, pageSi
         }
     }, [pageSize]);
 
+    const changePage = (page: number) => {
+        setPage(page);
+        const target = scrollTargetId ? document.getElementById(scrollTargetId) : null;
+        if (target) {
+            target.scrollIntoView({ behavior: 'instant' as ScrollBehavior });
+        } else {
+            window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+        }
+    };
+
     // Hide if only 1 page and no page size selector
     if (totalPages <= 1 && !setPageSize) return null;
 
@@ -37,16 +48,16 @@ const Pagination = ({ currentPage, totalPages, setPage, disabled = false, pageSi
         );
     }
 
-    const handleFirst = () => setPage(1);
-    const handlePrev = () => setPage(Math.max(1, currentPage - 1));
-    const handleNext = () => setPage(Math.min(totalPages, currentPage + 1));
-    const handleLast = () => setPage(totalPages);
+    const handleFirst = () => changePage(1);
+    const handlePrev = () => changePage(Math.max(1, currentPage - 1));
+    const handleNext = () => changePage(Math.min(totalPages, currentPage + 1));
+    const handleLast = () => changePage(totalPages);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         const val = parseInt(inputVal);
         if (!isNaN(val) && val >= 1 && val <= totalPages) {
-            setPage(val);
+            changePage(val);
         } else {
             setInputVal(currentPage.toString()); // Reset to current if invalid
         }
