@@ -32,67 +32,63 @@ api.interceptors.request.use(
     (error) => Promise.reject(error)
 );
 
+// Extract error info from an AxiosError into a message and type for toast display
+export function formatApiError(error: AxiosError<ProblemDetails>): { message: string; type: 'error' | 'warning' } {
+    let message = "An unexpected error occurred";
+    let type: 'error' | 'warning' = 'error';
+
+    if (error.response) {
+        const { data, status } = error.response;
+
+        if (data?.errors) {
+            const validationErrors = Object.values(data.errors).flat();
+            if (validationErrors.length > 0) {
+                message = String(validationErrors[0]);
+                type = 'warning';
+            }
+        } else if (data?.detail) {
+            message = data.detail;
+        } else if (data?.title) {
+            message = data.title;
+        } else if (data?.message) {
+            message = data.message;
+        } else if (error.response.statusText) {
+            message = `${status}: ${error.response.statusText}`;
+        }
+    } else if (error.request) {
+        message = "Server unreachable. Please check your internet connection.";
+    }
+
+    return { message, type };
+}
+
+// Show a toast notification for an API error
+export function showApiError(error: AxiosError<ProblemDetails>) {
+    const { message, type } = formatApiError(error);
+    globalErrorBus.emit({ message, type });
+}
+
 // Enhanced Response Interceptor for Error Handling
 api.interceptors.response.use(
     (response) => response,
     (error: AxiosError<ProblemDetails>) => {
-        let errorMessage = "An unexpected error occurred";
-        let errorType: 'error' | 'warning' = 'error';
-
         if (error.response) {
-            const { data, status } = error.response;
+            const { status } = error.response;
 
-            // 1. Handle 401 Unauthorized globally
+            // Handle 401 Unauthorized globally
             if (status === 401) {
                 localStorage.removeItem('token');
-                // Only redirect if we are not already on the login page
-                if (!window.location.pathname.includes('/login')) {
-                    // Use history.pushState or similar if possible, but window.location is safer for full reset
-                    // However, to avoid infinite loops or bad UX, we should be careful.
-                    // For now, let's just clear the token. The UI (useRequireAuth) will handle the redirect.
-                    // window.location.href = '/login';
-                }
                 return Promise.reject(new Error("Session expired. Please login again."));
             }
-
-            // 2. Handle ASP.NET Core Validation ProblemDetails (400)
-            if (data?.errors) {
-                // validation errors are usually { "Field": ["Error1", "Error2"] }
-                const validationErrors = Object.values(data.errors).flat();
-                if (validationErrors.length > 0) {
-                    errorMessage = String(validationErrors[0]); // Return the first validation error
-                    errorType = 'warning'; // Validation errors are often warnings/user errors
-                }
-            }
-            // 3. Handle generic "detail" from ProblemDetails
-            else if (data?.detail) {
-                errorMessage = data.detail;
-            }
-            // 4. Handle generic "title" from ProblemDetails
-            else if (data?.title) {
-                errorMessage = data.title;
-            }
-            // 5. Handle generic "message" field
-            else if (data?.message) {
-                errorMessage = data.message;
-            }
-            // 6. Fallback to status text
-            else if (error.response.statusText) {
-                errorMessage = `${status}: ${error.response.statusText}`;
-            }
-        } else if (error.request) {
-            errorMessage = "Server unreachable. Please check your internet connection.";
         }
 
-        // Attach the formatted message to the error object so components can use e.message directly
-        error.message = errorMessage;
+        const { message } = formatApiError(error);
+        error.message = message;
 
-        // Check if the request explicitly asked to skip global error handling
-        // We need to cast config because AxiosError.config is InternalAxiosRequestConfig which doesn't have our custom prop by default in types
         const config = error.config as InternalAxiosRequestConfig & { skipGlobalErrorHandler?: boolean };
 
         if (!config?.skipGlobalErrorHandler) {
-            globalErrorBus.emit({ message: errorMessage, type: errorType });
+            showApiError(error);
         }
 
         return Promise.reject(error);

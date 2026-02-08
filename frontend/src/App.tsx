@@ -27,6 +27,8 @@ function App() {
                 <Route path="gallery" element={<Gallery />} />
                 <Route path="albums" element={<Albums />} />
                 <Route path="albums/:id" element={<AlbumPage />} />
+                <Route path="users/:userId/albums" element={<Albums />} />
+                <Route path="users/:userId/albums/:id" element={<AlbumPage />} />
                 <Route path="images/:id" element={<ImagePage />} />
                 <Route path="tags" element={<Tags />} />
                 <Route path="artists" element={<Artists />} />

@@ -31,6 +31,7 @@ namespace WaifuApi.Web.Controllers;
 /// - `userId`: Use `"me"` for the current user, or a numeric ID
 /// - `albumId`: Use `"favorites"` for the default album, or a numeric ID
 /// </remarks>
+[Authorize]
 [ApiController]
 [Route("users/{userId}/albums")]
 [Produces("application/json")]
@@ -63,6 +64,8 @@ public class AlbumsController : ControllerBase
     public async Task<ActionResult<PaginatedList<AlbumDto>>> GetAlbums([FromRoute] string userId, [FromQuery] PaginationRequest request)
     {
         var resolvedUserId = await _currentUserService.ResolveUserIdAsync(userId);
+        if (!CanAccess(resolvedUserId)) return NotFound();
+
         var query = new GetAlbumsQuery(resolvedUserId)
         {
             Page = request.Page,
@@ -89,6 +92,8 @@ public class AlbumsController : ControllerBase
     public async Task<ActionResult<AlbumDto>> GetAlbum([FromRoute] string userId, [FromRoute] string albumId)
     {
         var resolvedUserId = await _currentUserService.ResolveUserIdAsync(userId);
+        if (!CanAccess(resolvedUserId)) return NotFound();
+
         var resolvedAlbumId = await _currentUserService.ResolveAlbumIdAsync(resolvedUserId, albumId);
 
         if (resolvedAlbumId == null) return NotFound();
@@ -109,17 +114,14 @@ public class AlbumsController : ControllerBase
     /// <response code="201">Album created successfully.</response>
     /// <response code="400">Invalid album data.</response>
     /// <response code="401">Authentication required.</response>
-    /// <response code="403">Cannot create albums for other users.</response>
-    [Authorize]
     [HttpPost]
     [ProducesResponseType(typeof(AlbumDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationErrorResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<AlbumDto>> CreateAlbum([FromRoute] string userId, [FromBody] CreateAlbumRequest request)
     {
         var resolvedUserId = await _currentUserService.ResolveUserIdAsync(userId);
-        if (!CanAccess(resolvedUserId)) return Forbid();
+        if (!CanAccess(resolvedUserId)) return NotFound();
 
         var album = await _mediator.Send(new CreateAlbumCommand(resolvedUserId, request.Name, request.Description));
         return CreatedAtAction(nameof(GetAlbum), new { userId = resolvedUserId, albumId = album.Id }, album);
@@ -138,21 +140,18 @@ public class AlbumsController : ControllerBase
     /// <response code="200">Album updated successfully.</response>
     /// <response code="400">Invalid update data.</response>
     /// <response code="401">Authentication required.</response>
-    /// <response code="403">Cannot update other users' albums.</response>
     /// <response code="404">Album not found.</response>
-    [Authorize]
     [HttpPatch("{albumId}")]
     [ProducesResponseType(typeof(AlbumDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationErrorResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<AlbumDto>> UpdateAlbum([FromRoute] string userId, [FromRoute] string albumId, [FromBody] UpdateAlbumRequest request)
     {
         var resolvedUserId = await _currentUserService.ResolveUserIdAsync(userId);
         var resolvedAlbumId = await _currentUserService.ResolveAlbumIdAsync(resolvedUserId, albumId);
 
-        if (!CanAccess(resolvedUserId)) return Forbid();
+        if (!CanAccess(resolvedUserId)) return NotFound();
 
         var album = await _mediator.Send(new UpdateAlbumCommand(resolvedUserId, resolvedAlbumId!.Value, request.Name, request.Description));
         return Ok(album);
@@ -168,21 +167,20 @@ public class AlbumsController : ControllerBase
     /// <param name="userId">The user ID or "me".</param>
     /// <param name="albumId">The album ID (cannot be "favorites").</param>
     /// <response code="204">Album deleted successfully.</response>
+    /// <response code="400">Cannot delete default album.</response>
     /// <response code="401">Authentication required.</response>
-    /// <response code="403">Cannot delete other users' albums or the default album.</response>
     /// <response code="404">Album not found.</response>
-    [Authorize]
     [HttpDelete("{albumId}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeleteAlbum([FromRoute] string userId, [FromRoute] string albumId)
     {
         var resolvedUserId = await _currentUserService.ResolveUserIdAsync(userId);
         var resolvedAlbumId = await _currentUserService.ResolveAlbumIdAsync(resolvedUserId, albumId);
 
-        if (!CanAccess(resolvedUserId)) return Forbid();
+        if (!CanAccess(resolvedUserId)) return NotFound();
 
         await _mediator.Send(new DeleteAlbumCommand(resolvedUserId, resolvedAlbumId!.Value));
         return NoContent();
@@ -209,6 +207,8 @@ public class AlbumsController : ControllerBase
     public async Task<ActionResult<PaginatedList<ImageDto>>> GetAlbumImages([FromRoute] string userId, [FromRoute] string albumId, [FromQuery] GetImagesRequest request)
     {
         var resolvedUserId = await _currentUserService.ResolveUserIdAsync(userId);
+        if (!CanAccess(resolvedUserId)) return NotFound();
+
         var resolvedAlbumId = await _currentUserService.ResolveAlbumIdAsync(resolvedUserId, albumId);
 
         if (resolvedAlbumId == null) return NotFound();
@@ -250,20 +250,17 @@ public class AlbumsController : ControllerBase
     /// <param name="imageId">The image ID to add.</param>
     /// <response code="204">Image added successfully.</response>
     /// <response code="401">Authentication required.</response>
-    /// <response code="403">Cannot modify other users' albums.</response>
     /// <response code="404">Album or image not found.</response>
-    [Authorize]
     [HttpPost("{albumId}/images/{imageId:long}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> AddImage([FromRoute] string userId, [FromRoute] string albumId, [FromRoute] long imageId)
     {
         var resolvedUserId = await _currentUserService.ResolveUserIdAsync(userId);
         var resolvedAlbumId = await _currentUserService.ResolveAlbumIdAsync(resolvedUserId, albumId);
 
-        if (!CanAccess(resolvedUserId)) return Forbid();
+        if (!CanAccess(resolvedUserId)) return NotFound();
 
         await _mediator.Send(new AddImageToAlbumCommand(resolvedUserId, resolvedAlbumId!.Value, imageId));
         return NoContent();
@@ -280,20 +277,17 @@ public class AlbumsController : ControllerBase
     /// <param name="imageId">The image ID to remove.</param>
     /// <response code="204">Image removed successfully.</response>
     /// <response code="401">Authentication required.</response>
-    /// <response code="403">Cannot modify other users' albums.</response>
     /// <response code="404">Album or image not found in album.</response>
-    [Authorize]
     [HttpDelete("{albumId}/images/{imageId:long}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> RemoveImage([FromRoute] string userId, [FromRoute] string albumId, [FromRoute] long imageId)
     {
         var resolvedUserId = await _currentUserService.ResolveUserIdAsync(userId);
         var resolvedAlbumId = await _currentUserService.ResolveAlbumIdAsync(resolvedUserId, albumId);
 
-        if (!CanAccess(resolvedUserId)) return Forbid();
+        if (!CanAccess(resolvedUserId)) return NotFound();
 
         await _mediator.Send(new RemoveImageFromAlbumCommand(resolvedUserId, resolvedAlbumId!.Value, imageId));
         return NoContent();

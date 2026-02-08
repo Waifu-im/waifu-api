@@ -127,7 +127,7 @@ const FilterSidebar = ({ searchParams, setSearchParams, showFilters, setShowFilt
 
     const loadTags = async (query: string, page: number = 1) => {
         const { data } = await api.get<PaginatedList<Tag>>('/tags', { params: { name: query, pageSize: tagsPageSize, page } });
-        return data.items.map(t => ({ id: t.id, name: t.name, slug: t.slug }));
+        return data.items.map(t => ({ id: t.id, name: t.name, slug: t.slug, description: t.description }));
     };
 
     const loadArtists = async (query: string, page: number = 1) => {

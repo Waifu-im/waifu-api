@@ -14,9 +14,10 @@ interface ImageCardProps {
     onRemove?: (id: number) => void;
     onEdit?: (image: ImageDto) => void;
     forceOverlay?: boolean;
+    readOnly?: boolean;
 }
 
-const ImageCard = ({ image, onDelete, onRemove, onEdit, forceOverlay = false }: ImageCardProps) => {
+const ImageCard = ({ image, onDelete, onRemove, onEdit, forceOverlay = false, readOnly = false }: ImageCardProps) => {
     const { user } = useAuth();
     const checkAuth = useAuthGuard();
     const [isLiked, setIsLiked] = useState(!!image.likedAt);
@@ -94,17 +95,17 @@ const ImageCard = ({ image, onDelete, onRemove, onEdit, forceOverlay = false }: 
                         alt={`Img ${image.id}`}
                         loading="lazy"
                         onLoad={() => setIsImageLoaded(true)}
-                        className={`w-full h-full object-cover transition-all duration-700 [@media(hover:hover)]:group-hover:scale-105 ${
+                        className={`w-full h-full object-cover transition-all duration-700 xl:group-hover:scale-105 ${
                             isImageLoaded ? 'opacity-100' : 'opacity-0'
                         }`}
                     />
                 </div>
             </Link>
 
-            {/* Action buttons overlay (desktop hover only) */}
-            <div className={`absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-between p-3 pointer-events-none transition-all duration-300 rounded-xl ${forceOverlay ? 'opacity-100' : 'opacity-0 [@media(hover:hover)]:group-hover:opacity-100'}`}>
+            {/* Action buttons overlay (desktop only, hover to reveal) */}
+            <div className={`absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex-col justify-between p-3 pointer-events-none transition-all duration-300 rounded-xl hidden xl:flex ${forceOverlay ? 'xl:opacity-100' : 'xl:opacity-0 xl:group-hover:opacity-100'}`}>
                 <div className="flex justify-end gap-2 pointer-events-auto">
-                    {user && (
+                    {!readOnly && user && (
                         <>
                             <button
                                 className="p-2 bg-primary/90 text-primary-foreground rounded-full shadow-sm hover:bg-primary transition-transform hover:scale-110"
@@ -122,7 +123,7 @@ const ImageCard = ({ image, onDelete, onRemove, onEdit, forceOverlay = false }: 
                         </>
                     )}
 
-                    {onRemove && (
+                    {!readOnly && onRemove && (
                         <button
                             onClick={(e) => { e.preventDefault(); e.stopPropagation(); onRemove(image.id); }}
                             className="p-2 bg-secondary/90 text-secondary-foreground rounded-full shadow-sm hover:bg-secondary transition-transform hover:scale-110"
@@ -155,21 +156,29 @@ const ImageCard = ({ image, onDelete, onRemove, onEdit, forceOverlay = false }: 
                 <div></div>
             </div>
 
-            {/* Footer (ID + Likes) - always visible on touch, hover on desktop */}
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3 pointer-events-none rounded-b-xl
-                [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:transition-all [@media(hover:hover)]:duration-300">
+            {/* Footer (ID + Likes) - always visible on mobile (smaller gradient), hover on desktop (full gradient) */}
+            <div className="absolute bottom-0 left-0 right-0 p-3 pointer-events-none rounded-b-xl
+                bg-gradient-to-t from-black/50 to-transparent
+                xl:from-black/80 xl:opacity-0 xl:group-hover:opacity-100 xl:transition-all xl:duration-300">
                 <div className="flex items-center justify-between text-white">
                     <span className="text-xs font-mono opacity-75">#{image.id}</span>
-                    <button
-                        onClick={toggleLike}
-                        className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md transition-colors pointer-events-auto"
-                    >
-                        <Heart
-                            size={14}
-                            className={`transition-colors ${isLiked ? "fill-rose-500 text-rose-500" : "text-white"}`}
-                        />
-                        <span className="text-xs font-bold">{likesCount}</span>
-                    </button>
+                    {readOnly ? (
+                        <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/10 backdrop-blur-md">
+                            <Heart size={14} className="text-white" />
+                            <span className="text-xs font-bold">{likesCount}</span>
+                        </div>
+                    ) : (
+                        <button
+                            onClick={toggleLike}
+                            className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md transition-colors pointer-events-auto"
+                        >
+                            <Heart
+                                size={14}
+                                className={`transition-colors ${isLiked ? "fill-rose-500 text-rose-500" : "text-white"}`}
+                            />
+                            <span className="text-xs font-bold">{likesCount}</span>
+                        </button>
+                    )}
                 </div>
             </div>
         </div>

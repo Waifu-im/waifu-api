@@ -14,12 +14,13 @@ export interface ImageGridProps {
     onRemove?: (id: number) => void;
     emptyState?: ReactNode;
     forceOverlay?: boolean;
+    readOnly?: boolean;
 }
 
 const ImageGrid = ({
                        images, isLoading, error, onRetry,
                        onEdit, onDelete, onRemove,
-                       emptyState, forceOverlay = false
+                       emptyState, forceOverlay = false, readOnly = false
                    }: ImageGridProps) => {
     const { user } = useAuth();
     const isAdminOrModerator = user && (user.role === Role.Admin || user.role === Role.Moderator);
@@ -60,6 +61,7 @@ const ImageGrid = ({
                         onRemove={onRemove}
                         onEdit={isAdminOrModerator ? onEdit : undefined}
                         forceOverlay={forceOverlay}
+                        readOnly={readOnly}
                     />
                 </div>
             ))}
