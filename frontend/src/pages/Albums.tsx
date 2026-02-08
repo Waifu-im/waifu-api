@@ -1,16 +1,21 @@
 ﻿import { useEffect, useState } from 'react';
-import api from '../services/api';
-import { Link } from 'react-router-dom';
+import api, { showApiError } from '../services/api';
+import { Link, useParams, Navigate } from 'react-router-dom';
 import { Folder, Plus, Edit2, Trash2, Library, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useNotification } from '../context/NotificationContext';
-import { AlbumDto, PaginatedList } from '../types';
+import { AlbumDto, PaginatedList, User } from '../types';
 import AlbumModal, { AlbumFormData } from '../components/modals/AlbumModal';
 import ConfirmModal from '../components/modals/ConfirmModal';
 import { useRequireAuth } from '../hooks/useRequireAuth';
+import NotFound from './NotFound';
 
 const Albums = () => {
+    const { userId } = useParams<{ userId?: string }>();
     const user = useRequireAuth();
     const { showNotification } = useNotification();
+    const isViewingOther = !!userId;
+    const [targetUserName, setTargetUserName] = useState<string | null>(null);
+    const [notFound, setNotFound] = useState(false);
     const [albums, setAlbums] = useState<AlbumDto[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -23,29 +28,38 @@ const Albums = () => {
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const [selectedAlbum, setSelectedAlbum] = useState<AlbumDto | null>(null);
 
+    const apiUserPath = isViewingOther ? `/users/${userId}` : '/users/me';
+
     const fetchAlbums = async () => {
         if(!user) return;
         setLoading(true);
         try {
-            const { data } = await api.get<PaginatedList<AlbumDto>>(`/users/me/albums`, {
-                params: { page, pageSize }
+            const { data } = await api.get<PaginatedList<AlbumDto>>(`${apiUserPath}/albums`, {
+                params: { page, pageSize },
+                skipGlobalErrorHandler: true
             });
             setAlbums(data.items);
             setTotalPages(data.totalPages);
-        } catch { 
-            // showNotification('error', 'Failed to load albums'); // Handled globally
+        } catch (e: any) {
+            if (e?.response?.status === 404) setNotFound(true);
+            else showApiError(e);
         } finally { setLoading(false); }
     };
 
     useEffect(() => {
         if (user) {
             fetchAlbums();
+            if (isViewingOther) {
+                api.get<User>(`/users/${userId}`, { skipGlobalErrorHandler: true })
+                    .then(res => setTargetUserName(res.data.name))
+                    .catch((e: any) => { if (e?.response?.status !== 403) showApiError(e); });
+            }
         }
     }, [user, page]);
 
     const handleCreate = async (data: AlbumFormData) => {
         try {
-            await api.post(`/users/me/albums`, data);
+            await api.post(`${apiUserPath}/albums`, data);
             showNotification('success', 'Album created');
             setIsCreateOpen(false);
             fetchAlbums();
@@ -57,7 +71,7 @@ const Albums = () => {
     const handleEdit = async (data: AlbumFormData) => {
         if (!selectedAlbum) return;
         try {
-            await api.patch(`/users/me/albums/${selectedAlbum.id}`, data);
+            await api.patch(`${apiUserPath}/albums/${selectedAlbum.id}`, data);
             showNotification('success', 'Album updated');
             setIsEditOpen(false);
             fetchAlbums();
@@ -69,7 +83,7 @@ const Albums = () => {
     const handleDelete = async () => {
         if (!selectedAlbum) return;
         try {
-            await api.delete(`/users/me/albums/${selectedAlbum.id}`);
+            await api.delete(`${apiUserPath}/albums/${selectedAlbum.id}`);
             showNotification('success', 'Album deleted');
             setIsDeleteOpen(false);
             fetchAlbums();
@@ -79,29 +93,36 @@ const Albums = () => {
     };
 
     if (!user) return null;
+    if (userId && user.id.toString() === userId) return <Navigate to="/albums" replace />;
+    if (notFound) return <NotFound />;
 
     // Calculate total images across all albums
     const totalImages = albums.reduce((sum, album) => sum + (album.imageCount || 0), 0);
 
     return (
         <div className="container mx-auto p-6 md:p-10">
-            <div className="flex justify-between items-center mb-10">
-                <div>
-                    <h1 className="text-3xl font-black flex items-center gap-3 text-foreground"><Library className="text-primary" size={32}/> My Albums</h1>
-                    <p className="text-muted-foreground mt-1">Manage your collections.</p>
+            <div className="flex justify-between items-center gap-4 mb-4">
+                <div className="min-w-0">
+                    <h1 className="text-3xl font-black flex items-center gap-3 text-foreground flex-wrap"><Library className="text-primary shrink-0" size={32}/> {isViewingOther ? `${targetUserName || `User ${userId}`}'s Albums` : 'My Albums'}</h1>
+                    <p className="text-muted-foreground mt-1">{isViewingOther ? `Viewing albums for ${targetUserName || `user ${userId}`}.` : 'Manage your collections.'}</p>
                     <div className="mt-2">
                         <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-secondary px-2 py-1 rounded">
                             Total: {totalImages} image{totalImages !== 1 ? 's' : ''}
                         </span>
                     </div>
                 </div>
-                <button onClick={() => setIsCreateOpen(true)} className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-bold hover:opacity-90 shadow-lg transition-all whitespace-nowrap"><Plus size={20} /> <span className="hidden sm:inline">Create Album</span></button>
+                <button onClick={() => setIsCreateOpen(true)} className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-bold hover:opacity-90 shadow-lg transition-all whitespace-nowrap shrink-0"><Plus size={20} /> <span className="hidden sm:inline">Create Album</span></button>
             </div>
+            {isViewingOther && (
+                <div className="mb-6 inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 border border-amber-500/30 rounded-md text-amber-600 dark:text-amber-400 text-xs font-semibold">
+                    &#9888; Any changes here will affect {targetUserName || `user ${userId}`}'s albums, not your own.
+                </div>
+            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {loading ? [...Array(4)].map((_,i) => <div key={i} className="h-48 bg-muted rounded-2xl animate-pulse"/>) : albums.map(album => (
                     <div key={album.id} className="group relative bg-card border border-border rounded-2xl hover:shadow-xl transition-all duration-300 hover:border-primary/30 overflow-hidden">
-                        <Link to={`/albums/${album.id}`} className="block p-6 h-full flex flex-col items-center justify-center text-center">
+                        <Link to={isViewingOther ? `/users/${userId}/albums/${album.id}` : `/albums/${album.id}`} className="block p-6 h-full flex flex-col items-center justify-center text-center">
                             <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-4 transition-transform group-hover:scale-110 shrink-0 ${album.isDefault ? 'bg-rose-500/10 text-rose-500' : 'bg-secondary text-primary'}`}>
                                 <Folder size={40} className={album.isDefault ? "fill-current" : ""} />
                             </div>

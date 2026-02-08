@@ -143,10 +143,14 @@ const Users = () => {
                                     </Link>
                                 </td>
                                 <td className="p-4">
-                                    <span className="inline-flex items-center gap-1.5 text-sm font-mono text-pink-500" title="Images in albums">
+                                    <Link
+                                        to={`/users/${user.id}/albums`}
+                                        className="inline-flex items-center gap-1.5 text-sm font-mono text-pink-500 hover:underline"
+                                        title="View user's albums"
+                                    >
                                         <ImagesIcon size={14} />
                                         {user.albumImageCount?.toLocaleString() || 0}
-                                    </span>
+                                    </Link>
                                 </td>
                                 <td className="p-4 font-mono text-sm">{user.requestCount?.toLocaleString() || 0}</td>
                                 <td className="p-4 font-mono text-sm text-blue-500">{user.apiKeyRequestCount?.toLocaleString() || 0}</td>

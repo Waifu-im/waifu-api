@@ -21,6 +21,7 @@ export interface ImageFilters {
   height?: string;
   byteSize?: string;
   albumId?: string;
+  albumUserId?: string;
   enabled?: boolean;
   uploaderId?: string;
 }
@@ -56,8 +57,9 @@ export const useImages = (filters: ImageFilters) => {
         },
       });
 
+      const albumUser = filters.albumUserId || 'me';
       const endpoint = isAlbumRequest
-          ? `/users/me/albums/${filters.albumId}/images`
+          ? `/users/${albumUser}/albums/${filters.albumId}/images`
           : '/images';
 
       const { data } = await api.get<PaginatedList<ImageDto>>(endpoint, { params });

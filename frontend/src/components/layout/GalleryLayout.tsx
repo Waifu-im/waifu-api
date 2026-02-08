@@ -28,6 +28,7 @@ interface GalleryLayoutProps {
     sortOptions?: Option[];
     emptyState?: ReactNode;
     onRemoveFromAlbum?: (id: number) => void;
+    readOnly?: boolean;
 }
 
 export const GalleryLayout = ({
@@ -43,7 +44,8 @@ export const GalleryLayout = ({
                                   headerContent,
                                   sortOptions,
                                   emptyState,
-                                  onRemoveFromAlbum
+                                  onRemoveFromAlbum,
+                                  readOnly = false
                               }: GalleryLayoutProps) => {
     const { user } = useAuth();
     const { showNotification } = useNotification();
@@ -120,6 +122,7 @@ export const GalleryLayout = ({
                         onDelete={isAdmin ? confirmDelete : undefined}
                         onEdit={isAdminOrModerator ? (img) => { setEditingImage(img); setIsEditModalOpen(true); } : undefined}
                         onRemove={onRemoveFromAlbum}
+                        readOnly={readOnly}
                         emptyState={emptyState || (
                             <div className="flex flex-col items-center justify-center h-[50vh] text-muted-foreground">
                                 <Search size={48} className="mb-4 opacity-20" />
