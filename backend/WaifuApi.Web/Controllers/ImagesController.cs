@@ -83,7 +83,8 @@ public class ImagesController : ControllerBase
             PageSize = request.PageSize,
             UserId = _currentUser.UserId,
             IsModeratorOrAdmin = _currentUser.IsModeratorOrAdmin,
-            UploaderId = _currentUser.IsModeratorOrAdmin ? request.UploaderId : null
+            UploaderId = _currentUser.IsModeratorOrAdmin ? request.UploaderId : null,
+            ReviewStatus = _currentUser.IsModeratorOrAdmin ? request.ReviewStatus : null
         };
 
         var images = await _mediator.Send(query);
