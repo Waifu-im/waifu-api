@@ -112,8 +112,8 @@ public class GetImagesRequest
     public ReviewStatus? ReviewStatus { get; set; }
 
     /// <summary>
-    /// Filter child entities (tags, artists) by review status (Moderator/Admin only). When set, only child entities with the specified status are included. When not set, all child entities are returned.
+    /// Filter child entities (tags, artists) by review status (Moderator/Admin only). Default: Accepted.
     /// </summary>
-    [Description("Filter child entities (tags, artists) by review status (Moderator/Admin only). When set, only child entities matching this status are included.")]
-    public ReviewStatus? ChildReviewStatus { get; set; }
+    [Description("Filter child entities (tags, artists) by review status (Moderator/Admin only). Default: Accepted.")]
+    public ReviewStatusFilter ChildReviewStatus { get; set; } = ReviewStatusFilter.Accepted;
 }

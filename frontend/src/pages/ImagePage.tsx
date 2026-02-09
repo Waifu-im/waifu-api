@@ -42,8 +42,8 @@ const ImagePage = () => {
       if (!silent) setIsLoading(true);
       // Removed userId query param as it's handled by auth token now
       const params: Record<string, string> = {};
-      if (!isAdminOrModerator) {
-        params.childReviewStatus = 'Accepted';
+      if (isAdminOrModerator) {
+        params.childReviewStatus = 'All';
       }
       const { data } = await api.get<ImageDto>(`/images/${id}`, { params, skipGlobalErrorHandler: true });
       setImage(data);
