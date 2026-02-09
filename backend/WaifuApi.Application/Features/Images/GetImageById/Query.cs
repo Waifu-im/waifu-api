@@ -15,7 +15,7 @@ using WaifuApi.Domain.Enums;
 
 namespace WaifuApi.Application.Features.Images.GetImageById;
 
-public record GetImageByIdQuery(long Id, long UserId, bool IsModeratorOrAdmin = false) : IQuery<ImageDto>;
+public record GetImageByIdQuery(long Id, long UserId, bool IsModeratorOrAdmin = false, ReviewStatus? ChildReviewStatus = null) : IQuery<ImageDto>;
 
 public class GetImageByIdQueryHandler : IQueryHandler<GetImageByIdQuery, ImageDto>
 {
@@ -51,7 +51,9 @@ public class GetImageByIdQueryHandler : IQueryHandler<GetImageByIdQuery, ImageDt
             Extension = image.Extension,
             DominantColor = image.DominantColor,
             Source = image.Source,
-            Artists = image.Artists.Select(a => a.ToDto()).ToList(),
+            Artists = (request.ChildReviewStatus.HasValue
+                ? image.Artists.Where(a => a.ReviewStatus == request.ChildReviewStatus.Value)
+                : image.Artists).Select(a => a.ToDto()).ToList(),
             UploaderId = request.IsModeratorOrAdmin ? image.UploaderId : null,
             UploadedAt = image.UploadedAt,
             IsNsfw = image.IsNsfw,
@@ -60,7 +62,9 @@ public class GetImageByIdQueryHandler : IQueryHandler<GetImageByIdQuery, ImageDt
             Height = image.Height,
             ByteSize = image.ByteSize,
             Url = CdnUrlHelper.GetImageUrl(_cdnBaseUrl, image.Id, image.Extension),
-            Tags = image.Tags.Where(t => t.ReviewStatus == ReviewStatus.Accepted).Select(t => t.ToDto()).ToList(),
+            Tags = (request.ChildReviewStatus.HasValue
+                ? image.Tags.Where(t => t.ReviewStatus == request.ChildReviewStatus.Value)
+                : image.Tags).Select(t => t.ToDto()).ToList(),
             ReviewStatus = image.ReviewStatus,
             Favorites = favorites,
             LikedAt = likedAt,

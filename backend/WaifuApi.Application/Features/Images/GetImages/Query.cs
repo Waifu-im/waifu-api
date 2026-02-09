@@ -44,6 +44,7 @@ public class GetImagesQuery : IQuery<PaginatedList<ImageDto>>
     // Moderator/Admin only parameters
     public long? UploaderId { get; set; }
     public bool IsModeratorOrAdmin { get; set; }
+    public ReviewStatus? ChildReviewStatus { get; set; }
 }
 
 public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList<ImageDto>>
@@ -152,7 +153,7 @@ public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList
 
         var imageDtos = images.Select(image =>
         {
-            var dto = image.ToDto(_cdnBaseUrl, request.IsModeratorOrAdmin);
+            var dto = image.ToDto(_cdnBaseUrl, request.IsModeratorOrAdmin, request.ChildReviewStatus);
             dto.Favorites = favoritesCounts.TryGetValue(image.Id, out var count) ? count : 0;
             dto.LikedAt = likedStatus.TryGetValue(image.Id, out var date) ? (DateTime?)date : null;
             dto.AddedToAlbumAt = addedToAlbumMap.TryGetValue(image.Id, out var addedAt) ? addedAt : null;

@@ -84,7 +84,8 @@ public class ImagesController : ControllerBase
             UserId = _currentUser.UserId,
             IsModeratorOrAdmin = _currentUser.IsModeratorOrAdmin,
             UploaderId = _currentUser.IsModeratorOrAdmin ? request.UploaderId : null,
-            ReviewStatus = _currentUser.IsModeratorOrAdmin ? request.ReviewStatus : null
+            ReviewStatus = _currentUser.IsModeratorOrAdmin ? request.ReviewStatus : null,
+            ChildReviewStatus = _currentUser.IsModeratorOrAdmin ? request.ChildReviewStatus : ReviewStatus.Accepted
         };
 
         var images = await _mediator.Send(query);
@@ -99,15 +100,17 @@ public class ImagesController : ControllerBase
     /// If authenticated, also includes user-specific data like favorite status.
     /// </remarks>
     /// <param name="id">The unique identifier of the image.</param>
+    /// <param name="childReviewStatus">Filter child entities (tags, artists) by review status (Moderator/Admin only).</param>
     /// <returns>The image details.</returns>
     /// <response code="200">Returns the image.</response>
     /// <response code="404">Image not found.</response>
     [HttpGet("{id:long}")]
     [ProducesResponseType(typeof(ImageDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<ImageDto>> GetById([FromRoute] long id)
+    public async Task<ActionResult<ImageDto>> GetById([FromRoute] long id, [FromQuery] ReviewStatus? childReviewStatus = null)
     {
-        var image = await _mediator.Send(new GetImageByIdQuery(id, _currentUser.UserId ?? 0, _currentUser.IsModeratorOrAdmin));
+        var effectiveChildReviewStatus = _currentUser.IsModeratorOrAdmin ? childReviewStatus : ReviewStatus.Accepted;
+        var image = await _mediator.Send(new GetImageByIdQuery(id, _currentUser.UserId ?? 0, _currentUser.IsModeratorOrAdmin, effectiveChildReviewStatus));
         return Ok(image);
     }
 
