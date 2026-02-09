@@ -8,6 +8,7 @@ using FluentValidation.Results;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using WaifuApi.Application.Common.Exceptions;
 using WaifuApi.Application.Common.Extensions;
 using WaifuApi.Application.Common.Models;
 using WaifuApi.Application.Common.Utilities;
@@ -43,8 +44,8 @@ public class GetImagesQuery : IQuery<PaginatedList<ImageDto>>
 
     // Moderator/Admin only parameters
     public long? UploaderId { get; set; }
-    public bool IsModeratorOrAdmin { get; set; }
-    public ReviewStatusFilter ChildReviewStatus { get; set; } = ReviewStatusFilter.Accepted;
+    public Role? UserRole { get; set; }
+    public ReviewStatusFilter ChildrenReviewStatus { get; set; } = ReviewStatusFilter.Accepted;
 }
 
 public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList<ImageDto>>
@@ -60,7 +61,6 @@ public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList
         _context = context;
         _cdnBaseUrl = configuration["Cdn:BaseUrl"] ?? throw new InvalidOperationException("Cdn:BaseUrl is required.");
 
-        // Use new config keys
         _defaultPageSize = int.Parse(configuration["Image:DefaultPageSize"] ?? throw new InvalidOperationException("Image:DefaultPageSize is required."));
         _maxPageSize = int.Parse(configuration["Image:MaxPageSize"] ?? throw new InvalidOperationException("Image:MaxPageSize is required."));
 
@@ -69,6 +69,19 @@ public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList
 
     public async ValueTask<PaginatedList<ImageDto>> Handle(GetImagesQuery request, CancellationToken cancellationToken)
     {
+        // Validate permission for non-Accepted review status filtering
+        if (!RoleUtils.CanAccessNonAcceptedReviewStatus(request.UserRole))
+        {
+            if (request.ReviewStatus != ReviewStatusFilter.Accepted)
+            {
+                throw new ForbiddenException("Filtering by non-accepted review status is only available to moderators and admins.");
+            }
+            if (request.ChildrenReviewStatus != ReviewStatusFilter.Accepted)
+            {
+                throw new ForbiddenException("Filtering by non-accepted review status is only available to moderators and admins.");
+            }
+        }
+
         if (request.OrderBy == ImageOrderBy.AddedToAlbum && !request.AlbumId.HasValue)
         {
             throw new ValidationException(new[]
@@ -126,7 +139,7 @@ public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList
              addedToAlbumMap = pagedItems.ToDictionary(x => x.i.Id, x => x.ai.AddedAt);
 
              var fetchQuery = _context.Images.AsNoTracking().Where(i => imageIds.Contains(i.Id));
-             fetchQuery = ApplyChildReviewStatusIncludes(fetchQuery, request.ChildReviewStatus);
+             fetchQuery = ApplyChildrenReviewStatusIncludes(fetchQuery, request.ChildrenReviewStatus);
              var fetchedImages = await fetchQuery.ToListAsync(cancellationToken);
              images = imageIds.Select(id => fetchedImages.First(img => img.Id == id)).ToList();
         }
@@ -140,7 +153,7 @@ public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList
             };
 
             totalCount = await query.CountAsync(cancellationToken);
-            query = ApplyChildReviewStatusIncludes(query, request.ChildReviewStatus);
+            query = ApplyChildrenReviewStatusIncludes(query, request.ChildrenReviewStatus);
             images = await query.Skip((request.Page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
         }
 
@@ -154,9 +167,10 @@ public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList
              foreach (var item in userAlbums) { if (!userAlbumsMap.ContainsKey(item.ImageId)) userAlbumsMap[item.ImageId] = new List<AlbumDto>(); userAlbumsMap[item.ImageId].Add(item.Album); }
         }
 
+        var isModeratorOrAdmin = RoleUtils.IsModeratorOrAdmin(request.UserRole);
         var imageDtos = images.Select(image =>
         {
-            var dto = image.ToDto(_cdnBaseUrl, request.IsModeratorOrAdmin);
+            var dto = image.ToDto(_cdnBaseUrl, isModeratorOrAdmin);
             dto.Favorites = favoritesCounts.TryGetValue(image.Id, out var count) ? count : 0;
             dto.LikedAt = likedStatus.TryGetValue(image.Id, out var date) ? (DateTime?)date : null;
             dto.AddedToAlbumAt = addedToAlbumMap.TryGetValue(image.Id, out var addedAt) ? addedAt : null;
@@ -167,7 +181,7 @@ public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList
         return new PaginatedList<ImageDto>(imageDtos, totalCount, request.Page, pageSize, _maxPageSize, _defaultPageSize);
     }
 
-    private static IQueryable<Image> ApplyChildReviewStatusIncludes(IQueryable<Image> query, ReviewStatusFilter filter)
+    private static IQueryable<Image> ApplyChildrenReviewStatusIncludes(IQueryable<Image> query, ReviewStatusFilter filter)
     {
         return filter switch
         {

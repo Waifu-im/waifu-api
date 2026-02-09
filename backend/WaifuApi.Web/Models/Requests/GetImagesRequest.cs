@@ -115,5 +115,5 @@ public class GetImagesRequest
     /// Filter child entities (tags, artists) by review status (Moderator/Admin only). Default: Accepted.
     /// </summary>
     [Description("Filter child entities (tags, artists) by review status (Moderator/Admin only). Default: Accepted.")]
-    public ReviewStatusFilter ChildReviewStatus { get; set; } = ReviewStatusFilter.Accepted;
+    public ReviewStatusFilter ChildrenReviewStatus { get; set; } = ReviewStatusFilter.Accepted;
 }

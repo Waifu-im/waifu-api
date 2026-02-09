@@ -66,13 +66,6 @@ public class ImagesController : ControllerBase
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<PaginatedList<ImageDto>>> Get([FromQuery] GetImagesRequest request)
     {
-        // Check permission for non-Accepted review status filtering
-        if (!_currentUser.IsModeratorOrAdmin &&
-            (request.ReviewStatus != ReviewStatusFilter.Accepted || request.ChildReviewStatus != ReviewStatusFilter.Accepted))
-        {
-            throw new ForbiddenException("Filtering by non-accepted review status is only available to moderators and admins.");
-        }
-
         var query = new GetImagesQuery
         {
             IsNsfw = request.IsNsfw,
@@ -91,10 +84,10 @@ public class ImagesController : ControllerBase
             Page = request.Page,
             PageSize = request.PageSize,
             UserId = _currentUser.UserId,
-            IsModeratorOrAdmin = _currentUser.IsModeratorOrAdmin,
+            UserRole = _currentUser.UserRole,
             UploaderId = _currentUser.IsModeratorOrAdmin ? request.UploaderId : null,
             ReviewStatus = request.ReviewStatus,
-            ChildReviewStatus = request.ChildReviewStatus
+            ChildrenReviewStatus = request.ChildrenReviewStatus
         };
 
         var images = await _mediator.Send(query);
@@ -109,7 +102,7 @@ public class ImagesController : ControllerBase
     /// If authenticated, also includes user-specific data like favorite status.
     /// </remarks>
     /// <param name="id">The unique identifier of the image.</param>
-    /// <param name="childReviewStatus">Filter child entities (tags, artists) by review status (Moderator/Admin only). Default: Accepted.</param>
+    /// <param name="childrenReviewStatus">Filter child entities (tags, artists) by review status (Moderator/Admin only). Default: Accepted.</param>
     /// <returns>The image details.</returns>
     /// <response code="200">Returns the image.</response>
     /// <response code="404">Image not found.</response>
@@ -117,15 +110,9 @@ public class ImagesController : ControllerBase
     [ProducesResponseType(typeof(ImageDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status403Forbidden)]
-    public async Task<ActionResult<ImageDto>> GetById([FromRoute] long id, [FromQuery] ReviewStatusFilter childReviewStatus = ReviewStatusFilter.Accepted)
+    public async Task<ActionResult<ImageDto>> GetById([FromRoute] long id, [FromQuery] ReviewStatusFilter childrenReviewStatus = ReviewStatusFilter.Accepted)
     {
-        // Check permission for non-Accepted review status filtering
-        if (!_currentUser.IsModeratorOrAdmin && childReviewStatus != ReviewStatusFilter.Accepted)
-        {
-            throw new ForbiddenException("Filtering by non-accepted review status is only available to moderators and admins.");
-        }
-
-        var image = await _mediator.Send(new GetImageByIdQuery(id, _currentUser.UserId ?? 0, _currentUser.IsModeratorOrAdmin, childReviewStatus));
+        var image = await _mediator.Send(new GetImageByIdQuery(id, _currentUser.UserId ?? 0, _currentUser.UserRole, childrenReviewStatus));
         return Ok(image);
     }
 

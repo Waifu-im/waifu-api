@@ -6,7 +6,9 @@ using System.Threading.Tasks;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using WaifuApi.Application.Common.Exceptions;
 using WaifuApi.Application.Common.Models;
+using WaifuApi.Application.Common.Utilities;
 using WaifuApi.Application.Interfaces;
 using WaifuApi.Domain.Entities;
 using WaifuApi.Domain.Enums;
@@ -23,7 +25,7 @@ public class GetArtistsQuery : IQuery<PaginatedList<ArtistDto>>
 
     // Internal parameter (set by controller, never exposed via query string)
     public ReviewStatusFilter ReviewStatus { get; set; } = ReviewStatusFilter.Accepted;
-    public bool IsModeratorOrAdmin { get; set; }
+    public Role? UserRole { get; set; }
 }
 
 public class GetArtistsQueryHandler : IQueryHandler<GetArtistsQuery, PaginatedList<ArtistDto>>
@@ -41,6 +43,14 @@ public class GetArtistsQueryHandler : IQueryHandler<GetArtistsQuery, PaginatedLi
 
     public async ValueTask<PaginatedList<ArtistDto>> Handle(GetArtistsQuery request, CancellationToken cancellationToken)
     {
+        // Validate permission for non-Accepted review status filtering
+        if (!RoleUtils.CanAccessNonAcceptedReviewStatus(request.UserRole) &&
+            request.ReviewStatus != ReviewStatusFilter.Accepted)
+        {
+            throw new ForbiddenException("Filtering by non-accepted review status is only available to moderators and admins.");
+        }
+
+        var isModeratorOrAdmin = RoleUtils.IsModeratorOrAdmin(request.UserRole);
         var query = _context.Artists.AsNoTracking();
 
         // When includedIds is provided, fetch exactly those artists (ignore other filters and pagination)
@@ -57,7 +67,7 @@ public class GetArtistsQueryHandler : IQueryHandler<GetArtistsQuery, PaginatedLi
                 Twitter = a.Twitter,
                 DeviantArt = a.DeviantArt,
                 ReviewStatus = a.ReviewStatus,
-                CreatorId = request.IsModeratorOrAdmin ? a.CreatorId : null,
+                CreatorId = isModeratorOrAdmin ? a.CreatorId : null,
                 ImageCount = a.Images.Count(i => i.ReviewStatus == ReviewStatus.Accepted)
             }).ToListAsync(cancellationToken);
 
@@ -95,7 +105,7 @@ public class GetArtistsQueryHandler : IQueryHandler<GetArtistsQuery, PaginatedLi
             Twitter = a.Twitter,
             DeviantArt = a.DeviantArt,
             ReviewStatus = a.ReviewStatus,
-            CreatorId = request.IsModeratorOrAdmin ? a.CreatorId : null,
+            CreatorId = isModeratorOrAdmin ? a.CreatorId : null,
             ImageCount = a.Images.Count(i => i.ReviewStatus == ReviewStatus.Accepted)
         }).OrderByDescending(a => a.ImageCount);
 

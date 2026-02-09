@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using WaifuApi.Application.Common.Exceptions;
 using WaifuApi.Application.Common.Extensions;
 using WaifuApi.Application.Common.Models;
 using WaifuApi.Application.Common.Utilities;
@@ -15,7 +16,7 @@ using WaifuApi.Domain.Enums;
 
 namespace WaifuApi.Application.Features.Images.GetImageById;
 
-public record GetImageByIdQuery(long Id, long UserId, bool IsModeratorOrAdmin = false, ReviewStatusFilter ChildReviewStatus = ReviewStatusFilter.Accepted) : IQuery<ImageDto>;
+public record GetImageByIdQuery(long Id, long UserId, Role? UserRole = null, ReviewStatusFilter ChildrenReviewStatus = ReviewStatusFilter.Accepted) : IQuery<ImageDto>;
 
 public class GetImageByIdQueryHandler : IQueryHandler<GetImageByIdQuery, ImageDto>
 {
@@ -32,8 +33,15 @@ public class GetImageByIdQueryHandler : IQueryHandler<GetImageByIdQuery, ImageDt
 
     public async ValueTask<ImageDto> Handle(GetImageByIdQuery request, CancellationToken cancellationToken)
     {
+        // Validate permission for non-Accepted review status filtering
+        if (!RoleUtils.CanAccessNonAcceptedReviewStatus(request.UserRole) &&
+            request.ChildrenReviewStatus != ReviewStatusFilter.Accepted)
+        {
+            throw new ForbiddenException("Filtering by non-accepted review status is only available to moderators and admins.");
+        }
+
         var query = _context.Images.AsNoTracking();
-        query = request.ChildReviewStatus switch
+        query = request.ChildrenReviewStatus switch
         {
             ReviewStatusFilter.All => query.Include(i => i.Tags).Include(i => i.Artists),
             ReviewStatusFilter.Pending => query
@@ -52,6 +60,7 @@ public class GetImageByIdQueryHandler : IQueryHandler<GetImageByIdQuery, ImageDt
         var likedAt = request.UserId > 0 ? await _context.AlbumItems.Where(ai => ai.ImageId == image.Id && ai.Album.UserId == request.UserId && ai.Album.IsDefault).Select(ai => (DateTime?)ai.AddedAt).FirstOrDefaultAsync(cancellationToken) : null;
         var albums = request.UserId > 0 ? await _context.AlbumItems.Where(ai => ai.ImageId == image.Id && ai.Album.UserId == request.UserId).Select(ai => new AlbumDto { Id = ai.Album.Id, Name = ai.Album.Name, UserId = ai.Album.UserId, IsDefault = ai.Album.IsDefault }).ToListAsync(cancellationToken) : new List<AlbumDto>();
 
+        var isModeratorOrAdmin = RoleUtils.IsModeratorOrAdmin(request.UserRole);
         return new ImageDto
         {
             Id = image.Id,
@@ -60,7 +69,7 @@ public class GetImageByIdQueryHandler : IQueryHandler<GetImageByIdQuery, ImageDt
             DominantColor = image.DominantColor,
             Source = image.Source,
             Artists = image.Artists.Select(a => a.ToDto()).ToList(),
-            UploaderId = request.IsModeratorOrAdmin ? image.UploaderId : null,
+            UploaderId = isModeratorOrAdmin ? image.UploaderId : null,
             UploadedAt = image.UploadedAt,
             IsNsfw = image.IsNsfw,
             IsAnimated = image.IsAnimated,

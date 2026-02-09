@@ -6,7 +6,9 @@ using System.Threading.Tasks;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using WaifuApi.Application.Common.Exceptions;
 using WaifuApi.Application.Common.Models;
+using WaifuApi.Application.Common.Utilities;
 using WaifuApi.Application.Interfaces;
 using WaifuApi.Domain.Enums;
 
@@ -23,7 +25,7 @@ public class GetTagsQuery : IQuery<PaginatedList<TagDto>>
 
     // Internal parameter (set by controller, never exposed via query string)
     public ReviewStatusFilter ReviewStatus { get; set; } = ReviewStatusFilter.Accepted;
-    public bool IsModeratorOrAdmin { get; set; }
+    public Role? UserRole { get; set; }
 }
 
 public class GetTagsQueryHandler : IQueryHandler<GetTagsQuery, PaginatedList<TagDto>>
@@ -41,6 +43,14 @@ public class GetTagsQueryHandler : IQueryHandler<GetTagsQuery, PaginatedList<Tag
 
     public async ValueTask<PaginatedList<TagDto>> Handle(GetTagsQuery request, CancellationToken cancellationToken)
     {
+        // Validate permission for non-Accepted review status filtering
+        if (!RoleUtils.CanAccessNonAcceptedReviewStatus(request.UserRole) &&
+            request.ReviewStatus != ReviewStatusFilter.Accepted)
+        {
+            throw new ForbiddenException("Filtering by non-accepted review status is only available to moderators and admins.");
+        }
+
+        var isModeratorOrAdmin = RoleUtils.IsModeratorOrAdmin(request.UserRole);
         var query = _context.Tags.AsNoTracking();
 
         // When includedIds or includedSlugs is provided, fetch exactly those tags (ignore other filters and pagination)
@@ -62,7 +72,7 @@ public class GetTagsQueryHandler : IQueryHandler<GetTagsQuery, PaginatedList<Tag
                 Slug = t.Slug,
                 Description = t.Description,
                 ReviewStatus = t.ReviewStatus,
-                CreatorId = request.IsModeratorOrAdmin ? t.CreatorId : null,
+                CreatorId = isModeratorOrAdmin ? t.CreatorId : null,
                 ImageCount = t.Images.Count(i => i.ReviewStatus == ReviewStatus.Accepted)
             }).ToListAsync(cancellationToken);
 
@@ -98,7 +108,7 @@ public class GetTagsQueryHandler : IQueryHandler<GetTagsQuery, PaginatedList<Tag
             Slug = t.Slug,
             Description = t.Description,
             ReviewStatus = t.ReviewStatus,
-            CreatorId = request.IsModeratorOrAdmin ? t.CreatorId : null,
+            CreatorId = isModeratorOrAdmin ? t.CreatorId : null,
             ImageCount = t.Images.Count(i => i.ReviewStatus == ReviewStatus.Accepted)
         }).OrderByDescending(t => t.ImageCount);
 

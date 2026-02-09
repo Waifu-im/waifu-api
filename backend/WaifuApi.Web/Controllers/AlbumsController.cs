@@ -215,13 +215,6 @@ public class AlbumsController : ControllerBase
 
         if (resolvedAlbumId == null) return NotFound();
 
-        // Check permission for non-Accepted review status filtering
-        if (!_currentUserService.IsModeratorOrAdmin &&
-            (request.ReviewStatus != ReviewStatusFilter.Accepted || request.ChildReviewStatus != ReviewStatusFilter.Accepted))
-        {
-            throw new ForbiddenException("Filtering by non-accepted review status is only available to moderators and admins.");
-        }
-
         // Map Request to Query with AlbumId
         var query = new GetImagesQuery
         {
@@ -242,9 +235,9 @@ public class AlbumsController : ControllerBase
             PageSize = request.PageSize,
             AlbumId = resolvedAlbumId,
             UserId = _currentUserService.UserId,
-            IsModeratorOrAdmin = _currentUserService.IsModeratorOrAdmin,
+            UserRole = _currentUserService.UserRole,
             ReviewStatus = request.ReviewStatus,
-            ChildReviewStatus = request.ChildReviewStatus
+            ChildrenReviewStatus = request.ChildrenReviewStatus
         };
 
         var images = await _mediator.Send(query);
