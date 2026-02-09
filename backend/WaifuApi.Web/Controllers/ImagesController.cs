@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using WaifuApi.Application.Common.Constants;
+using WaifuApi.Application.Common.Exceptions;
 using WaifuApi.Application.Common.Models;
 using WaifuApi.Application.Features.Images.GetImageById;
 using WaifuApi.Application.Features.Images.GetImages;
@@ -62,8 +63,16 @@ public class ImagesController : ControllerBase
     [HttpGet]
     [ProducesResponseType(typeof(PaginatedList<ImageDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<PaginatedList<ImageDto>>> Get([FromQuery] GetImagesRequest request)
     {
+        // Check permission for non-Accepted review status filtering
+        if (!_currentUser.IsModeratorOrAdmin &&
+            (request.ReviewStatus != ReviewStatusFilter.Accepted || request.ChildReviewStatus != ReviewStatusFilter.Accepted))
+        {
+            throw new ForbiddenException("Filtering by non-accepted review status is only available to moderators and admins.");
+        }
+
         var query = new GetImagesQuery
         {
             IsNsfw = request.IsNsfw,
@@ -84,8 +93,8 @@ public class ImagesController : ControllerBase
             UserId = _currentUser.UserId,
             IsModeratorOrAdmin = _currentUser.IsModeratorOrAdmin,
             UploaderId = _currentUser.IsModeratorOrAdmin ? request.UploaderId : null,
-            ReviewStatus = _currentUser.IsModeratorOrAdmin ? request.ReviewStatus : ReviewStatusFilter.Accepted,
-            ChildReviewStatus = _currentUser.IsModeratorOrAdmin ? request.ChildReviewStatus : ReviewStatusFilter.Accepted
+            ReviewStatus = request.ReviewStatus,
+            ChildReviewStatus = request.ChildReviewStatus
         };
 
         var images = await _mediator.Send(query);
@@ -107,10 +116,16 @@ public class ImagesController : ControllerBase
     [HttpGet("{id:long}")]
     [ProducesResponseType(typeof(ImageDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<ImageDto>> GetById([FromRoute] long id, [FromQuery] ReviewStatusFilter childReviewStatus = ReviewStatusFilter.Accepted)
     {
-        var effectiveChildReviewStatus = _currentUser.IsModeratorOrAdmin ? childReviewStatus : ReviewStatusFilter.Accepted;
-        var image = await _mediator.Send(new GetImageByIdQuery(id, _currentUser.UserId ?? 0, _currentUser.IsModeratorOrAdmin, effectiveChildReviewStatus));
+        // Check permission for non-Accepted review status filtering
+        if (!_currentUser.IsModeratorOrAdmin && childReviewStatus != ReviewStatusFilter.Accepted)
+        {
+            throw new ForbiddenException("Filtering by non-accepted review status is only available to moderators and admins.");
+        }
+
+        var image = await _mediator.Send(new GetImageByIdQuery(id, _currentUser.UserId ?? 0, _currentUser.IsModeratorOrAdmin, childReviewStatus));
         return Ok(image);
     }
 

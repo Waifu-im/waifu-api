@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using WaifuApi.Application.Common.Constants;
+using WaifuApi.Application.Common.Exceptions;
 using WaifuApi.Application.Common.Models;
 using WaifuApi.Application.Features.Artists.CreateArtist;
 using WaifuApi.Application.Features.Artists.DeleteArtist;
@@ -60,8 +61,15 @@ public class ArtistsController : ControllerBase
     /// <response code="200">Returns the list of artists.</response>
     [HttpGet]
     [ProducesResponseType(typeof(PaginatedList<ArtistDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<PaginatedList<ArtistDto>>> Get([FromQuery] GetArtistsRequest request)
     {
+        // Check permission for non-Accepted review status filtering
+        if (!_currentUser.IsModeratorOrAdmin && request.ReviewStatus != ReviewStatusFilter.Accepted)
+        {
+            throw new ForbiddenException("Filtering by non-accepted review status is only available to moderators and admins.");
+        }
+
         var query = new GetArtistsQuery
         {
             Name = request.Name,
@@ -69,7 +77,7 @@ public class ArtistsController : ControllerBase
             Page = request.Page,
             PageSize = request.PageSize,
             IsModeratorOrAdmin = _currentUser.IsModeratorOrAdmin,
-            ReviewStatus = _currentUser.IsModeratorOrAdmin ? request.ReviewStatus : ReviewStatusFilter.Accepted
+            ReviewStatus = request.ReviewStatus
         };
 
         var artists = await _mediator.Send(query);
