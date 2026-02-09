@@ -1,12 +1,14 @@
 ﻿import { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Plus, ChevronDown, Check, Loader2 } from 'lucide-react';
+import { X, Plus, ChevronDown, Check, Loader2, Clock } from 'lucide-react';
 import { useDebounce } from '../hooks/useDebounce';
+import { ReviewStatus } from '../types';
 
 export interface Option {
     id: number | string;
     name: string;
     description?: string;
     slug?: string;
+    reviewStatus?: ReviewStatus;
     [key: string]: any;
 }
 
@@ -157,7 +159,12 @@ const SearchableSelect = ({
                 )}
 
                 {selectedOptions.map(option => (
-                    <span key={option.id} className="bg-secondary text-secondary-foreground px-2.5 py-1 rounded-lg text-sm font-medium flex items-center gap-1.5 animate-in fade-in zoom-in duration-200">
+                    <span key={option.id} className={`px-2.5 py-1 rounded-lg text-sm font-medium flex items-center gap-1.5 animate-in fade-in zoom-in duration-200 ${
+                        option.reviewStatus === ReviewStatus.Pending
+                            ? 'bg-yellow-500/10 text-yellow-600 border border-yellow-500/20'
+                            : 'bg-secondary text-secondary-foreground'
+                    }`}>
+                        {option.reviewStatus === ReviewStatus.Pending && <Clock size={12} className="shrink-0" />}
                         {option.name}
                         {clearable && (
                             <button
@@ -212,6 +219,8 @@ const SearchableSelect = ({
                             return sKey?.toLowerCase() === oKey?.toLowerCase();
                         });
 
+                        const isPending = option.reviewStatus === ReviewStatus.Pending;
+
                         return (
                             <div
                                 key={option.id}
@@ -223,7 +232,8 @@ const SearchableSelect = ({
                                 onClick={() => handleOptionClick(option)}
                             >
                                 <div className="flex items-center gap-2 overflow-hidden">
-                                    {isSelected && <Check size={14} />}
+                                    {isSelected && <Check size={14} className="shrink-0" />}
+                                    {isPending && <Clock size={12} className="shrink-0 text-yellow-500" />}
                                     <span className="truncate">{option.name}</span>
                                 </div>
                                 {option.description && <span className="text-xs text-muted-foreground truncate ml-2 max-w-[40%] opacity-70">{option.description}</span>}

@@ -2,7 +2,7 @@
 import { ArrowRight, Book, Wifi, WifiOff, Image as ImageIcon, Tag as TagIcon, Users, Activity } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import api from '../services/api';
-import { ImageDto, PaginatedList } from '../types';
+import { ImageDto, PaginatedList, NsfwMode, Orientation, AnimatedMode } from '../types';
 import { getEnv } from '../utils/env';
 import Skeleton from '../components/Skeleton';
 
@@ -35,10 +35,10 @@ const Home = () => {
             try {
                 const { data } = await api.get<PaginatedList<ImageDto>>('/images', {
                     params: {
-                        isNsfw: 0,
+                        isNsfw: NsfwMode.False,
                         pageSize: 1,
-                        orientation: 'LANDSCAPE',
-                        isAnimated: false,
+                        orientation: Orientation.Landscape,
+                        isAnimated: AnimatedMode.False,
                         width: '>=1000'
                     },
                     skipGlobalErrorHandler: true

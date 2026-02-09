@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import SearchableSelect, { Option } from './SearchableSelect';
 import api from '../services/api';
-import { PaginatedList, Tag, Artist, User, NsfwMode, AnimatedMode, Orientation, Role } from '../types';
+import { PaginatedList, Tag, Artist, User, NsfwMode, AnimatedMode, Orientation, Role, ImageOrderBy } from '../types';
 import { X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -40,8 +40,8 @@ const FilterSidebar = ({ searchParams, setSearchParams, showFilters, setShowFilt
                     api.get<PaginatedList<Artist>>('/artists', { params: { pageSize: artistsPageSize } })
                 ]);
 
-                setInitialTags(tagsRes.data.items.map(t => ({ id: t.id, name: t.name, slug: t.slug })));
-                setInitialArtists(artistsRes.data.items.map(a => ({ id: a.id, name: a.name })));
+                setInitialTags(tagsRes.data.items.map(t => ({ id: t.id, name: t.name, slug: t.slug, reviewStatus: t.reviewStatus })));
+                setInitialArtists(artistsRes.data.items.map(a => ({ id: a.id, name: a.name, reviewStatus: a.reviewStatus })));
 
                 if (isModeratorOrAdmin) {
                     const usersRes = await api.get<PaginatedList<User>>('/users', { params: { pageSize: usersPageSize } });
@@ -71,7 +71,7 @@ const FilterSidebar = ({ searchParams, setSearchParams, showFilters, setShowFilt
 
             api.get<PaginatedList<Artist>>('/artists', { params: { includedIds: missingIds } })
                 .then(res => {
-                    const newArtists = res.data.items.map(a => ({ id: a.id, name: a.name } as Option));
+                    const newArtists = res.data.items.map(a => ({ id: a.id, name: a.name, reviewStatus: a.reviewStatus } as Option));
                     if (newArtists.length > 0) {
                         setInitialArtists(prev => [...prev, ...newArtists]);
                     }
@@ -94,7 +94,7 @@ const FilterSidebar = ({ searchParams, setSearchParams, showFilters, setShowFilt
 
             api.get<PaginatedList<Tag>>('/tags', { params: { includedSlugs: missingSlugs } })
                 .then(res => {
-                    const newTags = res.data.items.map(t => ({ id: t.id, name: t.name, slug: t.slug } as Option));
+                    const newTags = res.data.items.map(t => ({ id: t.id, name: t.name, slug: t.slug, reviewStatus: t.reviewStatus } as Option));
                     if (newTags.length > 0) {
                         setInitialTags(prev => [...prev, ...newTags]);
                     }
@@ -127,12 +127,12 @@ const FilterSidebar = ({ searchParams, setSearchParams, showFilters, setShowFilt
 
     const loadTags = async (query: string, page: number = 1) => {
         const { data } = await api.get<PaginatedList<Tag>>('/tags', { params: { name: query, pageSize: tagsPageSize, page } });
-        return data.items.map(t => ({ id: t.id, name: t.name, slug: t.slug, description: t.description }));
+        return data.items.map(t => ({ id: t.id, name: t.name, slug: t.slug, description: t.description, reviewStatus: t.reviewStatus }));
     };
 
     const loadArtists = async (query: string, page: number = 1) => {
         const { data } = await api.get<PaginatedList<Artist>>('/artists', { params: { name: query, pageSize: artistsPageSize, page } });
-        return data.items.map(a => ({ id: a.id, name: a.name }));
+        return data.items.map(a => ({ id: a.id, name: a.name, reviewStatus: a.reviewStatus }));
     };
 
     const loadUsers = async (query: string, page: number = 1) => {
@@ -236,7 +236,7 @@ const FilterSidebar = ({ searchParams, setSearchParams, showFilters, setShowFilt
         }
     };
 
-    const orderBy = searchParams.get('orderBy') || 'UploadedAt';
+    const orderBy = searchParams.get('orderBy') || ImageOrderBy.UploadedAt;
     const isNsfw = searchParams.get('isNsfw') || NsfwMode.False;
     const orientation = searchParams.get('orientation') || Orientation.All;
     const isAnimated = searchParams.get('isAnimated') || AnimatedMode.All;

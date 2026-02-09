@@ -98,6 +98,13 @@ export enum ReviewStatus {
   Rejected = 'Rejected'
 }
 
+// Matches backend ReviewStatusFilter enum
+export enum ReviewStatusFilter {
+  Accepted = 'Accepted',
+  Pending = 'Pending',
+  All = 'All'
+}
+
 // Matches backend NsfwMode enum
 export enum NsfwMode {
   False = 'False',

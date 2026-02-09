@@ -9,7 +9,7 @@ interface NsfwWarningProps {
 const NsfwWarning = ({ variant, onConsent, onDecline }: NsfwWarningProps) => {
     if (variant === 'overlay') {
         return (
-            <div className="absolute inset-0 bg-background/95 backdrop-blur-3xl flex items-center justify-center p-4 z-10">
+            <div className="absolute inset-0 bg-background/95 backdrop-blur-xl flex items-center justify-center p-4 z-10">
                 <div className="text-center max-w-sm">
                     <AlertTriangle size={48} className="text-destructive mx-auto mb-4" />
                     <h3 className="text-2xl font-bold mb-2">NSFW Content</h3>
@@ -35,7 +35,7 @@ const NsfwWarning = ({ variant, onConsent, onDecline }: NsfwWarningProps) => {
 
     // Modal variant (fullscreen)
     return (
-        <div className="fixed inset-0 z-[60] bg-black/90 flex items-center justify-center p-4 backdrop-blur-3xl">
+        <div className="fixed inset-0 z-[60] bg-black/90 flex items-center justify-center p-4 backdrop-blur-xl">
             <div className="bg-card p-8 rounded-2xl max-w-sm w-full text-center border border-border shadow-2xl">
                 <AlertTriangle size={48} className="text-destructive mx-auto mb-4" />
                 <h2 className="text-2xl font-black mb-2">Age Restricted</h2>

@@ -54,8 +54,8 @@ const ImageModal = ({ isOpen, onClose, initialData, onSubmit, onDelete }: ImageM
         if (initialData) {
             setSource(initialData.source || '');
             setIsNsfw(initialData.isNsfw);
-            setSelectedTags(initialData.tags ? initialData.tags.map(t => ({ id: t.id, name: t.name, slug: t.slug, description: t.description })) : []);
-            setSelectedArtists(initialData.artists ? initialData.artists.map(a => ({ id: a.id, name: a.name })) : []);
+            setSelectedTags(initialData.tags ? initialData.tags.map(t => ({ id: t.id, name: t.name, slug: t.slug, description: t.description, reviewStatus: t.reviewStatus })) : []);
+            setSelectedArtists(initialData.artists ? initialData.artists.map(a => ({ id: a.id, name: a.name, reviewStatus: a.reviewStatus })) : []);
             setReviewStatus(initialData.reviewStatus ?? ReviewStatus.Pending);
             setSelectedFile(null);
             setPreviewUrl(null);

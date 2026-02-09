@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
-import { ImageDto, Artist, Tag, ImageFormData, PaginatedList, Role } from '../types';
+import { ImageDto, Artist, Tag, ImageFormData, PaginatedList, Role, ReviewStatusFilter, NsfwMode, ImageOrderBy } from '../types';
 import { useNotification } from '../context/NotificationContext';
 import { Check, FileCheck, Edit2, ExternalLink, Link as LinkIcon, Trash2 } from 'lucide-react';
 import ImageModal from '../components/modals/ImageModal';
@@ -43,15 +43,36 @@ const Review = () => {
         setLoading(true);
         try {
             if (tab === 'images') {
-                const { data } = await api.get<PaginatedList<ImageDto>>('/images', { params: { reviewStatus: 'Pending', isNsfw: 'All', orderBy: 'UploadedAt', page, pageSize } });
+                const { data } = await api.get<PaginatedList<ImageDto>>('/images', {
+                    params: {
+                        reviewStatus: ReviewStatusFilter.Pending,
+                        isNsfw: NsfwMode.All,
+                        childrenReviewStatus: ReviewStatusFilter.All,
+                        orderBy: ImageOrderBy.UploadedAt,
+                        page,
+                        pageSize
+                    }
+                });
                 setImages(data.items);
                 setTotalPages(data.totalPages);
             } else if (tab === 'artists') {
-                const { data } = await api.get<PaginatedList<Artist>>('/artists', { params: { reviewStatus: 'Pending', page, pageSize } });
+                const { data } = await api.get<PaginatedList<Artist>>('/artists', {
+                    params: {
+                        reviewStatus: ReviewStatusFilter.Pending,
+                        page,
+                        pageSize
+                    }
+                });
                 setArtists(data.items);
                 setTotalPages(data.totalPages);
             } else {
-                const { data } = await api.get<PaginatedList<Tag>>('/tags', { params: { reviewStatus: 'Pending', page, pageSize } });
+                const { data } = await api.get<PaginatedList<Tag>>('/tags', {
+                    params: {
+                        reviewStatus: ReviewStatusFilter.Pending,
+                        page,
+                        pageSize
+                    }
+                });
                 setTags(data.items);
                 setTotalPages(data.totalPages);
             }

@@ -14,5 +14,31 @@ echo "  VITE_GITHUB_URL: \"${VITE_GITHUB_URL}\"," >> /usr/share/nginx/html/confi
 echo "  VITE_TOS_URL: \"${VITE_TOS_URL}\"" >> /usr/share/nginx/html/config.js
 echo "};" >> /usr/share/nginx/html/config.js
 
+# Generate site.webmanifest with environment variables
+APP_TITLE="${VITE_APP_TITLE:-Waifu.im}"
+cat > /usr/share/nginx/html/site.webmanifest <<EOF
+{
+  "name": "$APP_TITLE",
+  "short_name": "$APP_TITLE",
+  "description": "The API for your Waifu content",
+  "icons": [
+    {
+      "src": "/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "theme_color": "#ffffff",
+  "background_color": "#ffffff",
+  "display": "standalone",
+  "start_url": "/"
+}
+EOF
+
 # Execute the CMD
 exec "$@"

@@ -34,19 +34,19 @@ export const useMetadata = (isReviewMode: boolean = false) => {
 
     // Loaders
     const loadTags = async (query: string, page: number = 1) => {
-        const { data } = await api.get<PaginatedList<Tag>>('/tags', { 
-            params: { search: query, pageSize: tagsPageSize, page, reviewStatus: ReviewStatus.Accepted }, 
-            skipGlobalErrorHandler: true 
+        const { data } = await api.get<PaginatedList<Tag>>('/tags', {
+            params: { name: query, pageSize: tagsPageSize, page, reviewStatus: ReviewStatus.Accepted },
+            skipGlobalErrorHandler: true
         });
-        return data.items.map(t => ({ id: t.id, name: t.name, slug: t.slug, description: t.description }));
+        return data.items.map(t => ({ id: t.id, name: t.name, slug: t.slug, description: t.description, reviewStatus: t.reviewStatus }));
     };
 
     const loadArtists = async (query: string, page: number = 1) => {
-        const { data } = await api.get<PaginatedList<Artist>>('/artists', { 
-            params: { search: query, pageSize: artistsPageSize, page, reviewStatus: ReviewStatus.Accepted },
-            skipGlobalErrorHandler: true 
+        const { data } = await api.get<PaginatedList<Artist>>('/artists', {
+            params: { name: query, pageSize: artistsPageSize, page, reviewStatus: ReviewStatus.Accepted },
+            skipGlobalErrorHandler: true
         });
-        return data.items.map(a => ({ id: a.id, name: a.name }));
+        return data.items.map(a => ({ id: a.id, name: a.name, reviewStatus: a.reviewStatus }));
     };
 
     // Creators
@@ -55,7 +55,7 @@ export const useMetadata = (isReviewMode: boolean = false) => {
             // Ensure description is not undefined/null to avoid validation errors if backend requires it
             const payload = { ...data, description: data.description || '' };
             const res = await api.post<Tag>('/tags', payload); // Removed skipGlobalErrorHandler: true
-            const newOpt = { id: res.data.id, name: res.data.name, slug: res.data.slug, description: res.data.description };
+            const newOpt = { id: res.data.id, name: res.data.name, slug: res.data.slug, description: res.data.description, reviewStatus: res.data.reviewStatus };
 
             setSelectedTags(p => p.some(t => t.id === newOpt.id) ? p : [...p, newOpt]);
             showNotification(isReviewMode ? 'info' : 'success', isReviewMode ? 'Tag submitted for review' : 'Tag created');
@@ -66,7 +66,7 @@ export const useMetadata = (isReviewMode: boolean = false) => {
                     const targetSlug = data.slug || slugify(data.name);
                     const existingRes = await api.get<Tag>(`/tags/by-slug/${targetSlug}`, { skipGlobalErrorHandler: true });
                     const existing = existingRes.data;
-                    const existingOpt = { id: existing.id, name: existing.name, slug: existing.slug, description: existing.description };
+                    const existingOpt = { id: existing.id, name: existing.name, slug: existing.slug, description: existing.description, reviewStatus: existing.reviewStatus };
 
                     setSelectedTags(p => p.some(t => t.id === existingOpt.id) ? p : [...p, existingOpt]);
                     showNotification('info', 'Tag already exists, added to selection.');
@@ -74,7 +74,7 @@ export const useMetadata = (isReviewMode: boolean = false) => {
                 } catch (fetchErr) {
                     showNotification('error', 'Tag already exists but could not be retrieved.');
                 }
-            } 
+            }
             // Other errors are now handled by the global error handler because we removed skipGlobalErrorHandler: true
         }
     };
@@ -82,7 +82,7 @@ export const useMetadata = (isReviewMode: boolean = false) => {
     const handleCreateArtist = async (data: ArtistFormData) => {
         try {
             const res = await api.post<Artist>('/artists', data); // Removed skipGlobalErrorHandler: true
-            const newOption = { id: res.data.id, name: res.data.name };
+            const newOption = { id: res.data.id, name: res.data.name, reviewStatus: res.data.reviewStatus };
             setSelectedArtists(p => p.some(a => a.id === newOption.id) ? p : [...p, newOption]);
             showNotification(isReviewMode ? 'info' : 'success', isReviewMode ? 'Artist submitted for review' : 'Artist created');
             setShowCreateArtistModal(false);
@@ -91,7 +91,7 @@ export const useMetadata = (isReviewMode: boolean = false) => {
                 try {
                     const existingRes = await api.get<Artist>(`/artists/by-name/${data.name}`, { skipGlobalErrorHandler: true });
                     const existing = existingRes.data;
-                    const existingOpt = { id: existing.id, name: existing.name };
+                    const existingOpt = { id: existing.id, name: existing.name, reviewStatus: existing.reviewStatus };
 
                     setSelectedArtists(p => p.some(a => a.id === existingOpt.id) ? p : [...p, existingOpt]);
                     showNotification('info', 'Artist already exists, selected.');

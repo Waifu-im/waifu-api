@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect} from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
-import { ImageDto, Role, ImageFormData, ReviewStatus } from '../types';
+import { ImageDto, Role, ImageFormData, ReviewStatus, ReviewStatusFilter } from '../types';
 import { Heart, Trash2, Edit, FolderPlus, Flag, Image } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
@@ -43,7 +43,7 @@ const ImagePage = () => {
       // Removed userId query param as it's handled by auth token now
       const params: Record<string, string> = {};
       if (isAdminOrModerator) {
-        params.childrenReviewStatus = 'All';
+        params.childrenReviewStatus = ReviewStatusFilter.All;
       }
       const { data } = await api.get<ImageDto>(`/images/${id}`, { params, skipGlobalErrorHandler: true });
       setImage(data);
