@@ -104,4 +104,16 @@ public class GetImagesRequest
     /// </summary>
     [Description("Filter by uploader user ID (Moderator/Admin only).")]
     public long? UploaderId { get; set; }
+
+    /// <summary>
+    /// Filter by review status (Moderator/Admin only). Default: Accepted.
+    /// </summary>
+    [Description("Filter by review status (Moderator/Admin only). Default: Accepted.")]
+    public ReviewStatusFilter ReviewStatus { get; set; } = ReviewStatusFilter.Accepted;
+
+    /// <summary>
+    /// Filter child entities (tags, artists) by review status (Moderator/Admin only). Default: Accepted.
+    /// </summary>
+    [Description("Filter child entities (tags, artists) by review status (Moderator/Admin only). Default: Accepted.")]
+    public ReviewStatusFilter ChildReviewStatus { get; set; } = ReviewStatusFilter.Accepted;
 }
