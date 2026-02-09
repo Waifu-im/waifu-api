@@ -22,7 +22,7 @@ public class GetArtistsQuery : IQuery<PaginatedList<ArtistDto>>
     public int PageSize { get; set; }
 
     // Internal parameter (set by controller, never exposed via query string)
-    public ReviewStatus? ReviewStatus { get; set; }
+    public ReviewStatusFilter ReviewStatus { get; set; } = ReviewStatusFilter.Accepted;
     public bool IsModeratorOrAdmin { get; set; }
 }
 
@@ -68,13 +68,16 @@ public class GetArtistsQueryHandler : IQueryHandler<GetArtistsQuery, PaginatedLi
         var pageSize = request.PageSize == 0 ? _defaultPageSize : request.PageSize;
         if (_maxPageSize > 0 && pageSize > _maxPageSize) pageSize = _maxPageSize;
 
-        if (request.ReviewStatus.HasValue)
+        switch (request.ReviewStatus)
         {
-            query = query.Where(a => a.ReviewStatus == request.ReviewStatus.Value);
-        }
-        else
-        {
-            query = query.Where(a => a.ReviewStatus == ReviewStatus.Accepted);
+            case ReviewStatusFilter.Pending:
+                query = query.Where(a => a.ReviewStatus == ReviewStatus.Pending);
+                break;
+            case ReviewStatusFilter.All:
+                break;
+            default:
+                query = query.Where(a => a.ReviewStatus == ReviewStatus.Accepted);
+                break;
         }
 
         if (!string.IsNullOrWhiteSpace(request.Name))

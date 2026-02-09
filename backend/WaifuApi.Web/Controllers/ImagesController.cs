@@ -84,7 +84,7 @@ public class ImagesController : ControllerBase
             UserId = _currentUser.UserId,
             IsModeratorOrAdmin = _currentUser.IsModeratorOrAdmin,
             UploaderId = _currentUser.IsModeratorOrAdmin ? request.UploaderId : null,
-            ReviewStatus = _currentUser.IsModeratorOrAdmin ? request.ReviewStatus : null,
+            ReviewStatus = _currentUser.IsModeratorOrAdmin ? request.ReviewStatus : ReviewStatusFilter.Accepted,
             ChildReviewStatus = _currentUser.IsModeratorOrAdmin ? request.ChildReviewStatus : ReviewStatusFilter.Accepted
         };
 

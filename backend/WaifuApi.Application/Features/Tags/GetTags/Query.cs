@@ -22,7 +22,7 @@ public class GetTagsQuery : IQuery<PaginatedList<TagDto>>
     public int PageSize { get; set; }
 
     // Internal parameter (set by controller, never exposed via query string)
-    public ReviewStatus? ReviewStatus { get; set; }
+    public ReviewStatusFilter ReviewStatus { get; set; } = ReviewStatusFilter.Accepted;
     public bool IsModeratorOrAdmin { get; set; }
 }
 
@@ -73,13 +73,16 @@ public class GetTagsQueryHandler : IQueryHandler<GetTagsQuery, PaginatedList<Tag
         var pageSize = request.PageSize == 0 ? _defaultPageSize : request.PageSize;
         if (_maxPageSize > 0 && pageSize > _maxPageSize) pageSize = _maxPageSize;
 
-        if (request.ReviewStatus.HasValue)
+        switch (request.ReviewStatus)
         {
-            query = query.Where(t => t.ReviewStatus == request.ReviewStatus.Value);
-        }
-        else
-        {
-            query = query.Where(t => t.ReviewStatus == ReviewStatus.Accepted);
+            case ReviewStatusFilter.Pending:
+                query = query.Where(t => t.ReviewStatus == ReviewStatus.Pending);
+                break;
+            case ReviewStatusFilter.All:
+                break;
+            default:
+                query = query.Where(t => t.ReviewStatus == ReviewStatus.Accepted);
+                break;
         }
 
         if (!string.IsNullOrWhiteSpace(request.Name))

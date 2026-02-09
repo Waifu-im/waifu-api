@@ -71,7 +71,7 @@ public class TagsController : ControllerBase
             Page = request.Page,
             PageSize = request.PageSize,
             IsModeratorOrAdmin = _currentUser.IsModeratorOrAdmin,
-            ReviewStatus = _currentUser.IsModeratorOrAdmin ? request.ReviewStatus : null
+            ReviewStatus = _currentUser.IsModeratorOrAdmin ? request.ReviewStatus : ReviewStatusFilter.Accepted
         };
 
         var tags = await _mediator.Send(query);
@@ -239,10 +239,10 @@ public class GetTagsRequest
     public int PageSize { get; set; }
 
     /// <summary>
-    /// Filter by review status (Moderator/Admin only). Default: Accepted for public users.
+    /// Filter by review status (Moderator/Admin only). Default: Accepted.
     /// </summary>
-    [Description("Filter by review status (Moderator/Admin only). Default: Accepted for public users.")]
-    public ReviewStatus? ReviewStatus { get; set; }
+    [Description("Filter by review status (Moderator/Admin only). Default: Accepted.")]
+    public ReviewStatusFilter ReviewStatus { get; set; } = ReviewStatusFilter.Accepted;
 }
 
 /// <summary>
