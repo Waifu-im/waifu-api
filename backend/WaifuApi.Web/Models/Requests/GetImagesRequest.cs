@@ -110,4 +110,10 @@ public class GetImagesRequest
     /// </summary>
     [Description("Filter by review status (Moderator/Admin only). Default: Accepted for public users.")]
     public ReviewStatus? ReviewStatus { get; set; }
+
+    /// <summary>
+    /// Filter child entities (tags, artists) by review status (Moderator/Admin only). When set, only child entities with the specified status are included. When not set, all child entities are returned.
+    /// </summary>
+    [Description("Filter child entities (tags, artists) by review status (Moderator/Admin only). When set, only child entities matching this status are included.")]
+    public ReviewStatus? ChildReviewStatus { get; set; }
 }
