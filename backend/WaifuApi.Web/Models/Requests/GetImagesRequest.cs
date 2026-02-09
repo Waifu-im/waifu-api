@@ -104,4 +104,10 @@ public class GetImagesRequest
     /// </summary>
     [Description("Filter by uploader user ID (Moderator/Admin only).")]
     public long? UploaderId { get; set; }
+
+    /// <summary>
+    /// Filter by review status (Moderator/Admin only). Default: Accepted for public users.
+    /// </summary>
+    [Description("Filter by review status (Moderator/Admin only). Default: Accepted for public users.")]
+    public ReviewStatus? ReviewStatus { get; set; }
 }

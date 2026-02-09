@@ -68,7 +68,8 @@ public class ArtistsController : ControllerBase
             IncludedIds = request.IncludedIds,
             Page = request.Page,
             PageSize = request.PageSize,
-            IsModeratorOrAdmin = _currentUser.IsModeratorOrAdmin
+            IsModeratorOrAdmin = _currentUser.IsModeratorOrAdmin,
+            ReviewStatus = _currentUser.IsModeratorOrAdmin ? request.ReviewStatus : null
         };
 
         var artists = await _mediator.Send(query);
@@ -242,6 +243,12 @@ public class GetArtistsRequest
     /// </summary>
     [Description("Number of results per page.")]
     public int PageSize { get; set; }
+
+    /// <summary>
+    /// Filter by review status (Moderator/Admin only). Default: Accepted for public users.
+    /// </summary>
+    [Description("Filter by review status (Moderator/Admin only). Default: Accepted for public users.")]
+    public ReviewStatus? ReviewStatus { get; set; }
 }
 
 /// <summary>
