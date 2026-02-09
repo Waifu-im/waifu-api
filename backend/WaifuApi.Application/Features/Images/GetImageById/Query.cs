@@ -15,7 +15,7 @@ using WaifuApi.Domain.Enums;
 
 namespace WaifuApi.Application.Features.Images.GetImageById;
 
-public record GetImageByIdQuery(long Id, long UserId, bool IsModeratorOrAdmin = false) : IQuery<ImageDto>;
+public record GetImageByIdQuery(long Id, long UserId, bool IsModeratorOrAdmin = false, ReviewStatusFilter ChildReviewStatus = ReviewStatusFilter.Accepted) : IQuery<ImageDto>;
 
 public class GetImageByIdQueryHandler : IQueryHandler<GetImageByIdQuery, ImageDto>
 {
@@ -32,11 +32,19 @@ public class GetImageByIdQueryHandler : IQueryHandler<GetImageByIdQuery, ImageDt
 
     public async ValueTask<ImageDto> Handle(GetImageByIdQuery request, CancellationToken cancellationToken)
     {
-        var image = await _context.Images
-            .AsNoTracking()
-            .Include(i => i.Tags)
-            .Include(i => i.Artists)
-            .FirstOrDefaultAsync(i => i.Id == request.Id, cancellationToken);
+        var query = _context.Images.AsNoTracking();
+        query = request.ChildReviewStatus switch
+        {
+            ReviewStatusFilter.All => query.Include(i => i.Tags).Include(i => i.Artists),
+            ReviewStatusFilter.Pending => query
+                .Include(i => i.Tags.Where(t => t.ReviewStatus == ReviewStatus.Pending))
+                .Include(i => i.Artists.Where(a => a.ReviewStatus == ReviewStatus.Pending)),
+            _ => query
+                .Include(i => i.Tags.Where(t => t.ReviewStatus == ReviewStatus.Accepted))
+                .Include(i => i.Artists.Where(a => a.ReviewStatus == ReviewStatus.Accepted))
+        };
+
+        var image = await query.FirstOrDefaultAsync(i => i.Id == request.Id, cancellationToken);
 
         if (image == null) throw new KeyNotFoundException($"Image with ID {request.Id} not found.");
 
@@ -60,7 +68,7 @@ public class GetImageByIdQueryHandler : IQueryHandler<GetImageByIdQuery, ImageDt
             Height = image.Height,
             ByteSize = image.ByteSize,
             Url = CdnUrlHelper.GetImageUrl(_cdnBaseUrl, image.Id, image.Extension),
-            Tags = image.Tags.Where(t => t.ReviewStatus == ReviewStatus.Accepted).Select(t => t.ToDto()).ToList(),
+            Tags = image.Tags.Select(t => t.ToDto()).ToList(),
             ReviewStatus = image.ReviewStatus,
             Favorites = favorites,
             LikedAt = likedAt,

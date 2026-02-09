@@ -70,7 +70,8 @@ public class TagsController : ControllerBase
             IncludedSlugs = request.IncludedSlugs,
             Page = request.Page,
             PageSize = request.PageSize,
-            IsModeratorOrAdmin = _currentUser.IsModeratorOrAdmin
+            IsModeratorOrAdmin = _currentUser.IsModeratorOrAdmin,
+            ReviewStatus = _currentUser.IsModeratorOrAdmin ? request.ReviewStatus : ReviewStatusFilter.Accepted
         };
 
         var tags = await _mediator.Send(query);
@@ -236,6 +237,12 @@ public class GetTagsRequest
     /// </summary>
     [Description("Number of results per page.")]
     public int PageSize { get; set; }
+
+    /// <summary>
+    /// Filter by review status (Moderator/Admin only). Default: Accepted.
+    /// </summary>
+    [Description("Filter by review status (Moderator/Admin only). Default: Accepted.")]
+    public ReviewStatusFilter ReviewStatus { get; set; } = ReviewStatusFilter.Accepted;
 }
 
 /// <summary>

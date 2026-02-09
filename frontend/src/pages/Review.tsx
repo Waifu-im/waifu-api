@@ -43,15 +43,15 @@ const Review = () => {
         setLoading(true);
         try {
             if (tab === 'images') {
-                const { data } = await api.get<PaginatedList<ImageDto>>(`/review/images?page=${page}&pageSize=${pageSize}`);
+                const { data } = await api.get<PaginatedList<ImageDto>>('/images', { params: { reviewStatus: 'Pending', isNsfw: 'All', orderBy: 'UploadedAt', page, pageSize } });
                 setImages(data.items);
                 setTotalPages(data.totalPages);
             } else if (tab === 'artists') {
-                const { data } = await api.get<PaginatedList<Artist>>(`/review/artists?page=${page}&pageSize=${pageSize}`);
+                const { data } = await api.get<PaginatedList<Artist>>('/artists', { params: { reviewStatus: 'Pending', page, pageSize } });
                 setArtists(data.items);
                 setTotalPages(data.totalPages);
             } else {
-                const { data } = await api.get<PaginatedList<Tag>>(`/review/tags?page=${page}&pageSize=${pageSize}`);
+                const { data } = await api.get<PaginatedList<Tag>>('/tags', { params: { reviewStatus: 'Pending', page, pageSize } });
                 setTags(data.items);
                 setTotalPages(data.totalPages);
             }
