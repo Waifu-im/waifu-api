@@ -44,7 +44,7 @@ public class GetImagesQuery : IQuery<PaginatedList<ImageDto>>
     // Moderator/Admin only parameters
     public long? UploaderId { get; set; }
     public bool IsModeratorOrAdmin { get; set; }
-    public ReviewStatus? ChildReviewStatus { get; set; }
+    public ReviewStatusFilter ChildReviewStatus { get; set; } = ReviewStatusFilter.Accepted;
 }
 
 public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList<ImageDto>>
@@ -125,7 +125,9 @@ public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList
              var imageIds = pagedItems.Select(x => x.i.Id).ToList();
              addedToAlbumMap = pagedItems.ToDictionary(x => x.i.Id, x => x.ai.AddedAt);
 
-             var fetchedImages = await _context.Images.AsNoTracking().Include(i => i.Tags).Include(i => i.Artists).Where(i => imageIds.Contains(i.Id)).ToListAsync(cancellationToken);
+             var fetchQuery = _context.Images.AsNoTracking().Where(i => imageIds.Contains(i.Id));
+             fetchQuery = ApplyChildReviewStatusIncludes(fetchQuery, request.ChildReviewStatus);
+             var fetchedImages = await fetchQuery.ToListAsync(cancellationToken);
              images = imageIds.Select(id => fetchedImages.First(img => img.Id == id)).ToList();
         }
         else
@@ -138,7 +140,8 @@ public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList
             };
 
             totalCount = await query.CountAsync(cancellationToken);
-            images = await query.Include(i => i.Tags).Include(i => i.Artists).Skip((request.Page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
+            query = ApplyChildReviewStatusIncludes(query, request.ChildReviewStatus);
+            images = await query.Skip((request.Page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
         }
 
         var imageIdsForStats = images.Select(i => i.Id).ToList();
@@ -153,7 +156,7 @@ public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList
 
         var imageDtos = images.Select(image =>
         {
-            var dto = image.ToDto(_cdnBaseUrl, request.IsModeratorOrAdmin, request.ChildReviewStatus);
+            var dto = image.ToDto(_cdnBaseUrl, request.IsModeratorOrAdmin);
             dto.Favorites = favoritesCounts.TryGetValue(image.Id, out var count) ? count : 0;
             dto.LikedAt = likedStatus.TryGetValue(image.Id, out var date) ? (DateTime?)date : null;
             dto.AddedToAlbumAt = addedToAlbumMap.TryGetValue(image.Id, out var addedAt) ? addedAt : null;
@@ -162,5 +165,19 @@ public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList
         }).ToList();
 
         return new PaginatedList<ImageDto>(imageDtos, totalCount, request.Page, pageSize, _maxPageSize, _defaultPageSize);
+    }
+
+    private static IQueryable<Image> ApplyChildReviewStatusIncludes(IQueryable<Image> query, ReviewStatusFilter filter)
+    {
+        return filter switch
+        {
+            ReviewStatusFilter.All => query.Include(i => i.Tags).Include(i => i.Artists),
+            ReviewStatusFilter.Pending => query
+                .Include(i => i.Tags.Where(t => t.ReviewStatus == ReviewStatus.Pending))
+                .Include(i => i.Artists.Where(a => a.ReviewStatus == ReviewStatus.Pending)),
+            _ => query
+                .Include(i => i.Tags.Where(t => t.ReviewStatus == ReviewStatus.Accepted))
+                .Include(i => i.Artists.Where(a => a.ReviewStatus == ReviewStatus.Accepted))
+        };
     }
 }

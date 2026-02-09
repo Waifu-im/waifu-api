@@ -1,7 +1,6 @@
 using WaifuApi.Application.Common.Models;
 using WaifuApi.Application.Common.Utilities;
 using WaifuApi.Domain.Entities;
-using WaifuApi.Domain.Enums;
 
 namespace WaifuApi.Application.Common.Extensions;
 
@@ -33,15 +32,8 @@ public static class MappingExtensions
         };
     }
 
-    public static ImageDto ToDto(this Image image, string cdnBaseUrl, bool includeUploaderId = false, ReviewStatus? childReviewStatus = null)
+    public static ImageDto ToDto(this Image image, string cdnBaseUrl, bool includeUploaderId = false)
     {
-        var artists = childReviewStatus.HasValue
-            ? image.Artists.Where(a => a.ReviewStatus == childReviewStatus.Value)
-            : image.Artists;
-        var tags = childReviewStatus.HasValue
-            ? image.Tags.Where(t => t.ReviewStatus == childReviewStatus.Value)
-            : image.Tags;
-
         return new ImageDto
         {
             Id = image.Id,
@@ -49,7 +41,7 @@ public static class MappingExtensions
             Extension = image.Extension,
             DominantColor = image.DominantColor,
             Source = image.Source,
-            Artists = artists.Select(a => a.ToDto()).ToList(),
+            Artists = image.Artists.Select(a => a.ToDto()).ToList(),
             UploaderId = includeUploaderId ? image.UploaderId : null,
             UploadedAt = image.UploadedAt,
             IsNsfw = image.IsNsfw,
@@ -58,7 +50,7 @@ public static class MappingExtensions
             Height = image.Height,
             ByteSize = image.ByteSize,
             Url = CdnUrlHelper.GetImageUrl(cdnBaseUrl, image.Id, image.Extension),
-            Tags = tags.Select(t => t.ToDto()).ToList(),
+            Tags = image.Tags.Select(t => t.ToDto()).ToList(),
             ReviewStatus = image.ReviewStatus
         };
     }
