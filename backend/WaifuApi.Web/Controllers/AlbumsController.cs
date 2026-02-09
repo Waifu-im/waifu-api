@@ -232,7 +232,8 @@ public class AlbumsController : ControllerBase
             Page = request.Page,
             PageSize = request.PageSize,
             AlbumId = resolvedAlbumId,
-            UserId = _currentUserService.UserId
+            UserId = _currentUserService.UserId,
+            ReviewStatus = ReviewStatusFilter.All
         };
 
         var images = await _mediator.Send(query);

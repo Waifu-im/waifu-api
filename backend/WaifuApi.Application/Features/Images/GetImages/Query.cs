@@ -39,7 +39,7 @@ public class GetImagesQuery : IQuery<PaginatedList<ImageDto>>
     // Internal parameters (set by controller, never exposed via query string)
     public long? UserId { get; set; }
     public long? AlbumId { get; set; }
-    public ReviewStatus? ReviewStatus { get; set; }
+    public ReviewStatusFilter ReviewStatus { get; set; } = ReviewStatusFilter.Accepted;
 
     // Moderator/Admin only parameters
     public long? UploaderId { get; set; }

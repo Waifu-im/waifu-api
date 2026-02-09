@@ -106,10 +106,10 @@ public class GetImagesRequest
     public long? UploaderId { get; set; }
 
     /// <summary>
-    /// Filter by review status (Moderator/Admin only). Default: Accepted for public users.
+    /// Filter by review status (Moderator/Admin only). Default: Accepted.
     /// </summary>
-    [Description("Filter by review status (Moderator/Admin only). Default: Accepted for public users.")]
-    public ReviewStatus? ReviewStatus { get; set; }
+    [Description("Filter by review status (Moderator/Admin only). Default: Accepted.")]
+    public ReviewStatusFilter ReviewStatus { get; set; } = ReviewStatusFilter.Accepted;
 
     /// <summary>
     /// Filter child entities (tags, artists) by review status (Moderator/Admin only). Default: Accepted.
