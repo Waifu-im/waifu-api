@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using WaifuApi.Application.Common.Constants;
+using WaifuApi.Application.Common.Exceptions;
 using WaifuApi.Application.Common.Models;
 using WaifuApi.Application.Features.Tags.GetTags;
 using WaifuApi.Application.Features.Tags.CreateTag;
@@ -61,8 +62,15 @@ public class TagsController : ControllerBase
     [HttpGet]
     [ProducesResponseType(typeof(PaginatedList<TagDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<PaginatedList<TagDto>>> Get([FromQuery] GetTagsRequest request)
     {
+        // Check permission for non-Accepted review status filtering
+        if (!_currentUser.IsModeratorOrAdmin && request.ReviewStatus != ReviewStatusFilter.Accepted)
+        {
+            throw new ForbiddenException("Filtering by non-accepted review status is only available to moderators and admins.");
+        }
+
         var query = new GetTagsQuery
         {
             Name = request.Name,
@@ -71,7 +79,7 @@ public class TagsController : ControllerBase
             Page = request.Page,
             PageSize = request.PageSize,
             IsModeratorOrAdmin = _currentUser.IsModeratorOrAdmin,
-            ReviewStatus = _currentUser.IsModeratorOrAdmin ? request.ReviewStatus : ReviewStatusFilter.Accepted
+            ReviewStatus = request.ReviewStatus
         };
 
         var tags = await _mediator.Send(query);

@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using Mediator;
+using WaifuApi.Application.Common.Exceptions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -204,6 +205,7 @@ public class AlbumsController : ControllerBase
     [ProducesResponseType(typeof(PaginatedList<ImageDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationErrorResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<PaginatedList<ImageDto>>> GetAlbumImages([FromRoute] string userId, [FromRoute] string albumId, [FromQuery] GetImagesRequest request)
     {
         var resolvedUserId = await _currentUserService.ResolveUserIdAsync(userId);
@@ -212,6 +214,13 @@ public class AlbumsController : ControllerBase
         var resolvedAlbumId = await _currentUserService.ResolveAlbumIdAsync(resolvedUserId, albumId);
 
         if (resolvedAlbumId == null) return NotFound();
+
+        // Check permission for non-Accepted review status filtering
+        if (!_currentUserService.IsModeratorOrAdmin &&
+            (request.ReviewStatus != ReviewStatusFilter.Accepted || request.ChildReviewStatus != ReviewStatusFilter.Accepted))
+        {
+            throw new ForbiddenException("Filtering by non-accepted review status is only available to moderators and admins.");
+        }
 
         // Map Request to Query with AlbumId
         var query = new GetImagesQuery
@@ -233,7 +242,9 @@ public class AlbumsController : ControllerBase
             PageSize = request.PageSize,
             AlbumId = resolvedAlbumId,
             UserId = _currentUserService.UserId,
-            ReviewStatus = ReviewStatusFilter.All
+            IsModeratorOrAdmin = _currentUserService.IsModeratorOrAdmin,
+            ReviewStatus = request.ReviewStatus,
+            ChildReviewStatus = request.ChildReviewStatus
         };
 
         var images = await _mediator.Send(query);
