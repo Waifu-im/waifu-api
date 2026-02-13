@@ -1,5 +1,6 @@
 ﻿import { getEnv } from '../utils/env';
 import { Mail, MessageSquare } from 'lucide-react';
+import { MetaTags } from '../hooks/useMetaTags';
 
 const Contact = () => {
     const contactEmail = getEnv('VITE_CONTACT_EMAIL');
@@ -16,6 +17,10 @@ const Contact = () => {
 
     return (
         <div className="container mx-auto px-4 py-12 max-w-4xl">
+            <MetaTags
+              title="Contact"
+              description="Get in touch with us for questions, suggestions, or support."
+            />
             <div className="text-center mb-12">
                 <h1 className="text-4xl font-black mb-4 bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
                     Get in Touch

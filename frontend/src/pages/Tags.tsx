@@ -9,6 +9,7 @@ import SearchInput from '../components/SearchInput';
 import Pagination from '../components/Pagination';
 import { useResource } from '../hooks/useResource';
 import { useAuthGuard } from '../hooks/useRequireAuth';
+import { MetaTags } from '../hooks/useMetaTags';
 
 const Tags = () => {
     const { user } = useAuth();
@@ -85,6 +86,10 @@ const Tags = () => {
 
     return (
         <div className="container mx-auto p-6 md:p-10">
+            <MetaTags
+              title="Tags"
+              description="Browse and manage image tags."
+            />
             <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-4">
                 <div>
                     <h1 className="text-3xl font-black flex items-center gap-3 text-foreground">

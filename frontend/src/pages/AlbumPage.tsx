@@ -13,6 +13,7 @@ import { useGalleryParams } from '../hooks/useGalleryParams';
 import { useAlternativeSearch } from '../hooks/useAlternativeSearch';
 import EmptyState from '../components/EmptyState';
 import NotFound from './NotFound';
+import { MetaTags } from '../hooks/useMetaTags';
 
 const AlbumPage = () => {
     const { id, userId } = useParams<{ id: string; userId?: string }>();
@@ -140,6 +141,10 @@ const AlbumPage = () => {
 
     return (
         <>
+            <MetaTags
+              title={album?.name || 'Album'}
+              description={album?.description || `Album with ${album?.imageCount || 0} images.`}
+            />
             <GalleryLayout
                 images={paginatedImages?.items || []}
                 isLoading={loadingImages}

@@ -5,6 +5,7 @@ import api from '../services/api';
 import { ImageDto, PaginatedList, NsfwMode, Orientation, AnimatedMode } from '../types';
 import { getEnv } from '../utils/env';
 import Skeleton from '../components/Skeleton';
+import { MetaTags } from '../hooks/useMetaTags';
 
 interface PublicStats {
     totalRequests: number;
@@ -72,6 +73,7 @@ const Home = () => {
 
     return (
         <div className="relative flex flex-col items-center justify-start md:justify-center p-4 min-h-[calc(100vh-4rem)] pt-16 md:pt-4">
+            <MetaTags />
 
             {/* Background Image */}
             {heroImage && (

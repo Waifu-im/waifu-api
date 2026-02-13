@@ -7,6 +7,8 @@ import { useNsfwConsent } from '../hooks/useNsfwConsent';
 import EmptyState from '../components/EmptyState';
 import NsfwWarning from '../components/NsfwWarning';
 import { NsfwMode } from '../types';
+import { MetaTags } from '../hooks/useMetaTags';
+import { isBot } from '../utils/bot';
 
 const Gallery = () => {
     const { filters, page, setPage, searchParams, setSearchParams, isNsfw } = useGalleryParams();
@@ -22,7 +24,7 @@ const Gallery = () => {
     );
 
     useEffect(() => {
-        if (isNsfw !== NsfwMode.False && !hasConsent()) setShowNsfwWarning(true);
+        if (isNsfw !== NsfwMode.False && !hasConsent() && !isBot()) setShowNsfwWarning(true);
     }, [isNsfw]);
 
     const handleEnableNsfw = () => {
@@ -32,8 +34,15 @@ const Gallery = () => {
         });
     };
 
+    const hasNsfwContent = isNsfw !== NsfwMode.False;
+
     return (
         <>
+            <MetaTags
+              title="Gallery"
+              description="Browse thousands of categorized anime illustrations."
+              isNsfw={hasNsfwContent}
+            />
             <GalleryLayout
                 images={paginatedImages?.items || []}
                 isLoading={isLoading}

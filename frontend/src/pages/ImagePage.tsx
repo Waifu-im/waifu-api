@@ -13,6 +13,8 @@ import ConfirmModal from '../components/modals/ConfirmModal';
 import ReasonModal from '../components/modals/ReasonModal';
 import AlbumSelectionModal from '../components/modals/AlbumSelectionModal';
 import NsfwWarning from '../components/NsfwWarning';
+import { MetaTags } from '../hooks/useMetaTags';
+import { isBot } from '../utils/bot';
 
 const ImagePage = () => {
   const { id } = useParams<{ id: string }>();
@@ -48,7 +50,7 @@ const ImagePage = () => {
       const { data } = await api.get<ImageDto>(`/images/${id}`, { params, skipGlobalErrorHandler: true });
       setImage(data);
 
-      if (data.isNsfw && !silent && !hasConsent()) {
+      if (data.isNsfw && !silent && !hasConsent() && !isBot()) {
         setShowNsfwWarning(true);
       }
     } catch (err) {
@@ -134,8 +136,25 @@ const ImagePage = () => {
   if (isLoading) return <div className="p-10 text-center">Loading...</div>;
   if (error || !image) return <div className="p-10 text-center text-destructive">{error || "Not Found"}</div>;
 
+  const tagNames = image.tags.map(t => t.name).join(', ');
+  const artistNames = image.artists.map(a => a.name).join(', ');
+  const metaDescription = [
+    artistNames && `By ${artistNames}`,
+    tagNames && `Tags: ${tagNames}`,
+    `${image.width}x${image.height}`,
+  ].filter(Boolean).join(' | ');
+
   return (
       <div className="container mx-auto px-4 py-6 md:py-8">
+        <MetaTags
+          title={`Image #${image.id}`}
+          description={metaDescription}
+          image={image.url}
+          imageWidth={image.width}
+          imageHeight={image.height}
+          type="article"
+          isNsfw={image.isNsfw}
+        />
         <div className="bg-card rounded-lg shadow-lg border border-border">
 
           {/* Image Preview */}
