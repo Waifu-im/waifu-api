@@ -9,6 +9,7 @@ on:
     branches: [ "main" ]
 
 env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   # Use docker.io for Docker Hub if empty
   REGISTRY: ghcr.io
   # github.repository as <account>/<repo>
