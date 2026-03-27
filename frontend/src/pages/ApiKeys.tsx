@@ -4,7 +4,7 @@ import { ApiKeyDto } from '../types';
 import { useNotification } from '../context/NotificationContext';
 import Modal from '../components/Modal';
 import ConfirmModal from '../components/modals/ConfirmModal';
-import { Key, Plus, Trash2, Copy, Calendar, Shield, Clock, Edit2 } from 'lucide-react';
+import { Key, Plus, Trash2, Copy, Calendar, Shield, Clock, Edit2, AlertTriangle } from 'lucide-react';
 import { useRequireAuth } from '../hooks/useRequireAuth';
 
 const ApiKeys = () => {
@@ -123,7 +123,6 @@ const ApiKeys = () => {
                                 <div>
                                     <div className="flex items-center gap-3 mb-2">
                                         <span className="font-bold text-lg">{key.description}</span>
-                                        <span className="text-xs bg-secondary border border-border px-2 py-0.5 rounded font-mono text-muted-foreground tracking-wider">{key.keyPrefix}••••••</span>
                                     </div>
 
                                     <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
@@ -162,7 +161,13 @@ const ApiKeys = () => {
                     <div className="space-y-4 text-center">
                         <div className="bg-green-500/10 text-green-600 p-4 rounded-xl mb-4 border border-green-500/20">
                             <p className="font-bold">Key Generated Successfully</p>
-                            <p className="text-xs mt-1">Copy it now. You won't be able to see it again.</p>
+                        </div>
+                        <div className="bg-amber-500/10 text-amber-600 p-4 rounded-xl mb-4 border border-amber-500/20 flex items-start gap-3">
+                            <AlertTriangle size={20} className="flex-shrink-0 mt-0.5" />
+                            <div>
+                                <p className="font-bold text-sm">This key will not be displayed again</p>
+                                <p className="text-xs mt-1">Make sure to copy and store it in a safe place. If you lose it, you will need to generate a new one.</p>
+                            </div>
                         </div>
                         <div onClick={() => copyToClipboard(createdKey)} className="group relative flex items-center gap-2 bg-secondary p-4 rounded-xl border border-border cursor-pointer hover:border-primary/50 transition-colors">
                             <code className="flex-1 text-sm break-all font-mono text-left">{createdKey}</code>

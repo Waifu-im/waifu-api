@@ -3,7 +3,7 @@ using System.Text.Encodings.Web;
 using Mediator;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Options;
-using WaifuApi.Application.Features.Auth.ValidateApiKey; // Assurez-vous d'avoir créé cette Query
+using WaifuApi.Application.Features.Auth.ValidateApiKey;
 
 namespace WaifuApi.Web.Authentication;
 

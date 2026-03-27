@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -39,19 +39,11 @@ public class UpdateApiKeyCommandHandler : ICommandHandler<UpdateApiKeyCommand, A
         return new ApiKeyDto
         {
             Id = apiKey.Id,
-            Key = MaskKey(apiKey.Key),
             Description = apiKey.Description,
             CreatedAt = apiKey.CreatedAt,
             LastUsedAt = apiKey.LastUsedAt,
             ExpirationDate = apiKey.ExpirationDate,
             UserId = apiKey.UserId
         };
-    }
-
-    private static string MaskKey(string key)
-    {
-        if (string.IsNullOrEmpty(key) || key.Length <= 8)
-            return "********";
-        return key[..8] + "...";
     }
 }

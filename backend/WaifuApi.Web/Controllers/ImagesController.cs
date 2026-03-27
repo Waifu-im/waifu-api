@@ -126,7 +126,7 @@ public class ImagesController : ControllerBase
     /// New images are set to "Pending" review status and must be approved by a moderator before appearing in public searches.
     ///
     /// **Size limits:**
-    /// - Maximum file size: 10MB
+    /// - Maximum file size: configurable via `Image:MaxUploadSizeMb` (default: 10MB)
     /// - Minimum dimensions: configured per server
     /// </remarks>
     /// <param name="request">The image file and metadata.</param>

@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -30,19 +30,11 @@ public class GetApiKeysQueryHandler : IQueryHandler<GetApiKeysQuery, List<ApiKey
         return keys.Select(k => new ApiKeyDto
         {
             Id = k.Id,
-            Key = MaskKey(k.Key),
             Description = k.Description,
             CreatedAt = k.CreatedAt,
             LastUsedAt = k.LastUsedAt,
             ExpirationDate = k.ExpirationDate,
             UserId = k.UserId
         }).ToList();
-    }
-
-    private static string MaskKey(string key)
-    {
-        if (string.IsNullOrEmpty(key) || key.Length <= 8)
-            return "********";
-        return key[..8] + "...";
     }
 }

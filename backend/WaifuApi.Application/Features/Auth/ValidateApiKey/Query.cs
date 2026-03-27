@@ -1,7 +1,8 @@
-﻿using System.Threading;
+using System.Threading;
 using System.Threading.Tasks;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
+using WaifuApi.Application.Features.Auth.CreateApiKey;
 using WaifuApi.Application.Interfaces;
 using WaifuApi.Domain.Entities;
 
@@ -20,10 +21,12 @@ public class ValidateApiKeyQueryHandler : IQueryHandler<ValidateApiKeyQuery, Api
 
     public async ValueTask<ApiKey?> Handle(ValidateApiKeyQuery request, CancellationToken cancellationToken)
     {
+        var keyHash = CreateApiKeyCommandHandler.HashApiKey(request.KeyString);
+
         var key = await _context.ApiKeys
             .Include(k => k.User)
-            .FirstOrDefaultAsync(k => k.Key == request.KeyString, cancellationToken);
-            
+            .FirstOrDefaultAsync(k => k.KeyHash == keyHash, cancellationToken);
+
         return key;
     }
 }

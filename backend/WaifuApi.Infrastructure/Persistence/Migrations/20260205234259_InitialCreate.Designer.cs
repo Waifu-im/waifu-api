@@ -122,7 +122,7 @@ namespace WaifuApi.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("ExpirationDate")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("Key")
+                    b.Property<string>("KeyHash")
                         .IsRequired()
                         .HasColumnType("text");
 
@@ -134,7 +134,7 @@ namespace WaifuApi.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Key")
+                    b.HasIndex("KeyHash")
                         .IsUnique();
 
                     b.HasIndex("UserId");

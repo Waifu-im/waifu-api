@@ -67,11 +67,11 @@ export interface AlbumDto {
 
 export interface ApiKeyDto {
   id: number;
-  keyPrefix: string;
-  description: string; // Changed from label to match backend
+  key?: string; // Only present once at creation time
+  description: string;
   createdAt: string;
   lastUsedAt?: string;
-  expirationDate?: string; // Changed from expiresAt to match backend
+  expirationDate?: string;
 }
 
 export interface Report {

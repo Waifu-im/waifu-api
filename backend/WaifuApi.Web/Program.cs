@@ -51,6 +51,13 @@ else
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Configure max upload size from config (default 10MB)
+var maxUploadSizeMb = int.TryParse(builder.Configuration["Image:MaxUploadSizeMb"], out var configuredMb) ? configuredMb : 10;
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = maxUploadSizeMb * 1024L * 1024L;
+});
+
 void ValidateConfiguration(IConfiguration configuration)
 {
     var requiredKeys = new[]
@@ -115,7 +122,7 @@ void ValidateConfiguration(IConfiguration configuration)
 ValidateConfiguration(builder.Configuration);
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-Console.WriteLine($"Using Connection String: {connectionString}");
+Console.WriteLine("Connection string loaded successfully.");
 
 var basePath = builder.Configuration["API_BASE_PATH"];
 

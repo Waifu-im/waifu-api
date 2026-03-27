@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Text.Json.Serialization;
 
 namespace WaifuApi.Domain.Entities;
@@ -6,13 +6,18 @@ namespace WaifuApi.Domain.Entities;
 public class ApiKey
 {
     public long Id { get; set; }
-    public required string Key { get; set; }
+
+    /// <summary>
+    /// The SHA-256 hash of the API key. The raw key is never stored.
+    /// </summary>
+    public required string KeyHash { get; set; }
+
     public required string Description { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? LastUsedAt { get; set; }
     public DateTime? ExpirationDate { get; set; }
     public long UserId { get; set; }
-    
+
     [JsonIgnore]
     public User User { get; set; } = null!;
 }

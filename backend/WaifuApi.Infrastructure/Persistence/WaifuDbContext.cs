@@ -37,8 +37,8 @@ public class WaifuDbContext : DbContext, IWaifuDbContext
         modelBuilder.Entity<ApiKey>(entity =>
         {
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.Key).IsRequired();
-            entity.HasIndex(e => e.Key).IsUnique();
+            entity.Property(e => e.KeyHash).IsRequired();
+            entity.HasIndex(e => e.KeyHash).IsUnique();
             entity.HasOne(e => e.User)
                 .WithMany(u => u.ApiKeys)
                 .HasForeignKey(e => e.UserId)

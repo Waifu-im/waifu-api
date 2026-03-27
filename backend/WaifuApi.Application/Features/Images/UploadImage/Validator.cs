@@ -1,16 +1,23 @@
-﻿using FluentValidation;
+using FluentValidation;
+using Microsoft.Extensions.Configuration;
+using WaifuApi.Application.Common.Constants;
 
 namespace WaifuApi.Application.Features.Images.UploadImage;
 
 public class UploadImageCommandValidator : AbstractValidator<UploadImageCommand>
 {
-    public UploadImageCommandValidator()
+    public UploadImageCommandValidator(IConfiguration configuration)
     {
+        var maxUploadSizeMb = int.TryParse(configuration[ConfigurationKeys.Image.MaxUploadSizeMb], out var mb) ? mb : 10;
+        var maxUploadSizeBytes = maxUploadSizeMb * 1024L * 1024L;
+
         RuleFor(x => x.UserId)
             .GreaterThan(0).WithMessage("Invalid User ID.");
 
         RuleFor(x => x.FileStream)
-            .NotNull().WithMessage("File stream is required.");
+            .NotNull().WithMessage("File stream is required.")
+            .Must(stream => stream != null && stream.Length <= maxUploadSizeBytes)
+            .WithMessage($"File size must not exceed {maxUploadSizeMb}MB.");
 
         RuleFor(x => x.FileName)
             .NotEmpty().WithMessage("File name is required.");

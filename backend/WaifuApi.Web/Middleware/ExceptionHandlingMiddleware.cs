@@ -172,7 +172,7 @@ public class ExceptionHandlingMiddleware
                     Type = "https://tools.ietf.org/html/rfc9110#section-15.6.1",
                     Title = "An error occurred while processing your request.",
                     Status = (int)statusCode,
-                    Detail = exception.Message,
+                    Detail = "An unexpected error occurred. Please try again later.",
                     Instance = context.Request.Path,
                     TraceId = traceId
                 };

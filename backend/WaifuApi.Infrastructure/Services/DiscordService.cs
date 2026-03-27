@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Net.Http.Json;
@@ -7,6 +7,17 @@ using Microsoft.Extensions.Configuration;
 using WaifuApi.Application.Interfaces;
 
 namespace WaifuApi.Infrastructure.Services;
+
+public class DiscordOAuthException : InvalidOperationException
+{
+    public int StatusCode { get; }
+
+    public DiscordOAuthException(string message, int statusCode)
+        : base(message)
+    {
+        StatusCode = statusCode;
+    }
+}
 
 public class DiscordService : IDiscordService
 {
@@ -33,8 +44,9 @@ public class DiscordService : IDiscordService
 
         if (!response.IsSuccessStatusCode)
         {
-            var errorContent = await response.Content.ReadAsStringAsync();
-            throw new Exception($"Discord Token Exchange Failed: {response.StatusCode} - {errorContent}");
+            throw new DiscordOAuthException(
+                $"Discord token exchange failed with status {(int)response.StatusCode}.",
+                (int)response.StatusCode);
         }
 
         var data = await response.Content.ReadFromJsonAsync<DiscordTokenResponse>();
@@ -48,15 +60,16 @@ public class DiscordService : IDiscordService
         request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
 
         var response = await client.SendAsync(request);
-        
+
         if (!response.IsSuccessStatusCode)
         {
-            var errorContent = await response.Content.ReadAsStringAsync();
-            throw new Exception($"Discord User Profile Failed: {response.StatusCode} - {errorContent}");
+            throw new DiscordOAuthException(
+                $"Failed to retrieve Discord user profile (status {(int)response.StatusCode}).",
+                (int)response.StatusCode);
         }
 
         var user = await response.Content.ReadFromJsonAsync<DiscordUserResponse>();
-        
+
         return new DiscordUserDto
         {
             Id = user!.Id,

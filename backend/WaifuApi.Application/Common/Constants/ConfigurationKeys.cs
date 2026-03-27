@@ -57,6 +57,7 @@ public static class ConfigurationKeys
         public const string AnimatedMinHeight = "Image:AnimatedMinHeight";
         public const string AnimatedMaxWidth = "Image:AnimatedMaxWidth";
         public const string AnimatedMaxHeight = "Image:AnimatedMaxHeight";
+        public const string MaxUploadSizeMb = "Image:MaxUploadSizeMb";
     }
 
     public static class Tag

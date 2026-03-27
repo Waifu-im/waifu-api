@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Mediator;
@@ -22,11 +23,13 @@ public class CreateApiKeyCommandHandler : ICommandHandler<CreateApiKeyCommand, A
 
     public async ValueTask<ApiKeyDto> Handle(CreateApiKeyCommand request, CancellationToken cancellationToken)
     {
-        var key = GenerateApiKey();
+        var rawKey = GenerateApiKey();
+        var keyHash = HashApiKey(rawKey);
+
         var apiKey = new ApiKey
         {
             UserId = request.UserId,
-            Key = key,
+            KeyHash = keyHash,
             Description = request.Description,
             CreatedAt = DateTime.UtcNow,
             ExpirationDate = request.ExpirationDate
@@ -38,7 +41,7 @@ public class CreateApiKeyCommandHandler : ICommandHandler<CreateApiKeyCommand, A
         return new ApiKeyDto
         {
             Id = apiKey.Id,
-            Key = apiKey.Key,
+            Key = rawKey, // Only returned once at creation time
             Description = apiKey.Description,
             CreatedAt = apiKey.CreatedAt,
             LastUsedAt = apiKey.LastUsedAt,
@@ -47,11 +50,17 @@ public class CreateApiKeyCommandHandler : ICommandHandler<CreateApiKeyCommand, A
         };
     }
 
-    private string GenerateApiKey()
+    private static string GenerateApiKey()
     {
         var bytes = new byte[32];
         using var rng = RandomNumberGenerator.Create();
         rng.GetBytes(bytes);
         return Convert.ToBase64String(bytes).Replace("+", "").Replace("/", "").Replace("=", "");
+    }
+
+    public static string HashApiKey(string rawKey)
+    {
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(rawKey));
+        return Convert.ToHexStringLower(bytes);
     }
 }
