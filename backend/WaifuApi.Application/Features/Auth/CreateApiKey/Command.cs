@@ -10,9 +10,9 @@ using WaifuApi.Domain.Entities;
 
 namespace WaifuApi.Application.Features.Auth.CreateApiKey;
 
-public record CreateApiKeyCommand(long UserId, string Description, DateTime? ExpirationDate) : ICommand<ApiKeyDto>;
+public record CreateApiKeyCommand(long UserId, string Description, DateTime? ExpirationDate) : ICommand<CreatedApiKeyDto>;
 
-public class CreateApiKeyCommandHandler : ICommandHandler<CreateApiKeyCommand, ApiKeyDto>
+public class CreateApiKeyCommandHandler : ICommandHandler<CreateApiKeyCommand, CreatedApiKeyDto>
 {
     private readonly IWaifuDbContext _context;
 
@@ -21,7 +21,7 @@ public class CreateApiKeyCommandHandler : ICommandHandler<CreateApiKeyCommand, A
         _context = context;
     }
 
-    public async ValueTask<ApiKeyDto> Handle(CreateApiKeyCommand request, CancellationToken cancellationToken)
+    public async ValueTask<CreatedApiKeyDto> Handle(CreateApiKeyCommand request, CancellationToken cancellationToken)
     {
         var rawKey = GenerateApiKey();
         var keyHash = HashApiKey(rawKey);
@@ -38,10 +38,10 @@ public class CreateApiKeyCommandHandler : ICommandHandler<CreateApiKeyCommand, A
         _context.ApiKeys.Add(apiKey);
         await _context.SaveChangesAsync(cancellationToken);
 
-        return new ApiKeyDto
+        return new CreatedApiKeyDto
         {
             Id = apiKey.Id,
-            Key = rawKey, // Only returned once at creation time
+            Key = rawKey,
             Description = apiKey.Description,
             CreatedAt = apiKey.CreatedAt,
             LastUsedAt = apiKey.LastUsedAt,

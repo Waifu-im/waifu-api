@@ -105,10 +105,10 @@ public class AuthController : ControllerBase
     /// <response code="401">Authentication required.</response>
     [Authorize]
     [HttpPost("api-keys")]
-    [ProducesResponseType(typeof(ApiKeyDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(CreatedApiKeyDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationErrorResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status401Unauthorized)]
-    public async Task<ActionResult<ApiKeyDto>> CreateApiKey([FromBody] CreateApiKeyRequest request)
+    public async Task<ActionResult<CreatedApiKeyDto>> CreateApiKey([FromBody] CreateApiKeyRequest request)
     {
         var userId = long.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
         var key = await _mediator.Send(new CreateApiKeyCommand(userId, request.Description, request.ExpirationDate));
