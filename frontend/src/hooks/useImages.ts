@@ -1,6 +1,6 @@
 ﻿import { useQuery } from '@tanstack/react-query';
 import api from '../services/api';
-import { ImageDto, PaginatedList, NsfwMode, AnimatedMode, Orientation, ImageOrderBy } from '../types';
+import { ImageDto, PaginatedList, NsfwMode, AnimatedMode, Orientation, ImageOrderBy, ReviewStatusFilter } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { buildQueryParams } from '../utils/queryParams';
 
@@ -24,6 +24,7 @@ export interface ImageFilters {
   albumUserId?: string;
   enabled?: boolean;
   uploaderId?: string;
+  reviewStatus?: ReviewStatusFilter;
 }
 
 export const useImages = (filters: ImageFilters) => {
@@ -46,6 +47,7 @@ export const useImages = (filters: ImageFilters) => {
           page: filters.page,
           pageSize: filters.pageSize,
           uploaderId: filters.uploaderId,
+          reviewStatus: filters.reviewStatus,
         },
         arrays: {
           includedTags: filters.includedTags,

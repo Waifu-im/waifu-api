@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect, useRef } from 'react';
 import Modal from '../Modal';
-import { ImageDto, ImageFormData, PaginatedList, User, ReviewStatus, Role } from '../../types';
+import { ImageDto, ImageFormData, PaginatedList, User, ReviewStatus, ReviewStatusFilter, Role } from '../../types';
 import SearchableSelect, { Option } from '../SearchableSelect';
 import api from '../../services/api';
 import TagModal from './TagModal';
@@ -38,7 +38,7 @@ const ImageModal = ({ isOpen, onClose, initialData, onSubmit, onDelete }: ImageM
         newArtistName, setNewArtistName,
         loadTags, loadArtists,
         handleCreateTag, handleCreateArtist
-    } = useMetadata();
+    } = useMetadata({ reviewStatus: ReviewStatusFilter.All });
 
     const isAdmin = user?.role === Role.Admin;
     const hasInitialized = useRef(false);

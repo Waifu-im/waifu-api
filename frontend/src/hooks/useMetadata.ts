@@ -1,6 +1,6 @@
 ﻿import { useState } from 'react';
 import api from '../services/api';
-import { Tag, Artist, PaginatedList, ReviewStatus } from '../types';
+import { Tag, Artist, PaginatedList, ReviewStatusFilter } from '../types';
 import { Option } from '../components/SearchableSelect';
 import { useNotification } from '../context/NotificationContext';
 import { TagFormData } from '../components/modals/TagModal';
@@ -17,7 +17,15 @@ const slugify = (text: string) => {
       .replace(/--+/g, '-');
 };
 
-export const useMetadata = (isReviewMode: boolean = false) => {
+interface UseMetadataOptions {
+    isReviewMode?: boolean;
+    reviewStatus?: ReviewStatusFilter;
+}
+
+export const useMetadata = ({
+    isReviewMode = false,
+    reviewStatus = ReviewStatusFilter.Accepted,
+}: UseMetadataOptions = {}) => {
     const tagsPageSize = 30;
     const artistsPageSize = 30;
     const { showNotification } = useNotification();
@@ -35,7 +43,7 @@ export const useMetadata = (isReviewMode: boolean = false) => {
     // Loaders
     const loadTags = async (query: string, page: number = 1) => {
         const { data } = await api.get<PaginatedList<Tag>>('/tags', {
-            params: { name: query, pageSize: tagsPageSize, page, reviewStatus: ReviewStatus.Accepted },
+            params: { name: query, pageSize: tagsPageSize, page, reviewStatus },
             skipGlobalErrorHandler: true
         });
         return data.items.map(t => ({ id: t.id, name: t.name, slug: t.slug, description: t.description, reviewStatus: t.reviewStatus }));
@@ -43,7 +51,7 @@ export const useMetadata = (isReviewMode: boolean = false) => {
 
     const loadArtists = async (query: string, page: number = 1) => {
         const { data } = await api.get<PaginatedList<Artist>>('/artists', {
-            params: { name: query, pageSize: artistsPageSize, page, reviewStatus: ReviewStatus.Accepted },
+            params: { name: query, pageSize: artistsPageSize, page, reviewStatus },
             skipGlobalErrorHandler: true
         });
         return data.items.map(a => ({ id: a.id, name: a.name, reviewStatus: a.reviewStatus }));

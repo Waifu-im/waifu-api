@@ -41,7 +41,7 @@ const Upload = () => {
       loadTags, loadArtists,
       handleCreateTag, handleCreateArtist,
       slugify
-  } = useMetadata(isReviewMode);
+  } = useMetadata({ isReviewMode });
 
   const fileList = watch('file');
 

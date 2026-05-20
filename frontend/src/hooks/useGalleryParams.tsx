@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ImageOrderBy, NsfwMode, AnimatedMode, Orientation } from '../types';
+import { ImageOrderBy, NsfwMode, AnimatedMode, Orientation, ReviewStatusFilter } from '../types';
 
 export const useGalleryParams = (defaultSort = ImageOrderBy.Random) => {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -19,19 +19,20 @@ export const useGalleryParams = (defaultSort = ImageOrderBy.Random) => {
     const includedIds = searchParams.getAll('includedIds');
     const excludedIds = searchParams.getAll('excludedIds');
     const uploaderId = searchParams.get('uploaderId') || '';
+    const reviewStatus = (searchParams.get('reviewStatus') as ReviewStatusFilter) || ReviewStatusFilter.Accepted;
 
     const pageStr = searchParams.get('page');
     const page = pageStr ? parseInt(pageStr) : 1;
 
-    const prevFiltersRef = useRef(JSON.stringify({ isNsfw, orderBy, orientation, isAnimated, height, width, byteSize, includedTags, excludedTags, includedArtists, excludedArtists, includedIds, excludedIds, uploaderId }));
+    const prevFiltersRef = useRef(JSON.stringify({ isNsfw, orderBy, orientation, isAnimated, height, width, byteSize, includedTags, excludedTags, includedArtists, excludedArtists, includedIds, excludedIds, uploaderId, reviewStatus }));
 
     useEffect(() => {
-        const currentFilters = JSON.stringify({ isNsfw, orderBy, orientation, isAnimated, height, width, byteSize, includedTags, excludedTags, includedArtists, excludedArtists, includedIds, excludedIds, uploaderId });
+        const currentFilters = JSON.stringify({ isNsfw, orderBy, orientation, isAnimated, height, width, byteSize, includedTags, excludedTags, includedArtists, excludedArtists, includedIds, excludedIds, uploaderId, reviewStatus });
         if (prevFiltersRef.current !== currentFilters) {
             if (page !== 1) setSearchParams(prev => { prev.set('page', '1'); return prev; });
             prevFiltersRef.current = currentFilters;
         }
-    }, [isNsfw, orderBy, orientation, isAnimated, height, width, byteSize, includedTags, excludedTags, includedArtists, excludedArtists, includedIds, excludedIds, uploaderId, page, setSearchParams]);
+    }, [isNsfw, orderBy, orientation, isAnimated, height, width, byteSize, includedTags, excludedTags, includedArtists, excludedArtists, includedIds, excludedIds, uploaderId, reviewStatus, page, setSearchParams]);
 
     useEffect(() => {
         if (!searchParams.has('orderBy')) setSearchParams(prev => { prev.set('orderBy', defaultSort); return prev; }, { replace: true });
@@ -47,6 +48,7 @@ export const useGalleryParams = (defaultSort = ImageOrderBy.Random) => {
         width, height, byteSize,
         includedTags, excludedTags, includedArtists, excludedArtists, includedIds, excludedIds,
         uploaderId: uploaderId || undefined,
+        reviewStatus: reviewStatus !== ReviewStatusFilter.Accepted ? reviewStatus : undefined,
         page, pageSize: 30
     };
 

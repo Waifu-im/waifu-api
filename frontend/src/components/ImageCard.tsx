@@ -75,7 +75,7 @@ const ImageCard = ({ image, onDelete, onRemove, onEdit, forceOverlay = false, re
     };
 
     return (
-        <div className="relative group rounded-xl bg-card border border-border shadow-sm hover:shadow-md transition-all overflow-hidden">
+        <div className="relative group rounded-xl bg-card border border-border shadow-sm hover:shadow-md transition-shadow overflow-hidden">
             <Link to={`/images/${image.id}`} className="block w-full">
                 {/* Conteneur intelligent :
                    Utilise aspect-ratio pour réserver la place exacte de l'image
@@ -95,15 +95,15 @@ const ImageCard = ({ image, onDelete, onRemove, onEdit, forceOverlay = false, re
                         alt={`Img ${image.id}`}
                         loading="lazy"
                         onLoad={() => setIsImageLoaded(true)}
-                        className={`w-full h-full object-cover transition-all duration-700 xl:group-hover:scale-105 ${
+                        className={`w-full h-full object-cover transition-[opacity,transform] duration-700 xl:group-hover:scale-105 ${
                             isImageLoaded ? 'opacity-100' : 'opacity-0'
                         }`}
                     />
                 </div>
             </Link>
 
-            {/* Action buttons overlay (desktop only, hover to reveal) */}
-            <div className={`absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex-col justify-between p-3 pointer-events-none transition-all duration-300 rounded-xl hidden xl:flex ${forceOverlay ? 'xl:opacity-100' : 'xl:opacity-0 xl:group-hover:opacity-100'}`}>
+            {/* Action buttons overlay. On xl+ revealed on hover. On smaller screens hidden unless forceOverlay is true. */}
+            <div className={`absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex-col justify-between p-3 pointer-events-none transition-opacity duration-300 rounded-xl xl:flex xl:opacity-0 xl:group-hover:opacity-100 ${forceOverlay ? 'flex' : 'hidden'}`}>
                 <div className="flex justify-end gap-2 pointer-events-auto">
                     {!readOnly && user && (
                         <>
@@ -159,7 +159,7 @@ const ImageCard = ({ image, onDelete, onRemove, onEdit, forceOverlay = false, re
             {/* Footer (ID + Likes) - always visible on mobile (smaller gradient), hover on desktop (full gradient) */}
             <div className="absolute bottom-0 left-0 right-0 p-3 pointer-events-none rounded-b-xl
                 bg-gradient-to-t from-black/50 to-transparent
-                xl:from-black/80 xl:opacity-0 xl:group-hover:opacity-100 xl:transition-all xl:duration-300">
+                xl:from-black/80 xl:opacity-0 xl:group-hover:opacity-100 xl:transition-opacity xl:duration-300">
                 <div className="flex items-center justify-between text-white">
                     <span className="text-xs font-mono opacity-75">#{image.id}</span>
                     {readOnly ? (

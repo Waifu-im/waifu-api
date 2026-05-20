@@ -1,4 +1,4 @@
-﻿import { ReactNode } from 'react';
+import { ReactNode, useState, useEffect } from 'react';
 import { ImageDto, Role } from '../types';
 import ImageCard from './ImageCard';
 import { RefreshCw } from 'lucide-react';
@@ -17,19 +17,46 @@ export interface ImageGridProps {
     readOnly?: boolean;
 }
 
+const getColumnCount = (width: number) => {
+    if (width >= 1280) return 5;
+    if (width >= 1024) return 4;
+    if (width >= 768) return 3;
+    if (width >= 640) return 2;
+    return 1;
+};
+
+const useColumnCount = () => {
+    const [count, setCount] = useState(() =>
+        typeof window !== 'undefined' ? getColumnCount(window.innerWidth) : 5
+    );
+    useEffect(() => {
+        const handler = () => setCount(getColumnCount(window.innerWidth));
+        window.addEventListener('resize', handler);
+        return () => window.removeEventListener('resize', handler);
+    }, []);
+    return count;
+};
+
 const ImageGrid = ({
                        images, isLoading, error, onRetry,
                        onEdit, onDelete, onRemove,
                        emptyState, forceOverlay = false, readOnly = false
                    }: ImageGridProps) => {
     const { user } = useAuth();
+    const colCount = useColumnCount();
     const isAdminOrModerator = user && (user.role === Role.Admin || user.role === Role.Moderator);
     const isAdmin = user && user.role === Role.Admin;
 
     if (isLoading) {
         return (
-            <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4 space-y-4">
-                {[...Array(12)].map((_,i) => <div key={i} className="bg-muted h-64 rounded-xl animate-pulse break-inside-avoid"></div>)}
+            <div className="flex gap-4">
+                {Array.from({ length: colCount }, (_, c) => (
+                    <div key={c} className="flex-1 flex flex-col gap-4 min-w-0">
+                        {[...Array(3)].map((_, i) => (
+                            <div key={i} className="bg-muted h-64 rounded-xl animate-pulse"></div>
+                        ))}
+                    </div>
+                ))}
             </div>
         );
     }
@@ -51,18 +78,27 @@ const ImageGrid = ({
         );
     }
 
+    // Distribute images round-robin into N columns so reading order is row-by-row.
+    // Item index i goes to column (i % colCount). With uniform heights this looks like a grid;
+    // with varied heights items stack naturally with no balancing artifacts.
+    const columns: ImageDto[][] = Array.from({ length: colCount }, () => []);
+    images.forEach((img, i) => columns[i % colCount].push(img));
+
     return (
-        <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4 space-y-4 pb-10">
-            {images.map(img => (
-                <div key={img.id} className="break-inside-avoid relative group">
-                    <ImageCard
-                        image={img}
-                        onDelete={isAdmin ? onDelete : undefined}
-                        onRemove={onRemove}
-                        onEdit={isAdminOrModerator ? onEdit : undefined}
-                        forceOverlay={forceOverlay}
-                        readOnly={readOnly}
-                    />
+        <div className="flex gap-4 pb-10 items-start">
+            {columns.map((column, c) => (
+                <div key={c} className="flex-1 flex flex-col gap-4 min-w-0">
+                    {column.map(img => (
+                        <ImageCard
+                            key={img.id}
+                            image={img}
+                            onDelete={isAdmin ? onDelete : undefined}
+                            onRemove={onRemove}
+                            onEdit={isAdminOrModerator ? onEdit : undefined}
+                            forceOverlay={forceOverlay}
+                            readOnly={readOnly}
+                        />
+                    ))}
                 </div>
             ))}
         </div>

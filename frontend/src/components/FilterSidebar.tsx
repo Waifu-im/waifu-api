@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import SearchableSelect, { Option } from './SearchableSelect';
 import api from '../services/api';
-import { PaginatedList, Tag, Artist, User, NsfwMode, AnimatedMode, Orientation, Role, ImageOrderBy } from '../types';
+import { PaginatedList, Tag, Artist, User, NsfwMode, AnimatedMode, Orientation, Role, ImageOrderBy, ReviewStatusFilter } from '../types';
 import { X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -240,6 +240,7 @@ const FilterSidebar = ({ searchParams, setSearchParams, showFilters, setShowFilt
     const isNsfw = searchParams.get('isNsfw') || NsfwMode.False;
     const orientation = searchParams.get('orientation') || Orientation.All;
     const isAnimated = searchParams.get('isAnimated') || AnimatedMode.All;
+    const reviewStatus = searchParams.get('reviewStatus') || ReviewStatusFilter.Accepted;
 
     const includedTagSlugs = searchParams.getAll('includedTags');
     const excludedTagSlugs = searchParams.getAll('excludedTags');
@@ -294,6 +295,12 @@ const FilterSidebar = ({ searchParams, setSearchParams, showFilters, setShowFilt
         { id: AnimatedMode.All, name: 'Any' },
         { id: AnimatedMode.False, name: 'Static Image' },
         { id: AnimatedMode.True, name: 'Animated (GIF)' }
+    ];
+
+    const reviewStatusOptions = [
+        { id: ReviewStatusFilter.Accepted, name: 'Accepted' },
+        { id: ReviewStatusFilter.Pending, name: 'Pending' },
+        { id: ReviewStatusFilter.All, name: 'All' }
     ];
 
     return (
@@ -423,6 +430,16 @@ const FilterSidebar = ({ searchParams, setSearchParams, showFilters, setShowFilt
                 {isModeratorOrAdmin && (
                     <>
                         <div className="border-t border-border"></div>
+
+                        <SearchableSelect
+                            label="Review Status"
+                            options={reviewStatusOptions}
+                            selectedOptions={reviewStatusOptions.filter(o => o.id === reviewStatus)}
+                            onSelect={(o) => updateFilter('reviewStatus', o.id as string)}
+                            onRemove={() => updateFilter('reviewStatus', null)}
+                            isMulti={false}
+                            clearable={false}
+                        />
 
                         <SearchableSelect
                             label="Uploader"
