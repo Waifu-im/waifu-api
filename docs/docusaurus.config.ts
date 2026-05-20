@@ -89,6 +89,23 @@ const config: Config = {
         },
       },
     ],
+    // Webpack 5 (Docusaurus 3) no longer auto-polyfills Node core modules. The
+    // openapi theme pulls in postman-code-generators which references `path`
+    // from code that ends up in the browser bundle. Provide a browser fallback.
+    function nodePolyfillPlugin() {
+      return {
+        name: "node-polyfill-fallbacks",
+        configureWebpack() {
+          return {
+            resolve: {
+              fallback: {
+                path: require.resolve("path-browserify"),
+              },
+            },
+          };
+        },
+      };
+    },
   ],
 
   themes: ["docusaurus-theme-openapi-docs"],
