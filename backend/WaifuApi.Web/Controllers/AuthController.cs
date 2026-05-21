@@ -72,7 +72,7 @@ public class AuthController : ControllerBase
     /// </summary>
     /// <remarks>
     /// Returns all API keys associated with your account.
-    /// For security, only the key prefix is returned (not the full key).
+    /// For security, the key itself is never returned — only metadata (id, description, timestamps).
     /// </remarks>
     /// <returns>A list of your API keys.</returns>
     /// <response code="200">Returns the list of API keys.</response>
