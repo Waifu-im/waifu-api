@@ -97,7 +97,7 @@ export const useMetadata = ({
         } catch (error: any) {
             if (error.response?.status === 409) {
                 try {
-                    const existingRes = await api.get<Artist>(`/artists/by-name/${data.name}`, { skipGlobalErrorHandler: true });
+                    const existingRes = await api.get<Artist>(`/artists/by-name/${encodeURIComponent(data.name)}`, { skipGlobalErrorHandler: true });
                     const existing = existingRes.data;
                     const existingOpt = { id: existing.id, name: existing.name, reviewStatus: existing.reviewStatus };
 

@@ -125,9 +125,14 @@ public static class ImageQueryExtensions
                 {
                     query = query.Where(i => i.Artists.Any(a => a.Id == artistId));
                 }
+                else
+                {
+                    var name = artistInput.Trim().ToLower();
+                    query = query.Where(i => i.Artists.Any(a => a.Name.ToLower() == name));
+                }
             }
         }
-        
+
         if (filters.ExcludedArtists.Any())
         {
             foreach (var artistInput in filters.ExcludedArtists)
@@ -135,6 +140,11 @@ public static class ImageQueryExtensions
                 if (long.TryParse(artistInput, out var artistId))
                 {
                     query = query.Where(i => !i.Artists.Any(a => a.Id == artistId));
+                }
+                else
+                {
+                    var name = artistInput.Trim().ToLower();
+                    query = query.Where(i => !i.Artists.Any(a => a.Name.ToLower() == name));
                 }
             }
         }
