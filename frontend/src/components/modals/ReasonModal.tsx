@@ -11,14 +11,18 @@ interface ReasonModalProps {
     submitText?: string;
     required?: boolean;
     maxLength?: number;
+    /** Pre-fill the textarea (e.g. when editing an existing reason/report). */
+    initialValue?: string;
+    /** Confirm button colour. Defaults to destructive (reporting/rejecting); use 'primary' for plain edits. */
+    confirmVariant?: 'primary' | 'destructive';
 }
 
-const ReasonModal = ({ isOpen, onClose, onSubmit, title, description, placeholder = "Reason...", submitText = "Submit", required = true, maxLength }: ReasonModalProps) => {
-    const [reason, setReason] = useState('');
+const ReasonModal = ({ isOpen, onClose, onSubmit, title, description, placeholder = "Reason...", submitText = "Submit", required = true, maxLength, initialValue = '', confirmVariant = 'destructive' }: ReasonModalProps) => {
+    const [reason, setReason] = useState(initialValue);
 
     useEffect(() => {
-        if (isOpen) setReason('');
-    }, [isOpen]);
+        if (isOpen) setReason(initialValue);
+    }, [isOpen, initialValue]);
 
     const handleSubmit = () => {
         if (required && !reason.trim()) return;
@@ -47,7 +51,7 @@ const ReasonModal = ({ isOpen, onClose, onSubmit, title, description, placeholde
                     <button
                         onClick={handleSubmit}
                         disabled={isDisabled}
-                        className="px-4 py-2 bg-destructive text-destructive-foreground rounded-lg font-bold disabled:opacity-50"
+                        className={`px-4 py-2 rounded-lg font-bold disabled:opacity-50 ${confirmVariant === 'primary' ? 'bg-primary text-primary-foreground' : 'bg-destructive text-destructive-foreground'}`}
                     >
                         {submitText}
                     </button>

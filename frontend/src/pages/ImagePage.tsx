@@ -5,6 +5,7 @@ import api from '../services/api';
 import { ImageDto, Role, ImageFormData, ReviewStatus, ReviewStatusFilter, ReviewableContentType } from '../types';
 import { Heart, Trash2, Edit, FolderPlus, Flag, Image, GitPullRequest, Clock, Plus } from 'lucide-react';
 import { useMyPendingImageEdits } from '../hooks/useMyPendingImageEdits';
+import { invalidateNavBadges } from '../hooks/useNavBadges';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 import { useNsfwConsent } from '../hooks/useNsfwConsent';
@@ -119,6 +120,7 @@ const ImagePage = () => {
       await api.post('/reports', { imageId: image.id, description });
       showNotification('success', 'Report submitted');
       setIsReportModalOpen(false);
+      invalidateNavBadges(queryClient);
     } catch (err) {
       // showNotification('error', 'Failed to submit report'); // Handled globally
     }
@@ -397,8 +399,9 @@ const ImagePage = () => {
                 isOpen={showSuggestModal}
                 onClose={() => {
                     setShowSuggestModal(false);
-                    // A suggestion may have just been submitted, so refresh the caller's pending proposals.
+                    // A suggestion may have just been submitted, so refresh the caller's pending proposals + badge.
                     queryClient.invalidateQueries({ queryKey: ['my-pending-image-edits'] });
+                    invalidateNavBadges(queryClient);
                 }}
                 initialData={image}
                 onSubmit={() => {}}

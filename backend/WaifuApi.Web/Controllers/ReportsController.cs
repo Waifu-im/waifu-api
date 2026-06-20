@@ -8,8 +8,11 @@ using Microsoft.AspNetCore.Mvc;
 using WaifuApi.Application.Common.Models;
 using WaifuApi.Application.Features.Reports.CreateReport;
 using WaifuApi.Application.Features.Reports.GetReports;
-using WaifuApi.Application.Features.Reports.ResolveReport;
+using WaifuApi.Application.Features.Reports.SetReportStatus;
+using WaifuApi.Application.Features.Reports.UpdateReport;
+using WaifuApi.Application.Interfaces;
 using WaifuApi.Domain.Entities;
+using WaifuApi.Domain.Enums;
 using WaifuApi.Web.Constants;
 using WaifuApi.Web.Models;
 
@@ -35,10 +38,12 @@ namespace WaifuApi.Web.Controllers;
 public class ReportsController : ControllerBase
 {
     private readonly IMediator _mediator;
+    private readonly ICurrentUserService _currentUser;
 
-    public ReportsController(IMediator mediator)
+    public ReportsController(IMediator mediator, ICurrentUserService currentUser)
     {
         _mediator = mediator;
+        _currentUser = currentUser;
     }
 
     /// <summary>
@@ -60,12 +65,14 @@ public class ReportsController : ControllerBase
     /// <response code="400">Invalid report data.</response>
     /// <response code="401">Authentication required.</response>
     /// <response code="404">Image not found.</response>
+    /// <response code="409">You already have a pending report for this image.</response>
     [Authorize]
     [HttpPost]
     [ProducesResponseType(typeof(Report), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationErrorResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status409Conflict)]
     public async Task<ActionResult<Report>> Create([FromBody] CreateReportRequest request)
     {
         var userId = long.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
@@ -74,53 +81,130 @@ public class ReportsController : ControllerBase
     }
 
     /// <summary>
-    /// List all reports.
+    /// List reports.
     /// </summary>
     /// <remarks>
-    /// Returns a paginated list of image reports. Use the `IsResolved` filter to show
-    /// only pending reports (false) or completed reports (true).
+    /// Returns a paginated list of image reports. Use the `Status` filter to show a single lifecycle status
+    /// (Pending, Resolved, Rejected, Cancelled).
     ///
-    /// **Requires:** Moderator role or higher.
+    /// Moderators see all reports; regular users only ever see their own. A moderator can pass `mine=true`
+    /// to see just their own reports (their "My Reports" view).
     /// </remarks>
     /// <param name="request">Filter and pagination parameters.</param>
     /// <returns>A paginated list of reports.</returns>
     /// <response code="200">Returns the list of reports.</response>
     /// <response code="401">Authentication required.</response>
-    /// <response code="403">Insufficient permissions (Moderator required).</response>
-    [Authorize(Policy = AuthorizationPolicies.Moderator)]
+    [Authorize]
     [HttpGet]
     [ProducesResponseType(typeof(PaginatedList<ReportDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<PaginatedList<ReportDto>>> Get([FromQuery] GetReportsRequest request)
     {
-        var reports = await _mediator.Send(new GetReportsQuery(request.IsResolved, request.Page, request.PageSize));
+        var isMod = _currentUser.IsModeratorOrAdmin;
+        // Non-moderators are always scoped to their own reports; moderators see all unless they ask for theirs.
+        long? scope = (!isMod || request.Mine == true) ? _currentUser.UserId : null;
+        var reports = await _mediator.Send(new GetReportsQuery(request.Status, request.Page, request.PageSize, scope, _currentUser.UserRole));
         return Ok(reports);
     }
 
     /// <summary>
-    /// Mark a report as resolved.
+    /// Edit one of your reports.
     /// </summary>
     /// <remarks>
-    /// Mark a report as resolved after taking appropriate action on the reported image.
-    /// This removes the report from the pending queue.
-    ///
-    /// **Requires:** Moderator role or higher.
+    /// Update the description of a report you submitted. Only allowed while the report is still open
+    /// (not yet resolved). Moderators may edit any open report.
     /// </remarks>
-    /// <param name="id">The report ID to resolve.</param>
-    /// <response code="204">Report marked as resolved.</response>
+    /// <param name="id">The report ID to edit.</param>
+    /// <param name="request">The updated description.</param>
+    /// <returns>The updated report.</returns>
+    /// <response code="200">Report updated successfully.</response>
+    /// <response code="400">Invalid description.</response>
+    /// <response code="401">Authentication required.</response>
+    /// <response code="403">Not your report.</response>
+    /// <response code="404">Report not found.</response>
+    /// <response code="409">Report already resolved.</response>
+    [Authorize]
+    [HttpPatch("{id:long}")]
+    [ProducesResponseType(typeof(ReportDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<ReportDto>> Update([FromRoute] long id, [FromBody] UpdateReportRequest request)
+    {
+        var report = await _mediator.Send(new UpdateReportCommand(id, _currentUser.UserId!.Value, _currentUser.IsModeratorOrAdmin, request.Description ?? string.Empty));
+        return Ok(report);
+    }
+
+    /// <summary>
+    /// Validate a report (mark it resolved).
+    /// </summary>
+    /// <remarks>The report was legitimate and has been handled. **Requires:** Moderator role or higher.</remarks>
+    /// <param name="id">The report ID.</param>
+    /// <param name="request">Optional moderator note shown to the reporter.</param>
+    /// <response code="204">Report resolved.</response>
     /// <response code="401">Authentication required.</response>
     /// <response code="403">Insufficient permissions (Moderator required).</response>
     /// <response code="404">Report not found.</response>
+    /// <response code="409">Report already handled.</response>
     [Authorize(Policy = AuthorizationPolicies.Moderator)]
-    [HttpPatch("{id:long}/resolve")]
+    [HttpPatch("{id:long}/validate")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Resolve([FromRoute] long id)
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Validate([FromRoute] long id, [FromBody] ReportActionRequest? request = null)
     {
-        await _mediator.Send(new ResolveReportCommand(id));
+        await _mediator.Send(new SetReportStatusCommand(id, _currentUser.UserId!.Value, _currentUser.IsModeratorOrAdmin, ReportStatus.Resolved, request?.Reason));
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Reject a report (dismiss it).
+    /// </summary>
+    /// <remarks>The report was not valid and has been dismissed. **Requires:** Moderator role or higher.</remarks>
+    /// <param name="id">The report ID.</param>
+    /// <param name="request">Optional moderator note shown to the reporter.</param>
+    /// <response code="204">Report rejected.</response>
+    /// <response code="401">Authentication required.</response>
+    /// <response code="403">Insufficient permissions (Moderator required).</response>
+    /// <response code="404">Report not found.</response>
+    /// <response code="409">Report already handled.</response>
+    [Authorize(Policy = AuthorizationPolicies.Moderator)]
+    [HttpPatch("{id:long}/reject")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Reject([FromRoute] long id, [FromBody] ReportActionRequest? request = null)
+    {
+        await _mediator.Send(new SetReportStatusCommand(id, _currentUser.UserId!.Value, _currentUser.IsModeratorOrAdmin, ReportStatus.Rejected, request?.Reason));
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Cancel (withdraw) a report.
+    /// </summary>
+    /// <remarks>The report's author withdraws it. Moderators may cancel any report. Only pending reports can be cancelled.</remarks>
+    /// <param name="id">The report ID.</param>
+    /// <response code="204">Report cancelled.</response>
+    /// <response code="401">Authentication required.</response>
+    /// <response code="403">Not your report.</response>
+    /// <response code="404">Report not found.</response>
+    /// <response code="409">Report already handled.</response>
+    [Authorize]
+    [HttpPatch("{id:long}/cancel")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Cancel([FromRoute] long id)
+    {
+        await _mediator.Send(new SetReportStatusCommand(id, _currentUser.UserId!.Value, _currentUser.IsModeratorOrAdmin, ReportStatus.Cancelled));
         return NoContent();
     }
 }
@@ -134,10 +218,16 @@ public class ReportsController : ControllerBase
 public class GetReportsRequest
 {
     /// <summary>
-    /// Filter by resolution status.
+    /// Filter by lifecycle status (Pending, Resolved, Rejected, Cancelled).
     /// </summary>
-    [Description("Filter by resolution status.")]
-    public bool? IsResolved { get; set; }
+    [Description("Filter by lifecycle status (Pending, Resolved, Rejected, Cancelled).")]
+    public ReportStatus? Status { get; set; }
+
+    /// <summary>
+    /// Moderators only: return just your own reports instead of everyone's. (Non-moderators are always scoped to their own.)
+    /// </summary>
+    [Description("Moderators only: return just your own reports instead of everyone's.")]
+    public bool? Mine { get; set; }
 
     /// <summary>
     /// Page number for pagination. Default: 1.
@@ -168,4 +258,27 @@ public class CreateReportRequest
     /// </summary>
     /// <example>This image is incorrectly tagged as SFW but contains NSFW content.</example>
     public string? Description { get; set; }
+}
+
+/// <summary>
+/// Request model for editing a report's description.
+/// </summary>
+public class UpdateReportRequest
+{
+    /// <summary>
+    /// The updated description explaining why this image is being reported.
+    /// </summary>
+    [Required]
+    public string? Description { get; set; }
+}
+
+/// <summary>
+/// Request model for answering a report (validate/reject) with an optional moderator note.
+/// </summary>
+public class ReportActionRequest
+{
+    /// <summary>
+    /// Optional note from the moderator shown to the reporter (e.g. why the report was rejected).
+    /// </summary>
+    public string? Reason { get; set; }
 }

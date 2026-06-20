@@ -280,6 +280,42 @@ namespace WaifuApi.Infrastructure.Persistence.Migrations
                     b.ToTable("Images");
                 });
 
+            modelBuilder.Entity("WaifuApi.Domain.Entities.Report", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<long?>("ImageId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ReviewerNote")
+                        .HasColumnType("text");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ImageId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Reports");
+                });
+
             modelBuilder.Entity("WaifuApi.Domain.Entities.ReviewTask", b =>
                 {
                     b.Property<long>("Id")
@@ -341,39 +377,6 @@ namespace WaifuApi.Infrastructure.Persistence.Migrations
                         .HasFilter("\"Status\" = 0 AND \"Kind\" = 1");
 
                     b.ToTable("ReviewTasks");
-                });
-
-            modelBuilder.Entity("WaifuApi.Domain.Entities.Report", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<long>("ImageId")
-                        .HasColumnType("bigint");
-
-                    b.Property<bool>("IsResolved")
-                        .HasColumnType("boolean");
-
-                    b.Property<long>("UserId")
-                        .HasColumnType("bigint");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ImageId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("Reports");
                 });
 
             modelBuilder.Entity("WaifuApi.Domain.Entities.Tag", b =>
@@ -551,6 +554,24 @@ namespace WaifuApi.Infrastructure.Persistence.Migrations
                     b.Navigation("Uploader");
                 });
 
+            modelBuilder.Entity("WaifuApi.Domain.Entities.Report", b =>
+                {
+                    b.HasOne("WaifuApi.Domain.Entities.Image", "Image")
+                        .WithMany()
+                        .HasForeignKey("ImageId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("WaifuApi.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Image");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("WaifuApi.Domain.Entities.ReviewTask", b =>
                 {
                     b.HasOne("WaifuApi.Domain.Entities.User", "Reviewer")
@@ -566,25 +587,6 @@ namespace WaifuApi.Infrastructure.Persistence.Migrations
                     b.Navigation("Reviewer");
 
                     b.Navigation("Submitter");
-                });
-
-            modelBuilder.Entity("WaifuApi.Domain.Entities.Report", b =>
-                {
-                    b.HasOne("WaifuApi.Domain.Entities.Image", "Image")
-                        .WithMany()
-                        .HasForeignKey("ImageId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("WaifuApi.Domain.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Image");
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("WaifuApi.Domain.Entities.Tag", b =>

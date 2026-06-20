@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import {
@@ -28,7 +29,9 @@ import ArtistModal, { ArtistFormData } from '../components/modals/ArtistModal';
 import TagModal, { TagFormData } from '../components/modals/TagModal';
 import Pagination from '../components/Pagination';
 import TagChip from '../components/TagChip';
+import { StatusBadge as SharedStatusBadge, StatusTone } from '../components/StatusBadge';
 import { resolveTagsBySlugs, resolveArtistsByIds } from '../utils/metadataResolve';
+import { invalidateNavBadges } from '../hooks/useNavBadges';
 import {
     Check, X, ExternalLink, Image as ImageIcon, Tag as TagIcon,
     Palette, Clock, Ban, ArrowRight, Sparkles, GitPullRequest, Edit2, Link as LinkIcon,
@@ -62,21 +65,15 @@ const targetLink = (task: ReviewTask): string => {
     }
 };
 
-const STATUS_STYLES: Record<ReviewTaskStatus, string> = {
-    [ReviewTaskStatus.Pending]: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20',
-    [ReviewTaskStatus.Approved]: 'bg-green-500/10 text-green-600 border-green-500/20',
-    [ReviewTaskStatus.Rejected]: 'bg-destructive/10 text-destructive border-destructive/20',
-    [ReviewTaskStatus.Cancelled]: 'bg-secondary text-muted-foreground border-border',
+const REVIEW_STATUS: Record<ReviewTaskStatus, { tone: StatusTone; icon: React.ReactNode }> = {
+    [ReviewTaskStatus.Pending]: { tone: 'pending', icon: <Clock size={12} /> },
+    [ReviewTaskStatus.Approved]: { tone: 'success', icon: <Check size={12} /> },
+    [ReviewTaskStatus.Rejected]: { tone: 'danger', icon: <X size={12} /> },
+    [ReviewTaskStatus.Cancelled]: { tone: 'neutral', icon: <Ban size={12} /> },
 };
 
 const StatusBadge = ({ status }: { status: ReviewTaskStatus }) => (
-    <span className={`px-2 py-1 rounded text-xs font-bold border flex items-center gap-1 ${STATUS_STYLES[status]}`}>
-        {status === ReviewTaskStatus.Pending && <Clock size={12} />}
-        {status === ReviewTaskStatus.Approved && <Check size={12} />}
-        {status === ReviewTaskStatus.Rejected && <X size={12} />}
-        {status === ReviewTaskStatus.Cancelled && <Ban size={12} />}
-        {status}
-    </span>
+    <SharedStatusBadge label={status} tone={REVIEW_STATUS[status].tone} icon={REVIEW_STATUS[status].icon} />
 );
 
 const KindBadge = ({ kind }: { kind: ReviewTaskKind }) => (
@@ -565,6 +562,7 @@ const Review = () => {
     const [cancelTarget, setCancelTarget] = useState<ReviewTask | null>(null);
     const [editingTask, setEditingTask] = useState<ReviewTask | null>(null);
     const [editingImageData, setEditingImageData] = useState<ImageDto | undefined>(undefined);
+    const queryClient = useQueryClient();
 
     // Open the content-edit modal. For an image Edit, the payload only carries slugs/ids for proposed additions,
     // so resolve their real names first — otherwise the modal shows raw lowercase slugs / "#id" instead of names.
@@ -648,6 +646,7 @@ const Review = () => {
             showNotification('success', task.kind === ReviewTaskKind.NewContent ? 'Content published' : 'Edit applied');
             setTasks(prev => prev.filter(t => t.id !== task.id));
             fetchCounts();
+            invalidateNavBadges(queryClient);
         } catch {
             // Handled globally (e.g. 409 conflict when an edit drifted)
         }
@@ -661,6 +660,7 @@ const Review = () => {
             setTasks(prev => prev.filter(t => t.id !== rejectTarget.id));
             setRejectTarget(null);
             fetchCounts();
+            invalidateNavBadges(queryClient);
         } catch {
             // Handled globally
         }
@@ -674,6 +674,7 @@ const Review = () => {
             setTasks(prev => prev.filter(t => t.id !== cancelTarget.id));
             setCancelTarget(null);
             fetchCounts();
+            invalidateNavBadges(queryClient);
         } catch {
             // Handled globally
         }

@@ -137,7 +137,7 @@ public class WaifuDbContext : DbContext, IWaifuDbContext
             entity.HasOne(e => e.Image)
                 .WithMany()
                 .HasForeignKey(e => e.ImageId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<ReviewTask>(entity =>

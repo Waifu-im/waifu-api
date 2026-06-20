@@ -6,22 +6,32 @@ using WaifuApi.Application.Common.Models;
 using WaifuApi.Application.Common.Utilities;
 using WaifuApi.Application.Interfaces;
 using WaifuApi.Domain.Entities;
+using WaifuApi.Domain.Enums;
 
 namespace WaifuApi.Application.Features.Reports.GetReports;
 
 public class GetReportsQuery : IQuery<PaginatedList<ReportDto>>
 {
-    public bool? IsResolved { get; set; }
+    public ReportStatus? Status { get; set; }
+
+    /// <summary>When set, only reports submitted by this user are returned (scopes non-moderators to their own).</summary>
+    public long? UserId { get; set; }
+
+    /// <summary>Controls whether the reported image's uploaderId is exposed (moderators only).</summary>
+    public Role? UserRole { get; set; }
+
     public int Page { get; set; } = 1;
     public int PageSize { get; set; }
 
-    public GetReportsQuery(bool? isResolved, int page, int pageSize)
+    public GetReportsQuery(ReportStatus? status, int page, int pageSize, long? userId = null, Role? userRole = null)
     {
-        IsResolved = isResolved;
+        Status = status;
         Page = page;
         PageSize = pageSize;
+        UserId = userId;
+        UserRole = userRole;
     }
-    
+
     public GetReportsQuery() { }
 }
 
@@ -48,65 +58,31 @@ public class GetReportsQueryHandler : IQueryHandler<GetReportsQuery, PaginatedLi
         var query = _context.Reports
             .AsNoTracking()
             .Include(r => r.User)
-            .Include(r => r.Image)
+            .Include(r => r.Image!)
             .ThenInclude(i => i.Artists)
-            .Include(r => r.Image)
+            .Include(r => r.Image!)
             .ThenInclude(i => i.Tags)
             .AsQueryable();
 
-        if (request.IsResolved.HasValue)
+        if (request.Status.HasValue)
         {
-            query = query.Where(r => r.IsResolved == request.IsResolved.Value);
+            query = query.Where(r => r.Status == request.Status.Value);
         }
-        
+
+        // Non-moderators are scoped to their own reports (set by the controller); moderators see all.
+        if (request.UserId.HasValue)
+        {
+            query = query.Where(r => r.UserId == request.UserId.Value);
+        }
+
         query = query.OrderByDescending(r => r.CreatedAt);
 
         var paginatedReports = await PaginatedList<Report>.CreateAsync(query, request.Page, pageSize, _maxPageSize, _defaultPageSize, cancellationToken);
 
-        var reportDtos = paginatedReports.Items.Select(report => new ReportDto
-        {
-            Id = report.Id,
-            UserId = report.UserId,
-            User = report.User != null ? new UserMinimalDto { Id = report.User.Id, Name = report.User.Name } : null,
-            ImageId = report.ImageId,
-            Image = report.Image != null ? new ImageDto
-            {
-                Id = report.Image.Id,
-                PerceptualHash = BitArrayHelper.ToHex(report.Image.PerceptualHash), // Utilisation du Helper
-                Extension = report.Image.Extension,
-                DominantColor = report.Image.DominantColor,
-                Source = report.Image.Source,
-                Artists = report.Image.Artists.Select(a => new ArtistDto
-                {
-                    Id = a.Id,
-                    Name = a.Name,
-                    Patreon = a.Patreon,
-                    Pixiv = a.Pixiv,
-                    Twitter = a.Twitter,
-                    DeviantArt = a.DeviantArt,
-                    ReviewStatus = a.ReviewStatus
-                }).ToList(),
-                UploaderId = report.Image.UploaderId,
-                UploadedAt = report.Image.UploadedAt,
-                IsNsfw = report.Image.IsNsfw,
-                IsAnimated = report.Image.IsAnimated,
-                Width = report.Image.Width,
-                Height = report.Image.Height,
-                ByteSize = report.Image.ByteSize,
-                Url = CdnUrlHelper.GetImageUrl(_cdnBaseUrl, report.Image.Id, report.Image.Extension),
-                Tags = report.Image.Tags.Select(t => new TagDto
-                {
-                    Id = t.Id,
-                    Name = t.Name,
-                    Slug = t.Slug,
-                    Description = t.Description,
-                    ReviewStatus = t.ReviewStatus
-                }).ToList()
-            } : null,
-            Description = report.Description,
-            IsResolved = report.IsResolved,
-            CreatedAt = report.CreatedAt
-        }).ToList();
+        var isModeratorOrAdmin = RoleUtils.IsModeratorOrAdmin(request.UserRole);
+        var reportDtos = paginatedReports.Items
+            .Select(report => ReportMapping.ToDto(report, _cdnBaseUrl, isModeratorOrAdmin))
+            .ToList();
 
         return new PaginatedList<ReportDto>(reportDtos, paginatedReports.TotalCount, paginatedReports.PageNumber, pageSize, _maxPageSize, _defaultPageSize);
     }

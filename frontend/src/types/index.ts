@@ -74,14 +74,24 @@ export interface ApiKeyDto {
   expirationDate?: string;
 }
 
+// Matches backend ReportStatus enum
+export enum ReportStatus {
+  Pending = 'Pending',
+  Resolved = 'Resolved',
+  Rejected = 'Rejected',
+  Cancelled = 'Cancelled',
+}
+
 export interface Report {
   id: number;
   userId: number;
   user?: User;
-  imageId: number;
+  imageId?: number | null;
   image?: ImageDto;
   description?: string;
-  isResolved: boolean;
+  status: ReportStatus;
+  /** Optional moderator note recorded when the report was answered (validated/rejected). */
+  reviewerNote?: string;
   createdAt: string;
 }
 

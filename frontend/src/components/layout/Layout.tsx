@@ -7,11 +7,12 @@ import {
     User as UserIcon, Library, ChevronDown, Palette, Key, Users as UsersIcon, Flag, BarChart, Monitor, Book, Mail, Activity, HardDrive, Github, FileText, GitPullRequest
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import GlobalErrorHandler from '../GlobalErrorHandler';
 import { Dropdown, DropdownItem, DropdownLabel, DropdownSeparator } from '../Dropdown';
 import { getEnv } from '../../utils/env';
 import { Role } from '../../types';
-import api from '../../services/api';
+import { useNavBadges, invalidateNavBadges } from '../../hooks/useNavBadges';
 
 const Layout = () => {
     const { theme, setTheme, resolvedTheme } = useTheme();
@@ -21,31 +22,19 @@ const Layout = () => {
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-    // Pending review count for the nav badge: all pending tasks for mods, the user's own otherwise (the API
-    // auto-scopes). Refetched on navigation so it reflects approvals/withdrawals without a manual refresh.
-    const [pendingCount, setPendingCount] = useState(0);
-    useEffect(() => {
-        if (!user) { setPendingCount(0); return; }
-        api.get<{ totalCount: number }>('/review/tasks', { params: { status: 'Pending', page: 1, pageSize: 1 }, skipGlobalErrorHandler: true })
-            .then(r => setPendingCount(r.data.totalCount ?? 0))
-            .catch(() => { /* best-effort badge */ });
-    }, [user, location.pathname]);
+    // Nav count badges (pending submissions + unresolved reports). Both endpoints auto-scope: mods get the
+    // global queue counts, regular users get their own. React-query backed, so they refetch on navigation
+    // (invalidated below on route change) and immediately after actions like approve/resolve (handlers call
+    // invalidateNavBadges).
+    const { pendingCount, reportCount } = useNavBadges();
+    const queryClient = useQueryClient();
+    useEffect(() => { invalidateNavBadges(queryClient); }, [location.pathname, queryClient]);
 
     const navBadge = pendingCount > 0 ? (
         <span className="ml-auto px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none bg-primary text-primary-foreground">
             {pendingCount > 99 ? '99+' : pendingCount}
         </span>
     ) : null;
-
-    // Unresolved-reports count for the Reports nav badge (moderators/admins only; the endpoint requires it).
-    const [reportCount, setReportCount] = useState(0);
-    useEffect(() => {
-        const isMod = !!user && (user.role === Role.Moderator || user.role === Role.Admin);
-        if (!isMod) { setReportCount(0); return; }
-        api.get<{ totalCount: number }>('/reports', { params: { IsResolved: false, page: 1, pageSize: 1 }, skipGlobalErrorHandler: true })
-            .then(r => setReportCount(r.data.totalCount ?? 0))
-            .catch(() => { /* best-effort badge */ });
-    }, [user, location.pathname]);
 
     const reportBadge = reportCount > 0 ? (
         <span className="ml-auto px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none bg-red-500 text-white">
@@ -150,7 +139,10 @@ const Layout = () => {
                                 <Link to="/albums"><DropdownItem icon={<Library size={16} />}>My Albums</DropdownItem></Link>
                                 <Link to="/api-keys"><DropdownItem icon={<Key size={16} />}>API Keys</DropdownItem></Link>
                                 {!isModOrAdmin && (
-                                    <Link to="/review"><DropdownItem icon={<GitPullRequest size={16} />}>My Submissions{navBadge}</DropdownItem></Link>
+                                    <>
+                                        <Link to="/review"><DropdownItem icon={<GitPullRequest size={16} />}>My Submissions{navBadge}</DropdownItem></Link>
+                                        <Link to="/my-reports"><DropdownItem icon={<Flag size={16} />}>My Reports</DropdownItem></Link>
+                                    </>
                                 )}
 
                                 {isModOrAdmin && (

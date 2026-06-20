@@ -36,6 +36,17 @@ public class DeleteImageCommandHandler : ICommandHandler<DeleteImageCommand>
             throw new UnauthorizedAccessException("You are not authorized to delete this image.");
         }
 
+        // Resolve any pending reports on this image. The image link is set to null by the FK on delete, so the
+        // report survives as a resolved record for the reporter rather than being cascade-deleted.
+        var pendingReports = await _context.Reports
+            .Where(r => r.ImageId == request.ImageId && r.Status == ReportStatus.Pending)
+            .ToListAsync(cancellationToken);
+        foreach (var report in pendingReports)
+        {
+            report.Status = ReportStatus.Resolved;
+            report.ReviewerNote = "The reported image was deleted by a moderator.";
+        }
+
         // Delete from S3
         var s3FileName = $"{image.Id}{image.Extension}";
         await _storageService.DeleteAsync(s3FileName);

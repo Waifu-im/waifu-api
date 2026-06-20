@@ -279,10 +279,11 @@ namespace WaifuApi.Infrastructure.Persistence.Migrations
                     Id = table.Column<long>(type: "bigint", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     UserId = table.Column<long>(type: "bigint", nullable: false),
-                    ImageId = table.Column<long>(type: "bigint", nullable: false),
+                    ImageId = table.Column<long>(type: "bigint", nullable: true),
                     Description = table.Column<string>(type: "text", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    IsResolved = table.Column<bool>(type: "boolean", nullable: false)
+                    Status = table.Column<int>(type: "integer", nullable: false),
+                    ReviewerNote = table.Column<string>(type: "text", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -292,7 +293,7 @@ namespace WaifuApi.Infrastructure.Persistence.Migrations
                         column: x => x.ImageId,
                         principalTable: "Images",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.SetNull);
                     table.ForeignKey(
                         name: "FK_Reports_Users_UserId",
                         column: x => x.UserId,
@@ -403,6 +404,16 @@ namespace WaifuApi.Infrastructure.Persistence.Migrations
                 column: "TagsId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Reports_ImageId",
+                table: "Reports",
+                column: "ImageId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Reports_UserId",
+                table: "Reports",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_ReviewTasks_Kind_Status",
                 table: "ReviewTasks",
                 columns: new[] { "Kind", "Status" });
@@ -433,16 +444,6 @@ namespace WaifuApi.Infrastructure.Persistence.Migrations
                 name: "IX_ReviewTasks_TargetType_TargetId",
                 table: "ReviewTasks",
                 columns: new[] { "TargetType", "TargetId" });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Reports_ImageId",
-                table: "Reports",
-                column: "ImageId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Reports_UserId",
-                table: "Reports",
-                column: "UserId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Tags_CreatorId",
@@ -490,10 +491,10 @@ namespace WaifuApi.Infrastructure.Persistence.Migrations
                 name: "ImageTag");
 
             migrationBuilder.DropTable(
-                name: "ReviewTasks");
+                name: "Reports");
 
             migrationBuilder.DropTable(
-                name: "Reports");
+                name: "ReviewTasks");
 
             migrationBuilder.DropTable(
                 name: "Albums");
