@@ -12,6 +12,7 @@ using Pgvector.EntityFrameworkCore;
 using WaifuApi.Application.Common.Exceptions;
 using WaifuApi.Application.Common.Extensions;
 using WaifuApi.Application.Common.Models;
+using WaifuApi.Application.Common.Services;
 using WaifuApi.Application.Common.Utilities;
 using WaifuApi.Application.Interfaces;
 using WaifuApi.Domain.Entities;
@@ -27,7 +28,8 @@ public record UploadImageCommand(
     List<long> ArtistIds,
     List<string> TagSlugs,
     string? Source,
-    bool IsNsfw
+    bool IsNsfw,
+    Role? UploaderRole = null
 ) : ICommand<ImageDto>;
 
 public class UploadImageCommandHandler : ICommandHandler<UploadImageCommand, ImageDto>
@@ -35,7 +37,7 @@ public class UploadImageCommandHandler : ICommandHandler<UploadImageCommand, Ima
     private readonly IWaifuDbContext _context;
     private readonly IStorageService _storageService;
     private readonly IImageProcessingService _imageProcessingService;
-    private readonly IConfiguration _configuration;
+    private readonly IReviewPolicy _reviewPolicy;
     private readonly string _cdnBaseUrl;
     private const int HammingDistanceThreshold = 4;
 
@@ -43,12 +45,13 @@ public class UploadImageCommandHandler : ICommandHandler<UploadImageCommand, Ima
         IWaifuDbContext context,
         IStorageService storageService,
         IImageProcessingService imageProcessingService,
+        IReviewPolicy reviewPolicy,
         IConfiguration configuration)
     {
         _context = context;
         _storageService = storageService;
         _imageProcessingService = imageProcessingService;
-        _configuration = configuration;
+        _reviewPolicy = reviewPolicy;
         _cdnBaseUrl = configuration["Cdn:BaseUrl"] ?? throw new InvalidOperationException("Cdn:BaseUrl is required.");
     }
 
@@ -101,8 +104,8 @@ public class UploadImageCommandHandler : ICommandHandler<UploadImageCommand, Ima
             tags = foundTags;
         }
 
-        var requireImageReview = bool.Parse(_configuration["Moderation:RequireImageReview"] ?? "true");
-        
+        var requireImageReview = _reviewPolicy.RequiresReviewForNewContent(ReviewableContentType.Image, request.UploaderRole);
+
         var image = new Image
         {
             PerceptualHash = targetHash,
@@ -121,7 +124,15 @@ public class UploadImageCommandHandler : ICommandHandler<UploadImageCommand, Ima
             Tags = tags
         };
 
+        // Create the image and its review task atomically with the S3 upload; if any step fails the
+        // transaction rolls back so we never leave a half-created image or an orphaned task.
+        await using var transaction = await _context.BeginTransactionAsync(cancellationToken);
+
         _context.Images.Add(image);
+        await _context.SaveChangesAsync(cancellationToken); // assigns image.Id
+
+        _context.ReviewTasks.Add(
+            ReviewTaskFactory.NewContent(ReviewableContentType.Image, image.Id, request.UserId, requireImageReview));
         await _context.SaveChangesAsync(cancellationToken);
 
         try
@@ -132,10 +143,11 @@ public class UploadImageCommandHandler : ICommandHandler<UploadImageCommand, Ima
         }
         catch
         {
-            _context.Images.Remove(image);
-            await _context.SaveChangesAsync(cancellationToken);
+            await transaction.RollbackAsync(cancellationToken);
             throw;
         }
+
+        await transaction.CommitAsync(cancellationToken);
 
         var dto = image.ToDto(_cdnBaseUrl, includeUploaderId: true);
         dto.Favorites = 0;

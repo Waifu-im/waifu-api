@@ -4,6 +4,7 @@ using Mediator;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using WaifuApi.Application.Common.Exceptions;
+using WaifuApi.Application.Common.Services;
 using WaifuApi.Application.Common.Utilities;
 using WaifuApi.Application.Interfaces;
 using WaifuApi.Domain.Entities;
@@ -17,18 +18,19 @@ public record CreateArtistCommand(
     string? Pixiv,
     string? Twitter,
     string? DeviantArt,
-    long? CreatorId = null
+    long? CreatorId = null,
+    Role? CreatorRole = null
 ) : ICommand<Artist>;
 
 public class CreateArtistCommandHandler : ICommandHandler<CreateArtistCommand, Artist>
 {
     private readonly IWaifuDbContext _context;
-    private readonly IConfiguration _configuration;
+    private readonly IReviewPolicy _reviewPolicy;
 
-    public CreateArtistCommandHandler(IWaifuDbContext context, IConfiguration configuration)
+    public CreateArtistCommandHandler(IWaifuDbContext context, IReviewPolicy reviewPolicy)
     {
         _context = context;
-        _configuration = configuration;
+        _reviewPolicy = reviewPolicy;
     }
 
     public async ValueTask<Artist> Handle(CreateArtistCommand request, CancellationToken cancellationToken)
@@ -74,8 +76,8 @@ public class CreateArtistCommandHandler : ICommandHandler<CreateArtistCommand, A
                 throw new ConflictException($"Artist with DeviantArt '{deviantArt}' already exists.");
         }
 
-        var requireReview = bool.Parse(_configuration["Moderation:RequireArtistReview"] ?? "true");
-        
+        var requireReview = _reviewPolicy.RequiresReviewForNewContent(ReviewableContentType.Artist, request.CreatorRole);
+
         var artist = new Artist
         {
             Name = trimmedName,
@@ -87,8 +89,13 @@ public class CreateArtistCommandHandler : ICommandHandler<CreateArtistCommand, A
             CreatorId = request.CreatorId
         };
 
+        await using var transaction = await _context.BeginTransactionAsync(cancellationToken);
         _context.Artists.Add(artist);
+        await _context.SaveChangesAsync(cancellationToken); // assigns artist.Id
+        _context.ReviewTasks.Add(
+            ReviewTaskFactory.NewContent(ReviewableContentType.Artist, artist.Id, request.CreatorId, requireReview));
         await _context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return artist;
     }

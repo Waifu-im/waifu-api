@@ -70,7 +70,8 @@ const Upload = () => {
     try {
       const { data: uploadedImage } = await api.post<ImageDto>('/images/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
       showNotification(isReviewMode ? 'info' : 'success', isReviewMode ? 'Upload pending review.' : 'Image uploaded!');
-      navigate(`/images/${uploadedImage.id}`);
+      // A pending upload goes to the submitter's queue (Images tab); an auto-approved one to the live image.
+      navigate(isReviewMode ? '/review?type=Image' : `/images/${uploadedImage.id}`);
     } catch (e) { 
         // showNotification('error', 'Upload failed'); // Handled globally
         setIsUploading(false);
@@ -81,13 +82,13 @@ const Upload = () => {
 
   return (
       <div className="max-w-5xl mx-auto p-4 md:p-8">
-        {/* Moderation Notice */}
+        {/* Review Notice */}
         <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 mb-8 flex items-start gap-3">
           <Info className="text-blue-500 shrink-0 mt-0.5" size={20} />
           <div>
             <h4 className="font-bold text-blue-600 dark:text-blue-400 text-sm">Review Process</h4>
             <p className="text-sm text-muted-foreground mt-1">
-              New uploads require moderation approval before appearing publicly.
+              New uploads require review approval before appearing publicly.
             </p>
           </div>
         </div>

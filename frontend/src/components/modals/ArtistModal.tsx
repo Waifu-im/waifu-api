@@ -1,11 +1,14 @@
 ﻿import { useState, useEffect, useRef } from 'react';
 import Modal from '../Modal';
-import { Info, Loader2, Check, Clock, ChevronDown, Trash2 } from 'lucide-react';
-import { ReviewStatus, Role, PaginatedList, User } from '../../types';
+import { Info, Loader2, Check, Clock, ChevronDown, Trash2, GitPullRequest } from 'lucide-react';
+import { ReviewStatus, Role, PaginatedList, User, Artist, ReviewableContentType, SubmitEditBody } from '../../types';
 import { Dropdown, DropdownItem } from '../Dropdown';
 import { useAuth } from '../../context/AuthContext';
+import { useNotification } from '../../context/NotificationContext';
 import SearchableSelect, { Option } from '../SearchableSelect';
 import api from '../../services/api';
+import { buildArtistPayload } from '../../utils/editRequests';
+import AcceptSubmissionNote from '../AcceptSubmissionNote';
 
 export interface ArtistFormData {
     name: string;
@@ -26,10 +29,15 @@ interface ArtistModalProps {
     isReviewMode?: boolean;
     submitLabel?: string;
     onDelete?: () => void;
+    /** When provided, the modal acts as a "suggest an edit" form and POSTs an edit request itself. */
+    suggestContext?: { targetType: ReviewableContentType; targetId: number; current: Artist };
+    /** Content-only edit (moderating a pending submission): hides review status and creator; submits via onSubmit. */
+    contentOnly?: boolean;
 }
 
-const ArtistModal = ({ isOpen, onClose, onSubmit, initialData, title, isReviewMode, submitLabel = "Save", onDelete }: ArtistModalProps) => {
+const ArtistModal = ({ isOpen, onClose, onSubmit, initialData, title, isReviewMode, submitLabel = "Save", onDelete, suggestContext, contentOnly }: ArtistModalProps) => {
     const { user } = useAuth();
+    const { showNotification } = useNotification();
     const [formData, setFormData] = useState<ArtistFormData>({
         name: '',
         twitter: '',
@@ -39,10 +47,12 @@ const ArtistModal = ({ isOpen, onClose, onSubmit, initialData, title, isReviewMo
         reviewStatus: ReviewStatus.Pending
     });
     const [selectedCreator, setSelectedCreator] = useState<Option | null>(null);
+    const [reason, setReason] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const hasInitialized = useRef(false);
 
-    const isEditMode = !!initialData?.id;
+    const isSuggestMode = !!suggestContext;
+    const isEditMode = !!initialData?.id && !isSuggestMode && !contentOnly;
     const isAdmin = user?.role === Role.Admin;
 
     useEffect(() => {
@@ -62,6 +72,7 @@ const ArtistModal = ({ isOpen, onClose, onSubmit, initialData, title, isReviewMo
             reviewStatus: initialData?.reviewStatus ?? ReviewStatus.Pending
         });
         setIsSubmitting(false);
+        setReason('');
 
         if (initialData?.creatorId) {
             const creatorId = initialData.creatorId;
@@ -80,6 +91,38 @@ const ArtistModal = ({ isOpen, onClose, onSubmit, initialData, title, isReviewMo
 
     const handleSubmit = async () => {
         if (isSubmitting) return;
+
+        if (isSuggestMode && suggestContext) {
+            const { payload, isEmpty } = buildArtistPayload(suggestContext.current, {
+                name: formData.name,
+                patreon: formData.patreon,
+                pixiv: formData.pixiv,
+                twitter: formData.twitter,
+                deviantArt: formData.deviantArt,
+            });
+            if (isEmpty) {
+                showNotification('warning', 'No changes to suggest');
+                return;
+            }
+            setIsSubmitting(true);
+            try {
+                const body: SubmitEditBody = {
+                    targetType: suggestContext.targetType,
+                    targetId: suggestContext.targetId,
+                    reason: reason.trim() || undefined,
+                    payload,
+                };
+                await api.post('/review/tasks', body);
+                showNotification('success', 'Suggestion submitted for review');
+                onClose();
+            } catch {
+                // Error toast handled globally; keep modal open so the user can retry.
+            } finally {
+                setIsSubmitting(false);
+            }
+            return;
+        }
+
         setIsSubmitting(true);
         try {
             await onSubmit({
@@ -136,7 +179,19 @@ const ArtistModal = ({ isOpen, onClose, onSubmit, initialData, title, isReviewMo
             title={title}
         >
             <div className="space-y-4">
-                {isReviewMode && !isEditMode && (
+                {isSuggestMode && (
+                    <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 flex items-start gap-3">
+                        <GitPullRequest className="text-blue-500 shrink-0 mt-0.5" size={20} />
+                        <div>
+                            <h4 className="font-bold text-blue-600 dark:text-blue-400 text-sm">Suggesting an edit</h4>
+                            <p className="text-xs text-muted-foreground mt-1">
+                                Your changes will be submitted to the moderators for review.
+                            </p>
+                        </div>
+                    </div>
+                )}
+
+                {isReviewMode && !isEditMode && !isSuggestMode && (
                     <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 flex items-start gap-3">
                         <Info className="text-blue-500 shrink-0 mt-0.5" size={20} />
                         <div>
@@ -153,6 +208,7 @@ const ArtistModal = ({ isOpen, onClose, onSubmit, initialData, title, isReviewMo
                     <div>
                         <label className="block text-sm font-bold mb-1">Review Status</label>
                         {renderStatusDropdown()}
+                        <AcceptSubmissionNote current={initialData?.reviewStatus} selected={formData.reviewStatus} />
                     </div>
                 )}
 
@@ -195,6 +251,19 @@ const ArtistModal = ({ isOpen, onClose, onSubmit, initialData, title, isReviewMo
                     ))}
                 </div>
 
+                {isSuggestMode && (
+                    <div>
+                        <label className="block text-sm font-bold mb-1">Reason <span className="text-xs font-normal text-muted-foreground">(optional)</span></label>
+                        <textarea
+                            value={reason}
+                            onChange={e => setReason(e.target.value)}
+                            className="w-full p-3 bg-secondary rounded-lg outline-none h-20 resize-none text-foreground"
+                            placeholder="Why are you suggesting this change?"
+                            disabled={isSubmitting}
+                        />
+                    </div>
+                )}
+
                 <div className="flex gap-3 pt-2">
                     <button
                         onClick={handleSubmit}
@@ -202,7 +271,7 @@ const ArtistModal = ({ isOpen, onClose, onSubmit, initialData, title, isReviewMo
                         className="flex-1 py-3 bg-primary text-primary-foreground font-bold rounded-lg flex items-center justify-center gap-2 disabled:opacity-70"
                     >
                         {isSubmitting && <Loader2 size={18} className="animate-spin" />}
-                        {submitLabel}
+                        {isSuggestMode ? 'Submit suggestion' : submitLabel}
                     </button>
                     {onDelete && isAdmin && (
                         <button

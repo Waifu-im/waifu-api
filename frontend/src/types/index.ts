@@ -178,3 +178,92 @@ export interface ProblemDetails {
     /** Generic message field (non-standard) */
     message?: string;
 }
+
+// Matches backend ReviewTaskStatus enum
+export enum ReviewTaskStatus {
+  Pending = 'Pending',
+  Approved = 'Approved',
+  Rejected = 'Rejected',
+  Cancelled = 'Cancelled'
+}
+
+// Matches backend ReviewTaskKind enum
+export enum ReviewTaskKind {
+  NewContent = 'NewContent',
+  Edit = 'Edit'
+}
+
+// Matches backend ReviewableContentType enum
+export enum ReviewableContentType {
+  Image = 'Image',
+  Tag = 'Tag',
+  Artist = 'Artist'
+}
+
+export interface UserMinimal {
+  id: number;
+  name: string;
+  avatarUrl?: string;
+}
+
+/** The current state of a review task's target. Exactly one field is populated (all empty if deleted). */
+export interface ReviewTaskTarget {
+  image?: ImageDto;
+  tag?: Tag;
+  artist?: Artist;
+}
+
+/** Proposed changes to an image (only changed fields are present). Tag/artist membership uses deltas. */
+export interface ImageEditPayload {
+  source?: string;
+  isNsfw?: boolean;
+  addTagSlugs?: string[];
+  removeTagSlugs?: string[];
+  addArtistIds?: number[];
+  removeArtistIds?: number[];
+}
+
+export interface TagEditPayload {
+  name?: string;
+  description?: string;
+}
+
+export interface ArtistEditPayload {
+  name?: string;
+  patreon?: string;
+  pixiv?: string;
+  twitter?: string;
+  deviantArt?: string;
+}
+
+export type EditPayload = ImageEditPayload | TagEditPayload | ArtistEditPayload;
+
+export interface ReviewTask {
+  id: number;
+  kind: ReviewTaskKind;
+  submitterId?: number;
+  submitter?: UserMinimal;
+  targetType: ReviewableContentType;
+  targetId: number;
+  /** The proposed changes for Edit tasks (absent for NewContent). */
+  payload?: EditPayload;
+  /** The current state of the target; undefined if it no longer exists (e.g. a rejected submission). */
+  target?: ReviewTaskTarget;
+  reason?: string;
+  status: ReviewTaskStatus;
+  reviewerId?: number;
+  reviewer?: UserMinimal;
+  reviewerNote?: string;
+  /** Set when a moderator (other than the submitter) edited this submission's content. */
+  moderatorEditedAt?: string;
+  createdAt: string;
+  resolvedAt?: string;
+}
+
+/** Body sent to POST /review/tasks (submit an edit). */
+export interface SubmitEditBody {
+  targetType: ReviewableContentType;
+  targetId: number;
+  reason?: string;
+  payload: EditPayload;
+}

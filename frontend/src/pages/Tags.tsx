@@ -1,10 +1,10 @@
 ﻿import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Tag, Role } from '../types';
+import { Tag, Role, ReviewableContentType, ReviewStatus } from '../types';
 import { useAuth } from '../context/AuthContext';
 import Modal from '../components/Modal';
 import TagModal, { TagFormData } from '../components/modals/TagModal';
-import { Plus, Edit2, Trash2, Tag as TagIcon, ExternalLink, Info, Image } from 'lucide-react';
+import { Plus, Edit2, Trash2, Tag as TagIcon, ExternalLink, Info, Image, GitPullRequest, Clock } from 'lucide-react';
 import SearchInput from '../components/SearchInput';
 import Pagination from '../components/Pagination';
 import { useResource } from '../hooks/useResource';
@@ -33,6 +33,7 @@ const Tags = () => {
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+    const [suggestTag, setSuggestTag] = useState<Tag | null>(null);
 
     const [selectedTag, setSelectedTag] = useState<Tag | null>(null);
     const [infoTag, setInfoTag] = useState<Tag | null>(null);
@@ -127,6 +128,11 @@ const Tags = () => {
                                     <div className="flex items-center gap-2">
                                         <span className="text-xs font-mono bg-secondary px-2 py-1 rounded text-muted-foreground select-text">#{tag.id}</span>
                                         <code className="text-xs text-primary/80 bg-primary/5 px-1.5 py-0.5 rounded select-text truncate" title="API Slug">{tag.slug}</code>
+                                        {tag.reviewStatus === ReviewStatus.Pending && (
+                                            <span className="text-xs font-medium bg-amber-500/10 text-amber-600 border border-dashed border-amber-500/40 px-1.5 py-0.5 rounded inline-flex items-center gap-1 shrink-0" title="Awaiting review">
+                                                <Clock size={11} /> Pending
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
 
@@ -146,7 +152,7 @@ const Tags = () => {
                                         <ExternalLink size={16} />
                                     </Link>
 
-                                    {canEdit && (
+                                    {canEdit ? (
                                         <>
                                             <button
                                                 onClick={(e) => openEdit(e, tag)}
@@ -165,6 +171,14 @@ const Tags = () => {
                                                 </button>
                                             )}
                                         </>
+                                    ) : user && (
+                                        <button
+                                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSuggestTag(tag); }}
+                                            className="p-1.5 bg-secondary hover:bg-primary hover:text-primary-foreground rounded text-muted-foreground transition-colors shadow-sm"
+                                            title="Suggest edit"
+                                        >
+                                            <GitPullRequest size={16}/>
+                                        </button>
                                     )}
                                 </div>
                             </div>
@@ -204,6 +218,17 @@ const Tags = () => {
                 submitLabel="Save"
                 onDelete={isAdmin ? () => setIsDeleteOpen(true) : undefined}
             />
+
+            {suggestTag && (
+                <TagModal
+                    isOpen={!!suggestTag}
+                    onClose={() => setSuggestTag(null)}
+                    onSubmit={() => {}}
+                    initialData={{ name: suggestTag.name, slug: suggestTag.slug, description: suggestTag.description }}
+                    title="Suggest changes"
+                    suggestContext={{ targetType: ReviewableContentType.Tag, targetId: suggestTag.id, current: suggestTag }}
+                />
+            )}
 
             <Modal isOpen={isDeleteOpen} onClose={() => setIsDeleteOpen(false)} title="Delete Tag" zIndex={70}>
                 <div className="text-center space-y-4">

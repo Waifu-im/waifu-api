@@ -10,11 +10,13 @@ export interface ImageGridProps {
     error?: any;
     onRetry?: () => void;
     onEdit?: (image: ImageDto) => void;
+    onSuggest?: (image: ImageDto) => void;
     onDelete?: (id: number) => void;
     onRemove?: (id: number) => void;
     emptyState?: ReactNode;
     forceOverlay?: boolean;
     readOnly?: boolean;
+    showTags?: boolean;
 }
 
 const getColumnCount = (width: number) => {
@@ -39,8 +41,9 @@ const useColumnCount = () => {
 
 const ImageGrid = ({
                        images, isLoading, error, onRetry,
-                       onEdit, onDelete, onRemove,
-                       emptyState, forceOverlay = false, readOnly = false
+                       onEdit, onSuggest, onDelete, onRemove,
+                       emptyState, forceOverlay = false, readOnly = false,
+                       showTags = false
                    }: ImageGridProps) => {
     const { user } = useAuth();
     const colCount = useColumnCount();
@@ -95,8 +98,10 @@ const ImageGrid = ({
                             onDelete={isAdmin ? onDelete : undefined}
                             onRemove={onRemove}
                             onEdit={isAdminOrModerator ? onEdit : undefined}
+                            onSuggest={user && !isAdminOrModerator ? onSuggest : undefined}
                             forceOverlay={forceOverlay}
                             readOnly={readOnly}
+                            showTags={showTags}
                         />
                     ))}
                 </div>

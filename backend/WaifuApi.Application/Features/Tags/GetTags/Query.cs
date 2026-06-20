@@ -26,6 +26,13 @@ public class GetTagsQuery : IQuery<PaginatedList<TagDto>>
     // Internal parameter (set by controller, never exposed via query string)
     public ReviewStatusFilter ReviewStatus { get; set; } = ReviewStatusFilter.Accepted;
     public Role? UserRole { get; set; }
+    public long? UserId { get; set; }
+
+    /// <summary>
+    /// Adds the caller's own pending tags onto an otherwise-accepted result (no moderator access needed).
+    /// Takes precedence over the default accepted-only view; redundant when an explicit Pending/All is requested.
+    /// </summary>
+    public bool IncludeMyPending { get; set; }
 }
 
 public class GetTagsQueryHandler : IQueryHandler<GetTagsQuery, PaginatedList<TagDto>>
@@ -43,7 +50,8 @@ public class GetTagsQueryHandler : IQueryHandler<GetTagsQuery, PaginatedList<Tag
 
     public async ValueTask<PaginatedList<TagDto>> Handle(GetTagsQuery request, CancellationToken cancellationToken)
     {
-        // Validate permission for non-Accepted review status filtering
+        // Non-accepted review status stays moderator/admin-only. IncludeMyPending is separate and always allowed:
+        // it only unions the caller's OWN pending tags onto an otherwise-accepted result.
         if (!RoleUtils.CanAccessNonAcceptedReviewStatus(request.UserRole) &&
             request.ReviewStatus != ReviewStatusFilter.Accepted)
         {
@@ -91,7 +99,16 @@ public class GetTagsQueryHandler : IQueryHandler<GetTagsQuery, PaginatedList<Tag
             case ReviewStatusFilter.All:
                 break;
             default:
-                query = query.Where(t => t.ReviewStatus == ReviewStatus.Accepted);
+                // Accepted, plus the caller's own pending tags when IncludeMyPending is set.
+                if (request.IncludeMyPending && request.UserId is long uid)
+                {
+                    query = query.Where(t => t.ReviewStatus == ReviewStatus.Accepted
+                        || (t.ReviewStatus == ReviewStatus.Pending && t.CreatorId == uid));
+                }
+                else
+                {
+                    query = query.Where(t => t.ReviewStatus == ReviewStatus.Accepted);
+                }
                 break;
         }
 

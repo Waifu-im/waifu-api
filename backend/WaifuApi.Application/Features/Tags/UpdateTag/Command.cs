@@ -64,6 +64,21 @@ public class UpdateTagCommandHandler : ICommandHandler<UpdateTagCommand, TagDto>
             tag.CreatorId = request.CreatorId.Value;
         }
 
+        // Keep the review queue in sync if a moderator accepts directly rather than via the queue.
+        if (request.ReviewStatus == ReviewStatus.Accepted)
+        {
+            var openTask = await _context.ReviewTasks.FirstOrDefaultAsync(t =>
+                t.Kind == ReviewTaskKind.NewContent &&
+                t.TargetType == ReviewableContentType.Tag &&
+                t.TargetId == tag.Id &&
+                t.Status == ReviewTaskStatus.Pending, cancellationToken);
+            if (openTask != null)
+            {
+                openTask.Status = ReviewTaskStatus.Approved;
+                openTask.ResolvedAt = System.DateTime.UtcNow;
+            }
+        }
+
         await _context.SaveChangesAsync(cancellationToken);
 
         return new TagDto

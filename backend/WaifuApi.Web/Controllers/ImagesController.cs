@@ -87,7 +87,9 @@ public class ImagesController : ControllerBase
             UserRole = _currentUser.UserRole,
             UploaderId = _currentUser.IsModeratorOrAdmin ? request.UploaderId : null,
             ReviewStatus = request.ReviewStatus,
-            ChildrenReviewStatus = request.ChildrenReviewStatus
+            ChildrenReviewStatus = request.ChildrenReviewStatus,
+            IncludeMyPending = request.IncludeMyPending,
+            IncludeMyPendingChildren = request.IncludeMyPendingChildren
         };
 
         var images = await _mediator.Send(query);
@@ -103,6 +105,7 @@ public class ImagesController : ControllerBase
     /// </remarks>
     /// <param name="id">The unique identifier of the image.</param>
     /// <param name="childrenReviewStatus">Filter child entities (tags, artists) by review status (Moderator/Admin only). Default: Accepted.</param>
+    /// <param name="includeMyPendingChildren">Also include your own pending (not-yet-approved) tags/artists on the image, alongside the accepted ones. Available to any logged-in user.</param>
     /// <returns>The image details.</returns>
     /// <response code="200">Returns the image.</response>
     /// <response code="404">Image not found.</response>
@@ -110,9 +113,12 @@ public class ImagesController : ControllerBase
     [ProducesResponseType(typeof(ImageDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status403Forbidden)]
-    public async Task<ActionResult<ImageDto>> GetById([FromRoute] long id, [FromQuery] ReviewStatusFilter childrenReviewStatus = ReviewStatusFilter.Accepted)
+    public async Task<ActionResult<ImageDto>> GetById(
+        [FromRoute] long id,
+        [FromQuery] ReviewStatusFilter childrenReviewStatus = ReviewStatusFilter.Accepted,
+        [FromQuery] bool includeMyPendingChildren = false)
     {
-        var image = await _mediator.Send(new GetImageByIdQuery(id, _currentUser.UserId ?? 0, _currentUser.UserRole, childrenReviewStatus));
+        var image = await _mediator.Send(new GetImageByIdQuery(id, _currentUser.UserId ?? 0, _currentUser.UserRole, childrenReviewStatus, includeMyPendingChildren));
         return Ok(image);
     }
 
@@ -155,7 +161,8 @@ public class ImagesController : ControllerBase
             request.Artists ?? new List<long>(),
             request.Tags ?? new List<string>(),
             request.Source,
-            request.IsNsfw
+            request.IsNsfw,
+            _currentUser.UserRole
         );
 
         var image = await _mediator.Send(command);

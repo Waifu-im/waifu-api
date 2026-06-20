@@ -1,11 +1,14 @@
 ﻿import { useState, useEffect, useRef } from 'react';
 import Modal from '../Modal';
-import { Info, Loader2, Link as LinkIcon, Check, Clock, ChevronDown, Trash2 } from 'lucide-react';
-import { ReviewStatus, Role, PaginatedList, User } from '../../types';
+import { Info, Loader2, Link as LinkIcon, Check, Clock, ChevronDown, Trash2, GitPullRequest } from 'lucide-react';
+import { ReviewStatus, Role, PaginatedList, User, Tag, ReviewableContentType, SubmitEditBody } from '../../types';
 import { Dropdown, DropdownItem } from '../Dropdown';
 import { useAuth } from '../../context/AuthContext';
+import { useNotification } from '../../context/NotificationContext';
 import SearchableSelect, { Option } from '../SearchableSelect';
 import api from '../../services/api';
+import { buildTagPayload } from '../../utils/editRequests';
+import AcceptSubmissionNote from '../AcceptSubmissionNote';
 
 export interface TagFormData {
     name: string;
@@ -35,10 +38,15 @@ interface TagModalProps {
     isReviewMode?: boolean;
     submitLabel?: string;
     onDelete?: () => void;
+    /** When provided, the modal acts as a "suggest an edit" form and POSTs an edit request itself. */
+    suggestContext?: { targetType: ReviewableContentType; targetId: number; current: Tag };
+    /** Content-only edit (moderating a pending submission): hides review status, creator and slug; submits via onSubmit. */
+    contentOnly?: boolean;
 }
 
-const TagModal = ({ isOpen, onClose, onSubmit, initialData, title, isReviewMode, submitLabel = "Save", onDelete }: TagModalProps) => {
+const TagModal = ({ isOpen, onClose, onSubmit, initialData, title, isReviewMode, submitLabel = "Save", onDelete, suggestContext, contentOnly }: TagModalProps) => {
     const { user } = useAuth();
+    const { showNotification } = useNotification();
     const [formData, setFormData] = useState<TagFormData>({
         name: '',
         slug: '',
@@ -46,11 +54,13 @@ const TagModal = ({ isOpen, onClose, onSubmit, initialData, title, isReviewMode,
         reviewStatus: ReviewStatus.Pending
     });
     const [selectedCreator, setSelectedCreator] = useState<Option | null>(null);
+    const [reason, setReason] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSlugManuallyEdited, setIsSlugManuallyEdited] = useState(false);
     const hasInitialized = useRef(false);
 
-    const isEditMode = !!initialData?.id;
+    const isSuggestMode = !!suggestContext;
+    const isEditMode = !!initialData?.id && !isSuggestMode && !contentOnly;
     const isAdmin = user?.role === Role.Admin;
 
     useEffect(() => {
@@ -74,6 +84,7 @@ const TagModal = ({ isOpen, onClose, onSubmit, initialData, title, isReviewMode,
         });
         setIsSubmitting(false);
         setIsSlugManuallyEdited(!!initialSlug);
+        setReason('');
 
         if (initialData?.creatorId) {
             const creatorId = initialData.creatorId;
@@ -106,6 +117,35 @@ const TagModal = ({ isOpen, onClose, onSubmit, initialData, title, isReviewMode,
 
     const handleSubmit = async () => {
         if (isSubmitting) return;
+
+        if (isSuggestMode && suggestContext) {
+            const { payload, isEmpty } = buildTagPayload(suggestContext.current, {
+                name: formData.name,
+                description: formData.description,
+            });
+            if (isEmpty) {
+                showNotification('warning', 'No changes to suggest');
+                return;
+            }
+            setIsSubmitting(true);
+            try {
+                const body: SubmitEditBody = {
+                    targetType: suggestContext.targetType,
+                    targetId: suggestContext.targetId,
+                    reason: reason.trim() || undefined,
+                    payload,
+                };
+                await api.post('/review/tasks', body);
+                showNotification('success', 'Suggestion submitted for review');
+                onClose();
+            } catch {
+                // Error toast handled globally; keep modal open so the user can retry.
+            } finally {
+                setIsSubmitting(false);
+            }
+            return;
+        }
+
         setIsSubmitting(true);
         try {
             await onSubmit({
@@ -162,7 +202,19 @@ const TagModal = ({ isOpen, onClose, onSubmit, initialData, title, isReviewMode,
             title={title}
         >
             <div className="space-y-4">
-                {isReviewMode && !isEditMode && (
+                {isSuggestMode && (
+                    <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 flex items-start gap-3">
+                        <GitPullRequest className="text-blue-500 shrink-0 mt-0.5" size={20} />
+                        <div>
+                            <h4 className="font-bold text-blue-600 dark:text-blue-400 text-sm">Suggesting an edit</h4>
+                            <p className="text-xs text-muted-foreground mt-1">
+                                Your changes will be submitted to the moderators for review.
+                            </p>
+                        </div>
+                    </div>
+                )}
+
+                {isReviewMode && !isEditMode && !isSuggestMode && (
                     <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 flex items-start gap-3">
                         <Info className="text-blue-500 shrink-0 mt-0.5" size={20} />
                         <div>
@@ -179,6 +231,7 @@ const TagModal = ({ isOpen, onClose, onSubmit, initialData, title, isReviewMode,
                     <div>
                         <label className="block text-sm font-bold mb-1">Review Status</label>
                         {renderStatusDropdown()}
+                        <AcceptSubmissionNote current={initialData?.reviewStatus} selected={formData.reviewStatus} />
                     </div>
                 )}
 
@@ -205,21 +258,23 @@ const TagModal = ({ isOpen, onClose, onSubmit, initialData, title, isReviewMode,
                     />
                 </div>
 
-                <div>
-                    <label className="block text-sm font-bold mb-1 flex items-center gap-2">
-                        Slug <span className="text-xs font-normal text-muted-foreground">(URL Friendly ID)</span>
-                    </label>
-                    <div className="relative">
-                        <LinkIcon size={16} className="absolute left-3 top-3.5 text-muted-foreground"/>
-                        <input
-                            value={formData.slug}
-                            onChange={handleSlugChange}
-                            className="w-full pl-9 p-3 bg-secondary rounded-lg outline-none focus:ring-1 focus:ring-primary text-foreground font-mono text-sm"
-                            placeholder="tag-slug"
-                            disabled={isSubmitting}
-                        />
+                {!isSuggestMode && !contentOnly && (
+                    <div>
+                        <label className="block text-sm font-bold mb-1 flex items-center gap-2">
+                            Slug <span className="text-xs font-normal text-muted-foreground">(URL Friendly ID)</span>
+                        </label>
+                        <div className="relative">
+                            <LinkIcon size={16} className="absolute left-3 top-3.5 text-muted-foreground"/>
+                            <input
+                                value={formData.slug}
+                                onChange={handleSlugChange}
+                                className="w-full pl-9 p-3 bg-secondary rounded-lg outline-none focus:ring-1 focus:ring-primary text-foreground font-mono text-sm"
+                                placeholder="tag-slug"
+                                disabled={isSubmitting}
+                            />
+                        </div>
                     </div>
-                </div>
+                )}
 
                 <div>
                     <label className="block text-sm font-bold mb-1">Description</label>
@@ -232,6 +287,19 @@ const TagModal = ({ isOpen, onClose, onSubmit, initialData, title, isReviewMode,
                     />
                 </div>
 
+                {isSuggestMode && (
+                    <div>
+                        <label className="block text-sm font-bold mb-1">Reason <span className="text-xs font-normal text-muted-foreground">(optional)</span></label>
+                        <textarea
+                            value={reason}
+                            onChange={e => setReason(e.target.value)}
+                            className="w-full p-3 bg-secondary rounded-lg outline-none h-20 resize-none text-foreground"
+                            placeholder="Why are you suggesting this change?"
+                            disabled={isSubmitting}
+                        />
+                    </div>
+                )}
+
                 <div className="flex gap-3 pt-2">
                     <button
                         onClick={handleSubmit}
@@ -239,7 +307,7 @@ const TagModal = ({ isOpen, onClose, onSubmit, initialData, title, isReviewMode,
                         className="flex-1 py-3 bg-primary text-primary-foreground font-bold rounded-lg flex items-center justify-center gap-2 disabled:opacity-70"
                     >
                         {isSubmitting && <Loader2 size={18} className="animate-spin" />}
-                        {submitLabel}
+                        {isSuggestMode ? 'Submit suggestion' : submitLabel}
                     </button>
                     {onDelete && isAdmin && (
                         <button

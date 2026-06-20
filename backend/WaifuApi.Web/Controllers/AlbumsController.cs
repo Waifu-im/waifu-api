@@ -237,7 +237,9 @@ public class AlbumsController : ControllerBase
             UserId = _currentUserService.UserId,
             UserRole = _currentUserService.UserRole,
             ReviewStatus = request.ReviewStatus,
-            ChildrenReviewStatus = request.ChildrenReviewStatus
+            ChildrenReviewStatus = request.ChildrenReviewStatus,
+            IncludeMyPending = request.IncludeMyPending,
+            IncludeMyPendingChildren = request.IncludeMyPendingChildren
         };
 
         var images = await _mediator.Send(query);

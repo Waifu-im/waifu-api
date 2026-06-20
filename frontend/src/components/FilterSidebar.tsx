@@ -4,6 +4,7 @@ import api from '../services/api';
 import { PaginatedList, Tag, Artist, User, NsfwMode, AnimatedMode, Orientation, Role, ImageOrderBy, ReviewStatusFilter } from '../types';
 import { X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { resolveTagsBySlugs, resolveArtistsByIds } from '../utils/metadataResolve';
 
 interface FilterSidebarProps {
     searchParams: URLSearchParams;
@@ -69,14 +70,12 @@ const FilterSidebar = ({ searchParams, setSearchParams, showFilters, setShowFilt
         if (missingIds.length > 0) {
             missingIds.forEach(id => fetchedArtistIds.current.add(id));
 
-            api.get<PaginatedList<Artist>>('/artists', { params: { includedIds: missingIds } })
-                .then(res => {
-                    const newArtists = res.data.items.map(a => ({ id: a.id, name: a.name, reviewStatus: a.reviewStatus } as Option));
-                    if (newArtists.length > 0) {
-                        setInitialArtists(prev => [...prev, ...newArtists]);
-                    }
-                })
-                .catch(() => {});
+            resolveArtistsByIds(missingIds.map(Number)).then(artists => {
+                const newArtists = artists.map(a => ({ id: a.id, name: a.name, reviewStatus: a.reviewStatus } as Option));
+                if (newArtists.length > 0) {
+                    setInitialArtists(prev => [...prev, ...newArtists]);
+                }
+            });
         }
     }, [searchParams, initialArtists, initialLoadDone]);
 
@@ -92,14 +91,12 @@ const FilterSidebar = ({ searchParams, setSearchParams, showFilters, setShowFilt
         if (missingSlugs.length > 0) {
             missingSlugs.forEach(slug => fetchedTagSlugs.current.add(slug));
 
-            api.get<PaginatedList<Tag>>('/tags', { params: { includedSlugs: missingSlugs } })
-                .then(res => {
-                    const newTags = res.data.items.map(t => ({ id: t.id, name: t.name, slug: t.slug, reviewStatus: t.reviewStatus } as Option));
-                    if (newTags.length > 0) {
-                        setInitialTags(prev => [...prev, ...newTags]);
-                    }
-                })
-                .catch(() => {});
+            resolveTagsBySlugs(missingSlugs).then(tags => {
+                const newTags = tags.map(t => ({ id: t.id, name: t.name, slug: t.slug, reviewStatus: t.reviewStatus } as Option));
+                if (newTags.length > 0) {
+                    setInitialTags(prev => [...prev, ...newTags]);
+                }
+            });
         }
     }, [searchParams, initialTags, initialLoadDone]);
 

@@ -73,7 +73,9 @@ public class TagsController : ControllerBase
             Page = request.Page,
             PageSize = request.PageSize,
             UserRole = _currentUser.UserRole,
-            ReviewStatus = request.ReviewStatus
+            UserId = _currentUser.UserId,
+            ReviewStatus = request.ReviewStatus,
+            IncludeMyPending = request.IncludeMyPending
         };
 
         var tags = await _mediator.Send(query);
@@ -142,7 +144,7 @@ public class TagsController : ControllerBase
     public async Task<ActionResult<TagDto>> Create([FromBody] CreateTagRequest request)
     {
         _permissionService.EnsurePermission(ConfigurationKeys.Permissions.TagCreationMinRole, "create tags");
-        var tag = await _mediator.Send(new CreateTagCommand(request.Name, request.Description, request.Slug, _currentUser.UserId));
+        var tag = await _mediator.Send(new CreateTagCommand(request.Name, request.Description, request.Slug, _currentUser.UserId, _currentUser.UserRole));
         return CreatedAtAction(nameof(Get), new { id = tag.Id }, tag);
     }
 
@@ -245,6 +247,13 @@ public class GetTagsRequest
     /// </summary>
     [Description("Filter by review status (Moderator/Admin only). Default: Accepted.")]
     public ReviewStatusFilter ReviewStatus { get; set; } = ReviewStatusFilter.Accepted;
+
+    /// <summary>
+    /// Also include your own pending (not-yet-approved) tags alongside the accepted ones. Lets a logged-in user
+    /// see tags they created that are still awaiting review — e.g. to attach them in the upload/edit picker.
+    /// </summary>
+    [Description("Also include your own pending tags alongside accepted ones.")]
+    public bool IncludeMyPending { get; set; }
 }
 
 /// <summary>

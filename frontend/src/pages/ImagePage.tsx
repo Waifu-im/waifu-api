@@ -1,8 +1,10 @@
 ﻿import { useState, useEffect} from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
-import { ImageDto, Role, ImageFormData, ReviewStatus, ReviewStatusFilter } from '../types';
-import { Heart, Trash2, Edit, FolderPlus, Flag, Image } from 'lucide-react';
+import { ImageDto, Role, ImageFormData, ReviewStatus, ReviewStatusFilter, ReviewableContentType } from '../types';
+import { Heart, Trash2, Edit, FolderPlus, Flag, Image, GitPullRequest, Clock, Plus } from 'lucide-react';
+import { useMyPendingImageEdits } from '../hooks/useMyPendingImageEdits';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 import { useNsfwConsent } from '../hooks/useNsfwConsent';
@@ -22,6 +24,9 @@ const ImagePage = () => {
   const { user } = useAuth();
   const { showNotification } = useNotification();
   const checkAuth = useAuthGuard();
+  const queryClient = useQueryClient();
+  // The caller's own pending tag/artist edit proposals for this image (add/remove), via the review-tasks API.
+  const { data: pendingEdits } = useMyPendingImageEdits(!!user);
 
   const [image, setImage] = useState<ImageDto | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -32,6 +37,7 @@ const ImagePage = () => {
 
   // Modals
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showSuggestModal, setShowSuggestModal] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isAlbumModalOpen, setIsAlbumModalOpen] = useState(false);
@@ -46,6 +52,9 @@ const ImagePage = () => {
       const params: Record<string, string> = {};
       if (isAdminOrModerator) {
         params.childrenReviewStatus = ReviewStatusFilter.All;
+      } else if (user) {
+        // Regular users: also surface their own pending (not-yet-approved) tags/artists on the image.
+        params.includeMyPendingChildren = 'true';
       }
       const { data } = await api.get<ImageDto>(`/images/${id}`, { params, skipGlobalErrorHandler: true });
       setImage(data);
@@ -136,6 +145,13 @@ const ImagePage = () => {
   if (isLoading) return <div className="p-10 text-center">Loading...</div>;
   if (error || !image) return <div className="p-10 text-center text-destructive">{error || "Not Found"}</div>;
 
+  // Split the caller's own proposed changes for this image so the tag/artist lists can mark removals and append additions.
+  const edit = pendingEdits?.get(image.id);
+  const removedTagIds = new Set((edit?.removeTags ?? []).map(t => t.id));
+  const removedArtistIds = new Set((edit?.removeArtists ?? []).map(a => a.id));
+  const addedTags = edit?.addTags ?? [];
+  const addedArtists = edit?.addArtists ?? [];
+
   const tagNames = image.tags.map(t => t.name).join(', ');
   const artistNames = image.artists.map(a => a.name).join(', ');
   const metaDescription = [
@@ -209,6 +225,18 @@ const ImagePage = () => {
                   <span className="hidden sm:inline">Report</span>
               </button>
 
+              {/* Suggest edit (authenticated non-moderators) */}
+              {user && !isAdminOrModerator && (
+                  <button
+                      onClick={() => setShowSuggestModal(true)}
+                      className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-secondary hover:bg-secondary/80 text-secondary-foreground transition-colors font-medium text-sm"
+                      title="Suggest an edit"
+                  >
+                      <GitPullRequest size={18} />
+                      <span className="hidden sm:inline">Suggest edit</span>
+                  </button>
+              )}
+
               {isAdminOrModerator && (
                   <>
                     <div className="h-8 w-px bg-border mx-1 hidden sm:block"></div>
@@ -247,19 +275,44 @@ const ImagePage = () => {
               <h3 className="text-xs font-bold uppercase text-muted-foreground mb-3 tracking-wider">
                 Artist{image.artists.length > 1 ? 's' : ''}
               </h3>
-              <div className="flex flex-wrap gap-2">
-                {image.artists.map(artist => (
-                    <span key={artist.id} className="inline-flex items-stretch">
+              <div className="flex flex-wrap gap-2 items-center">
+                {image.artists.map(artist => {
+                    const removed = removedArtistIds.has(artist.id);
+                    const pending = artist.reviewStatus === ReviewStatus.Pending;
+                    const nameState = removed ? 'text-destructive/80 line-through opacity-70' : pending ? 'text-amber-600' : 'text-secondary-foreground';
+                    return (
+                    <span key={artist.id} className="inline-flex items-stretch"
+                          title={removed ? 'You proposed removing this artist (awaiting review)' : pending ? 'Your artist (awaiting review)' : undefined}>
                       <Link
                           to={`/artists?includedIds=${artist.id}`}
-                          className="flex items-center px-3 py-1.5 text-sm font-medium bg-secondary hover:bg-primary hover:text-primary-foreground text-secondary-foreground border border-border border-r-0 rounded-l-full transition-colors"
-                          title="View artist details"
+                          className={`flex items-center px-3 py-1.5 text-sm font-medium bg-secondary hover:bg-primary hover:text-primary-foreground border border-border border-r-0 rounded-l-full transition-colors ${nameState}`}
                       >
-                        {artist.name}
+                        {pending && <Clock size={12} className="mr-1 shrink-0" />}{artist.name}
                       </Link>
                       <Link
                           to={`/gallery?includedArtists=${artist.id}`}
                           className="flex items-center px-2.5 bg-secondary/60 hover:bg-primary hover:text-primary-foreground text-primary border border-border rounded-r-full transition-colors"
+                          title="View images by this artist"
+                      >
+                        <Image size={14} />
+                      </Link>
+                    </span>
+                    );
+                })}
+                {addedArtists.map(a => (
+                    <span key={`add-artist-${a.id}`} className="inline-flex items-stretch"
+                          title={a.reviewStatus === ReviewStatus.Pending
+                              ? 'You proposed adding this artist (also awaiting review)'
+                              : 'You proposed adding this artist (awaiting review)'}>
+                      <Link
+                          to={`/artists?includedIds=${a.id}`}
+                          className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium bg-green-500/10 hover:bg-green-500/20 text-green-600 border border-green-500/40 border-r-0 rounded-l-full transition-colors"
+                      >
+                        <Plus size={13} className="shrink-0" />{a.name}{a.reviewStatus === ReviewStatus.Pending && <Clock size={12} className="ml-0.5 shrink-0" />}
+                      </Link>
+                      <Link
+                          to={`/gallery?includedArtists=${a.id}`}
+                          className="flex items-center px-2.5 bg-green-500/10 hover:bg-green-500/20 text-green-600 border border-green-500/40 rounded-r-full transition-colors"
                           title="View images by this artist"
                       >
                         <Image size={14} />
@@ -271,19 +324,44 @@ const ImagePage = () => {
 
             <div className="mt-6">
               <h3 className="text-xs font-bold uppercase text-muted-foreground mb-3 tracking-wider">Tags</h3>
-              <div className="flex flex-wrap gap-2">
-                {image.tags.map(tag => (
-                    <span key={tag.id} className="inline-flex items-stretch">
+              <div className="flex flex-wrap gap-2 items-center">
+                {image.tags.map(tag => {
+                    const removed = removedTagIds.has(tag.id);
+                    const pending = tag.reviewStatus === ReviewStatus.Pending;
+                    const nameState = removed ? 'text-destructive/80 line-through opacity-70' : pending ? 'text-amber-600' : 'text-secondary-foreground';
+                    return (
+                    <span key={tag.id} className="inline-flex items-stretch"
+                          title={removed ? 'You proposed removing this tag (awaiting review)' : pending ? 'Your tag (awaiting review)' : undefined}>
                       <Link
                           to={`/tags?includedIds=${tag.id}`}
-                          className="flex items-center px-3 py-1.5 text-sm font-medium bg-secondary hover:bg-primary hover:text-primary-foreground text-secondary-foreground border border-border border-r-0 rounded-l-full transition-colors"
-                          title="View tag details"
+                          className={`flex items-center px-3 py-1.5 text-sm font-medium bg-secondary hover:bg-primary hover:text-primary-foreground border border-border border-r-0 rounded-l-full transition-colors ${nameState}`}
                       >
-                        {tag.name}
+                        {pending && <Clock size={12} className="mr-1 shrink-0" />}{tag.name}
                       </Link>
                       <Link
                           to={`/gallery?includedTags=${encodeURIComponent(tag.slug)}`}
                           className="flex items-center px-2.5 bg-secondary/60 hover:bg-primary hover:text-primary-foreground text-primary border border-border rounded-r-full transition-colors"
+                          title="View images with this tag"
+                      >
+                        <Image size={14} />
+                      </Link>
+                    </span>
+                    );
+                })}
+                {addedTags.map(t => (
+                    <span key={`add-tag-${t.id}`} className="inline-flex items-stretch"
+                          title={t.reviewStatus === ReviewStatus.Pending
+                              ? 'You proposed adding this tag (also awaiting review)'
+                              : 'You proposed adding this tag (awaiting review)'}>
+                      <Link
+                          to={`/tags?includedIds=${t.id}`}
+                          className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium bg-green-500/10 hover:bg-green-500/20 text-green-600 border border-green-500/40 border-r-0 rounded-l-full transition-colors"
+                      >
+                        <Plus size={13} className="shrink-0" />{t.name}{t.reviewStatus === ReviewStatus.Pending && <Clock size={12} className="ml-0.5 shrink-0" />}
+                      </Link>
+                      <Link
+                          to={`/gallery?includedTags=${encodeURIComponent(t.slug)}`}
+                          className="flex items-center px-2.5 bg-green-500/10 hover:bg-green-500/20 text-green-600 border border-green-500/40 rounded-r-full transition-colors"
                           title="View images with this tag"
                       >
                         <Image size={14} />
@@ -313,6 +391,20 @@ const ImagePage = () => {
             onSubmit={handleSaveEdit}
             onDelete={() => setIsDeleteModalOpen(true)}
         />
+
+        {showSuggestModal && (
+            <ImageModal
+                isOpen={showSuggestModal}
+                onClose={() => {
+                    setShowSuggestModal(false);
+                    // A suggestion may have just been submitted, so refresh the caller's pending proposals.
+                    queryClient.invalidateQueries({ queryKey: ['my-pending-image-edits'] });
+                }}
+                initialData={image}
+                onSubmit={() => {}}
+                suggestContext={{ targetType: ReviewableContentType.Image, targetId: image.id, current: image }}
+            />
+        )}
 
         <ReasonModal
             isOpen={isReportModalOpen}

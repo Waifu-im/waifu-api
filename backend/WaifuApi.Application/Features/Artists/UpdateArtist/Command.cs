@@ -93,6 +93,21 @@ public class UpdateArtistCommandHandler : ICommandHandler<UpdateArtistCommand, A
             artist.CreatorId = request.CreatorId.Value;
         }
 
+        // Keep the review queue in sync if a moderator accepts directly rather than via the queue.
+        if (request.ReviewStatus == ReviewStatus.Accepted)
+        {
+            var openTask = await _context.ReviewTasks.FirstOrDefaultAsync(t =>
+                t.Kind == ReviewTaskKind.NewContent &&
+                t.TargetType == ReviewableContentType.Artist &&
+                t.TargetId == artist.Id &&
+                t.Status == ReviewTaskStatus.Pending, cancellationToken);
+            if (openTask != null)
+            {
+                openTask.Status = ReviewTaskStatus.Approved;
+                openTask.ResolvedAt = DateTime.UtcNow;
+            }
+        }
+
         await _context.SaveChangesAsync(cancellationToken);
 
         return artist;

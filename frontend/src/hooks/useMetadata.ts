@@ -3,6 +3,8 @@ import api from '../services/api';
 import { Tag, Artist, PaginatedList, ReviewStatusFilter } from '../types';
 import { Option } from '../components/SearchableSelect';
 import { useNotification } from '../context/NotificationContext';
+import { useAuth } from '../context/AuthContext';
+import { canModerate } from '../utils/roles';
 import { TagFormData } from '../components/modals/TagModal';
 import { ArtistFormData } from '../components/modals/ArtistModal';
 
@@ -29,6 +31,9 @@ export const useMetadata = ({
     const tagsPageSize = 30;
     const artistsPageSize = 30;
     const { showNotification } = useNotification();
+    const { user } = useAuth();
+    // Regular users get their own pending tags/artists mixed in; moderators use the reviewStatus filter instead.
+    const includeMine = user && !canModerate(user) ? true : undefined;
 
     // Tags State
     const [selectedTags, setSelectedTags] = useState<Option[]>([]);
@@ -43,7 +48,8 @@ export const useMetadata = ({
     // Loaders
     const loadTags = async (query: string, page: number = 1) => {
         const { data } = await api.get<PaginatedList<Tag>>('/tags', {
-            params: { name: query, pageSize: tagsPageSize, page, reviewStatus },
+            // Authenticated users also get their own pending tags mixed in (so they can attach one they just created).
+            params: { name: query, pageSize: tagsPageSize, page, reviewStatus, includeMyPending: includeMine },
             skipGlobalErrorHandler: true
         });
         return data.items.map(t => ({ id: t.id, name: t.name, slug: t.slug, description: t.description, reviewStatus: t.reviewStatus }));
@@ -51,7 +57,7 @@ export const useMetadata = ({
 
     const loadArtists = async (query: string, page: number = 1) => {
         const { data } = await api.get<PaginatedList<Artist>>('/artists', {
-            params: { name: query, pageSize: artistsPageSize, page, reviewStatus },
+            params: { name: query, pageSize: artistsPageSize, page, reviewStatus, includeMyPending: includeMine },
             skipGlobalErrorHandler: true
         });
         return data.items.map(a => ({ id: a.id, name: a.name, reviewStatus: a.reviewStatus }));

@@ -16,7 +16,7 @@ using WaifuApi.Domain.Enums;
 
 namespace WaifuApi.Application.Features.Images.GetImageById;
 
-public record GetImageByIdQuery(long Id, long UserId, Role? UserRole = null, ReviewStatusFilter ChildrenReviewStatus = ReviewStatusFilter.Accepted) : IQuery<ImageDto>;
+public record GetImageByIdQuery(long Id, long UserId, Role? UserRole = null, ReviewStatusFilter ChildrenReviewStatus = ReviewStatusFilter.Accepted, bool IncludeMyPendingChildren = false) : IQuery<ImageDto>;
 
 public class GetImageByIdQueryHandler : IQueryHandler<GetImageByIdQuery, ImageDto>
 {
@@ -47,6 +47,10 @@ public class GetImageByIdQueryHandler : IQueryHandler<GetImageByIdQuery, ImageDt
             ReviewStatusFilter.Pending => query
                 .Include(i => i.Tags.Where(t => t.ReviewStatus == ReviewStatus.Pending))
                 .Include(i => i.Artists.Where(a => a.ReviewStatus == ReviewStatus.Pending)),
+            // Accepted, plus the caller's own pending tags/artists when requested (parity with the gallery).
+            _ when request.IncludeMyPendingChildren && request.UserId > 0 => query
+                .Include(i => i.Tags.Where(t => t.ReviewStatus == ReviewStatus.Accepted || (t.ReviewStatus == ReviewStatus.Pending && t.CreatorId == request.UserId)))
+                .Include(i => i.Artists.Where(a => a.ReviewStatus == ReviewStatus.Accepted || (a.ReviewStatus == ReviewStatus.Pending && a.CreatorId == request.UserId))),
             _ => query
                 .Include(i => i.Tags.Where(t => t.ReviewStatus == ReviewStatus.Accepted))
                 .Include(i => i.Artists.Where(a => a.ReviewStatus == ReviewStatus.Accepted))

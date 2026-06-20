@@ -1,5 +1,6 @@
 ﻿import { useState, ReactNode } from 'react';
-import { ImageDto, Role, ImageFormData, ImageOrderBy } from '../../types';
+import { useQueryClient } from '@tanstack/react-query';
+import { ImageDto, Role, ImageFormData, ImageOrderBy, ReviewableContentType } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
 import { useImageUpdate } from '../../hooks/useImageUpdate';
@@ -12,7 +13,8 @@ import FloatingRefreshButton from '../FloatingRefreshButton';
 import ConfirmModal from '../modals/ConfirmModal';
 import ImageModal from '../modals/ImageModal';
 import { Option } from '../SearchableSelect';
-import { Search } from 'lucide-react';
+import { Search, Tags } from 'lucide-react';
+import { useTagView } from '../../hooks/useTagView';
 
 interface GalleryLayoutProps {
     images: ImageDto[];
@@ -50,12 +52,17 @@ export const GalleryLayout = ({
     const { user } = useAuth();
     const { showNotification } = useNotification();
     const { updateImage } = useImageUpdate();
+    const queryClient = useQueryClient();
+
+    const { showTags, toggle: toggleTags } = useTagView();
 
     const [showFilters, setShowFilters] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [imageToDelete, setImageToDelete] = useState<number | null>(null);
     const [editingImage, setEditingImage] = useState<ImageDto | null>(null);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [suggestingImage, setSuggestingImage] = useState<ImageDto | null>(null);
+    const [isSuggestModalOpen, setIsSuggestModalOpen] = useState(false);
 
     const isAdmin = user?.role === Role.Admin;
     const isAdminOrModerator = user && (user.role === Role.Admin || user.role === Role.Moderator);
@@ -109,7 +116,15 @@ export const GalleryLayout = ({
                                 </h1>
                             )}
                         </div>
-                        <div className="flex items-center self-end md:self-start shrink-0">
+                        <div className="flex items-center self-end md:self-start shrink-0 gap-2">
+                            <button
+                                onClick={toggleTags}
+                                title={showTags ? 'Hide tags' : 'Show tags'}
+                                aria-pressed={showTags}
+                                className={`p-2.5 rounded-lg border transition-colors ${showTags ? 'bg-primary text-primary-foreground border-primary' : 'bg-card text-muted-foreground border-border hover:text-foreground'}`}
+                            >
+                                <Tags size={20} />
+                            </button>
                             <FilterToggleButton isOpen={showFilters} onToggle={() => setShowFilters(!showFilters)} />
                         </div>
                     </div>
@@ -121,8 +136,10 @@ export const GalleryLayout = ({
                         onRetry={refetch}
                         onDelete={isAdmin ? confirmDelete : undefined}
                         onEdit={isAdminOrModerator ? (img) => { setEditingImage(img); setIsEditModalOpen(true); } : undefined}
+                        onSuggest={user && !isAdminOrModerator ? (img) => { setSuggestingImage(img); setIsSuggestModalOpen(true); } : undefined}
                         onRemove={onRemoveFromAlbum}
                         readOnly={readOnly}
+                        showTags={showTags}
                         emptyState={emptyState || (
                             <div className="flex flex-col items-center justify-center h-[50vh] text-muted-foreground">
                                 <Search size={48} className="mb-4 opacity-20" />
@@ -170,6 +187,21 @@ export const GalleryLayout = ({
                     onClose={() => { setIsEditModalOpen(false); setEditingImage(null); }}
                     initialData={editingImage}
                     onSubmit={handleSaveEdit}
+                />
+            )}
+
+            {suggestingImage && (
+                <ImageModal
+                    isOpen={isSuggestModalOpen}
+                    onClose={() => {
+                        setIsSuggestModalOpen(false);
+                        setSuggestingImage(null);
+                        // A suggestion may have just been submitted, so refresh the caller's pending proposals.
+                        queryClient.invalidateQueries({ queryKey: ['my-pending-image-edits'] });
+                    }}
+                    initialData={suggestingImage}
+                    onSubmit={() => {}}
+                    suggestContext={{ targetType: ReviewableContentType.Image, targetId: suggestingImage.id, current: suggestingImage }}
                 />
             )}
         </div>

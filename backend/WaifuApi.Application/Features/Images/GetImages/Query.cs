@@ -46,6 +46,12 @@ public class GetImagesQuery : IQuery<PaginatedList<ImageDto>>
     public long? UploaderId { get; set; }
     public Role? UserRole { get; set; }
     public ReviewStatusFilter ChildrenReviewStatus { get; set; } = ReviewStatusFilter.Accepted;
+
+    /// <summary>Union the caller's own pending uploads onto an otherwise-accepted result (no moderator access needed).</summary>
+    public bool IncludeMyPending { get; set; }
+
+    /// <summary>Include the caller's own pending tags/artists on each returned image, alongside the accepted ones.</summary>
+    public bool IncludeMyPendingChildren { get; set; }
 }
 
 public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList<ImageDto>>
@@ -111,7 +117,8 @@ public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList
             UserId = request.UserId,
             AlbumId = request.AlbumId,
             ReviewStatus = request.ReviewStatus,
-            UploaderId = request.UploaderId
+            UploaderId = request.UploaderId,
+            IncludeMyPending = request.IncludeMyPending
         };
 
         IQueryable<Image> query = _context.Images.AsNoTracking();
@@ -139,7 +146,7 @@ public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList
              addedToAlbumMap = pagedItems.ToDictionary(x => x.i.Id, x => x.ai.AddedAt);
 
              var fetchQuery = _context.Images.AsNoTracking().Where(i => imageIds.Contains(i.Id));
-             fetchQuery = ApplyChildrenReviewStatusIncludes(fetchQuery, request.ChildrenReviewStatus);
+             fetchQuery = ApplyChildrenReviewStatusIncludes(fetchQuery, request.ChildrenReviewStatus, request.IncludeMyPendingChildren, request.UserId);
              var fetchedImages = await fetchQuery.ToListAsync(cancellationToken);
              images = imageIds.Select(id => fetchedImages.First(img => img.Id == id)).ToList();
         }
@@ -153,7 +160,7 @@ public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList
             };
 
             totalCount = await query.CountAsync(cancellationToken);
-            query = ApplyChildrenReviewStatusIncludes(query, request.ChildrenReviewStatus);
+            query = ApplyChildrenReviewStatusIncludes(query, request.ChildrenReviewStatus, request.IncludeMyPendingChildren, request.UserId);
             images = await query.Skip((request.Page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
         }
 
@@ -181,17 +188,29 @@ public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList
         return new PaginatedList<ImageDto>(imageDtos, totalCount, request.Page, pageSize, _maxPageSize, _defaultPageSize);
     }
 
-    private static IQueryable<Image> ApplyChildrenReviewStatusIncludes(IQueryable<Image> query, ReviewStatusFilter filter)
+    private static IQueryable<Image> ApplyChildrenReviewStatusIncludes(IQueryable<Image> query, ReviewStatusFilter filter, bool includeMyPendingChildren, long? userId)
     {
-        return filter switch
+        if (filter == ReviewStatusFilter.All)
         {
-            ReviewStatusFilter.All => query.Include(i => i.Tags).Include(i => i.Artists),
-            ReviewStatusFilter.Pending => query
+            return query.Include(i => i.Tags).Include(i => i.Artists);
+        }
+        if (filter == ReviewStatusFilter.Pending)
+        {
+            return query
                 .Include(i => i.Tags.Where(t => t.ReviewStatus == ReviewStatus.Pending))
-                .Include(i => i.Artists.Where(a => a.ReviewStatus == ReviewStatus.Pending)),
-            _ => query
-                .Include(i => i.Tags.Where(t => t.ReviewStatus == ReviewStatus.Accepted))
-                .Include(i => i.Artists.Where(a => a.ReviewStatus == ReviewStatus.Accepted))
-        };
+                .Include(i => i.Artists.Where(a => a.ReviewStatus == ReviewStatus.Pending));
+        }
+
+        // Accepted (default), plus the caller's own pending tags/artists when requested.
+        if (includeMyPendingChildren && userId is long uid)
+        {
+            return query
+                .Include(i => i.Tags.Where(t => t.ReviewStatus == ReviewStatus.Accepted || (t.ReviewStatus == ReviewStatus.Pending && t.CreatorId == uid)))
+                .Include(i => i.Artists.Where(a => a.ReviewStatus == ReviewStatus.Accepted || (a.ReviewStatus == ReviewStatus.Pending && a.CreatorId == uid)));
+        }
+
+        return query
+            .Include(i => i.Tags.Where(t => t.ReviewStatus == ReviewStatus.Accepted))
+            .Include(i => i.Artists.Where(a => a.ReviewStatus == ReviewStatus.Accepted));
     }
 }

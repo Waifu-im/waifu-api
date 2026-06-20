@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Microsoft.EntityFrameworkCore.Storage;
 using WaifuApi.Application.Interfaces;
 using WaifuApi.Domain.Entities;
 
@@ -19,8 +20,12 @@ public class WaifuDbContext : DbContext, IWaifuDbContext
     public DbSet<Album> Albums { get; set; }
     public DbSet<AlbumItem> AlbumItems { get; set; }
     public DbSet<Report> Reports { get; set; }
+    public DbSet<ReviewTask> ReviewTasks { get; set; }
     public DbSet<DailyStat> DailyStats { get; set; }
     public DbSet<GlobalStat> GlobalStats { get; set; }
+
+    public Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken)
+        => Database.BeginTransactionAsync(cancellationToken);
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -133,6 +138,33 @@ public class WaifuDbContext : DbContext, IWaifuDbContext
                 .WithMany()
                 .HasForeignKey(e => e.ImageId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ReviewTask>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Payload).HasColumnType("jsonb");      // nullable: NewContent tasks have no payload
+
+            // Submitter/Reviewer are SET NULL so the durable audit record survives user deletion.
+            entity.HasOne(e => e.Submitter)
+                .WithMany()
+                .HasForeignKey(e => e.SubmitterId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.Reviewer)
+                .WithMany()
+                .HasForeignKey(e => e.ReviewerId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => new { e.Kind, e.Status });
+            entity.HasIndex(e => new { e.TargetType, e.TargetId });
+            entity.HasIndex(e => e.SubmitterId);
+
+            // At most one *pending Edit* per user per target (ReviewTaskStatus.Pending = 0, ReviewTaskKind.Edit = 1).
+            entity.HasIndex(e => new { e.SubmitterId, e.TargetType, e.TargetId })
+                .IsUnique()
+                .HasFilter("\"Status\" = 0 AND \"Kind\" = 1");
         });
 
         modelBuilder.Entity<DailyStat>(entity =>

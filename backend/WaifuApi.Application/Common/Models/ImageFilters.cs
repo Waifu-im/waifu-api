@@ -22,4 +22,7 @@ public class ImageFilters
     public long? AlbumId { get; set; }
     public ReviewStatusFilter ReviewStatus { get; set; } = ReviewStatusFilter.Accepted;
     public long? UploaderId { get; set; }
+
+    /// <summary>Union the caller's own pending uploads (UploaderId == UserId) onto an otherwise-accepted result.</summary>
+    public bool IncludeMyPending { get; set; }
 }

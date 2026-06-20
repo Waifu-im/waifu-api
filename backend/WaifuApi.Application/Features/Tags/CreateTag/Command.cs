@@ -7,23 +7,24 @@ using Microsoft.Extensions.Configuration;
 using WaifuApi.Application.Common.Exceptions;
 using WaifuApi.Application.Common.Utilities;
 using WaifuApi.Application.Common.Models; // Pour TagDto
+using WaifuApi.Application.Common.Services;
 using WaifuApi.Application.Interfaces;
 using WaifuApi.Domain.Entities;
 using WaifuApi.Domain.Enums;
 
 namespace WaifuApi.Application.Features.Tags.CreateTag;
 
-public record CreateTagCommand(string Name, string Description, string? Slug, long? CreatorId = null) : ICommand<TagDto>;
+public record CreateTagCommand(string Name, string Description, string? Slug, long? CreatorId = null, Role? CreatorRole = null) : ICommand<TagDto>;
 
 public class CreateTagCommandHandler : ICommandHandler<CreateTagCommand, TagDto>
 {
     private readonly IWaifuDbContext _context;
-    private readonly IConfiguration _configuration;
+    private readonly IReviewPolicy _reviewPolicy;
 
-    public CreateTagCommandHandler(IWaifuDbContext context, IConfiguration configuration)
+    public CreateTagCommandHandler(IWaifuDbContext context, IReviewPolicy reviewPolicy)
     {
         _context = context;
-        _configuration = configuration;
+        _reviewPolicy = reviewPolicy;
     }
 
     public async ValueTask<TagDto> Handle(CreateTagCommand request, CancellationToken cancellationToken)
@@ -49,8 +50,8 @@ public class CreateTagCommandHandler : ICommandHandler<CreateTagCommand, TagDto>
             throw new ConflictException($"Tag with name '{trimmedName}' already exists.");
         }
 
-        var requireReview = bool.Parse(_configuration["Moderation:RequireTagReview"] ?? "true");
-        
+        var requireReview = _reviewPolicy.RequiresReviewForNewContent(ReviewableContentType.Tag, request.CreatorRole);
+
         var tag = new Tag
         {
             Name = trimmedName,
@@ -60,8 +61,13 @@ public class CreateTagCommandHandler : ICommandHandler<CreateTagCommand, TagDto>
             CreatorId = request.CreatorId
         };
 
+        await using var transaction = await _context.BeginTransactionAsync(cancellationToken);
         _context.Tags.Add(tag);
+        await _context.SaveChangesAsync(cancellationToken); // assigns tag.Id
+        _context.ReviewTasks.Add(
+            ReviewTaskFactory.NewContent(ReviewableContentType.Tag, tag.Id, request.CreatorId, requireReview));
         await _context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return new TagDto
         {

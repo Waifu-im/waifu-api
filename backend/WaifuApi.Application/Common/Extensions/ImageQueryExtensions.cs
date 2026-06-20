@@ -41,7 +41,16 @@ public static class ImageQueryExtensions
                 case ReviewStatusFilter.All:
                     break;
                 default:
-                    query = query.Where(i => i.ReviewStatus == ReviewStatus.Accepted);
+                    // Accepted, plus the caller's own pending uploads when IncludeMyPending is set.
+                    if (filters.IncludeMyPending && filters.UserId is long uid)
+                    {
+                        query = query.Where(i => i.ReviewStatus == ReviewStatus.Accepted
+                            || (i.ReviewStatus == ReviewStatus.Pending && i.UploaderId == uid));
+                    }
+                    else
+                    {
+                        query = query.Where(i => i.ReviewStatus == ReviewStatus.Accepted);
+                    }
                     break;
             }
         }

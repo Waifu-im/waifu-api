@@ -1,8 +1,8 @@
 ﻿import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Artist, Role } from '../types';
+import { Artist, Role, ReviewableContentType, ReviewStatus } from '../types';
 import { useAuth } from '../context/AuthContext';
-import { Plus, Edit2, Trash2, User as UserIcon, ExternalLink, Info, Link as LinkIcon, Image } from 'lucide-react';
+import { Plus, Edit2, Trash2, User as UserIcon, ExternalLink, Info, Link as LinkIcon, Image, GitPullRequest, Clock } from 'lucide-react';
 import ArtistModal, { ArtistFormData } from '../components/modals/ArtistModal';
 import ConfirmModal from '../components/modals/ConfirmModal';
 import Modal from '../components/Modal';
@@ -34,6 +34,7 @@ const Artists = () => {
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+    const [suggestArtist, setSuggestArtist] = useState<Artist | null>(null);
     const [selectedArtist, setSelectedArtist] = useState<Artist | null>(null);
     const [infoArtist, setInfoArtist] = useState<Artist | null>(null);
     const [formData, setFormData] = useState<ArtistFormData>({ name: '', twitter: '', pixiv: '', patreon: '', deviantArt: '' });
@@ -124,7 +125,14 @@ const Artists = () => {
                         <div className="flex justify-between items-start mb-2">
                             <div className="flex flex-col gap-1 overflow-hidden min-w-0">
                                 <h3 className="font-bold text-lg truncate text-foreground group-hover:text-primary transition-colors">{artist.name}</h3>
-                                <span className="text-xs font-mono bg-secondary px-2 py-1 rounded text-muted-foreground select-text w-fit">#{artist.id}</span>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs font-mono bg-secondary px-2 py-1 rounded text-muted-foreground select-text w-fit">#{artist.id}</span>
+                                    {artist.reviewStatus === ReviewStatus.Pending && (
+                                        <span className="text-xs font-medium bg-amber-500/10 text-amber-600 border border-dashed border-amber-500/40 px-1.5 py-0.5 rounded inline-flex items-center gap-1 shrink-0" title="Awaiting review">
+                                            <Clock size={11} /> Pending
+                                        </span>
+                                    )}
+                                </div>
                             </div>
 
                             <div className="flex gap-2 flex-shrink-0 ml-2">
@@ -143,7 +151,7 @@ const Artists = () => {
                                     <ExternalLink size={16} />
                                 </Link>
 
-                                {canManage && (
+                                {canManage ? (
                                     <>
                                         <button
                                             onClick={(e) => openEdit(e, artist)}
@@ -162,6 +170,14 @@ const Artists = () => {
                                             </button>
                                         )}
                                     </>
+                                ) : user && (
+                                    <button
+                                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSuggestArtist(artist); }}
+                                        className="p-1.5 bg-secondary hover:bg-primary hover:text-primary-foreground rounded text-muted-foreground transition-colors shadow-sm"
+                                        title="Suggest edit"
+                                    >
+                                        <GitPullRequest size={16}/>
+                                    </button>
                                 )}
                             </div>
                         </div>
@@ -217,6 +233,23 @@ const Artists = () => {
                 submitLabel="Save"
                 onDelete={isAdmin ? () => setIsDeleteOpen(true) : undefined}
             />
+
+            {suggestArtist && (
+                <ArtistModal
+                    isOpen={!!suggestArtist}
+                    onClose={() => setSuggestArtist(null)}
+                    onSubmit={() => {}}
+                    initialData={{
+                        name: suggestArtist.name,
+                        twitter: suggestArtist.twitter,
+                        pixiv: suggestArtist.pixiv,
+                        patreon: suggestArtist.patreon,
+                        deviantArt: suggestArtist.deviantArt,
+                    }}
+                    title="Suggest changes"
+                    suggestContext={{ targetType: ReviewableContentType.Artist, targetId: suggestArtist.id, current: suggestArtist }}
+                />
+            )}
 
             <ConfirmModal isOpen={isDeleteOpen} onClose={() => setIsDeleteOpen(false)} onConfirm={handleDelete} title="Delete Artist" message={<>Delete artist <strong>{selectedArtist?.name}</strong>?</>} zIndex={70} />
 

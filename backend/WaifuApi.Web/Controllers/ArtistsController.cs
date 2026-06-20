@@ -71,7 +71,9 @@ public class ArtistsController : ControllerBase
             Page = request.Page,
             PageSize = request.PageSize,
             UserRole = _currentUser.UserRole,
-            ReviewStatus = request.ReviewStatus
+            UserId = _currentUser.UserId,
+            ReviewStatus = request.ReviewStatus,
+            IncludeMyPending = request.IncludeMyPending
         };
 
         var artists = await _mediator.Send(query);
@@ -143,7 +145,8 @@ public class ArtistsController : ControllerBase
             request.Pixiv,
             request.Twitter,
             request.DeviantArt,
-            _currentUser.UserId
+            _currentUser.UserId,
+            _currentUser.UserRole
         );
         var artist = await _mediator.Send(command);
         return CreatedAtAction(nameof(Get), new { id = artist.Id }, artist);
@@ -251,6 +254,13 @@ public class GetArtistsRequest
     /// </summary>
     [Description("Filter by review status (Moderator/Admin only). Default: Accepted.")]
     public ReviewStatusFilter ReviewStatus { get; set; } = ReviewStatusFilter.Accepted;
+
+    /// <summary>
+    /// Also include your own pending (not-yet-approved) artists alongside the accepted ones. Lets a logged-in user
+    /// see artists they created that are still awaiting review — e.g. to attach them in the upload/edit picker.
+    /// </summary>
+    [Description("Also include your own pending artists alongside accepted ones.")]
+    public bool IncludeMyPending { get; set; }
 }
 
 /// <summary>

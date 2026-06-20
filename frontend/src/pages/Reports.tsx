@@ -98,7 +98,7 @@ const Reports = () => {
                                         <p className="text-sm mt-1 font-medium">{report.description || "No description provided."}</p>
                                         <p className="text-xs text-muted-foreground mt-2">
                                             By: {report.user ? (
-                                            <Link to={`/users?search=${report.user.id}`} className="hover:text-primary hover:underline font-medium">
+                                            <Link to={`/users?includedIds=${report.user.id}`} className="hover:text-primary hover:underline font-medium">
                                                 {report.user.name}
                                             </Link>
                                         ) : "Unknown User"}

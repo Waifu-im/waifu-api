@@ -4,13 +4,14 @@ import { useAuth } from '../../context/AuthContext';
 import {
     Sun, Moon, Menu, X, LogOut, Upload as UploadIcon,
     Home, Image as ImageIcon, Tag as TagIcon, ChevronRight, PanelLeft,
-    User as UserIcon, Library, ChevronDown, Palette, Key, FileCheck, Users as UsersIcon, Flag, BarChart, Monitor, Book, Mail, Activity, HardDrive, Github, FileText
+    User as UserIcon, Library, ChevronDown, Palette, Key, Users as UsersIcon, Flag, BarChart, Monitor, Book, Mail, Activity, HardDrive, Github, FileText, GitPullRequest
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import GlobalErrorHandler from '../GlobalErrorHandler';
 import { Dropdown, DropdownItem, DropdownLabel, DropdownSeparator } from '../Dropdown';
 import { getEnv } from '../../utils/env';
 import { Role } from '../../types';
+import api from '../../services/api';
 
 const Layout = () => {
     const { theme, setTheme, resolvedTheme } = useTheme();
@@ -19,6 +20,38 @@ const Layout = () => {
 
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+    // Pending review count for the nav badge: all pending tasks for mods, the user's own otherwise (the API
+    // auto-scopes). Refetched on navigation so it reflects approvals/withdrawals without a manual refresh.
+    const [pendingCount, setPendingCount] = useState(0);
+    useEffect(() => {
+        if (!user) { setPendingCount(0); return; }
+        api.get<{ totalCount: number }>('/review/tasks', { params: { status: 'Pending', page: 1, pageSize: 1 }, skipGlobalErrorHandler: true })
+            .then(r => setPendingCount(r.data.totalCount ?? 0))
+            .catch(() => { /* best-effort badge */ });
+    }, [user, location.pathname]);
+
+    const navBadge = pendingCount > 0 ? (
+        <span className="ml-auto px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none bg-primary text-primary-foreground">
+            {pendingCount > 99 ? '99+' : pendingCount}
+        </span>
+    ) : null;
+
+    // Unresolved-reports count for the Reports nav badge (moderators/admins only; the endpoint requires it).
+    const [reportCount, setReportCount] = useState(0);
+    useEffect(() => {
+        const isMod = !!user && (user.role === Role.Moderator || user.role === Role.Admin);
+        if (!isMod) { setReportCount(0); return; }
+        api.get<{ totalCount: number }>('/reports', { params: { IsResolved: false, page: 1, pageSize: 1 }, skipGlobalErrorHandler: true })
+            .then(r => setReportCount(r.data.totalCount ?? 0))
+            .catch(() => { /* best-effort badge */ });
+    }, [user, location.pathname]);
+
+    const reportBadge = reportCount > 0 ? (
+        <span className="ml-auto px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none bg-red-500 text-white">
+            {reportCount > 99 ? '99+' : reportCount}
+        </span>
+    ) : null;
 
     const isActive = (path: string) => location.pathname === path;
 
@@ -116,13 +149,16 @@ const Layout = () => {
                                 <Link to="/upload"><DropdownItem icon={<UploadIcon size={16} />}>Upload Image</DropdownItem></Link>
                                 <Link to="/albums"><DropdownItem icon={<Library size={16} />}>My Albums</DropdownItem></Link>
                                 <Link to="/api-keys"><DropdownItem icon={<Key size={16} />}>API Keys</DropdownItem></Link>
+                                {!isModOrAdmin && (
+                                    <Link to="/review"><DropdownItem icon={<GitPullRequest size={16} />}>My Submissions{navBadge}</DropdownItem></Link>
+                                )}
 
                                 {isModOrAdmin && (
                                     <>
                                         <DropdownSeparator />
                                         <DropdownLabel>Administration</DropdownLabel>
-                                        <Link to="/review"><DropdownItem icon={<FileCheck size={16} className="text-orange-500" />}>Moderation Queue</DropdownItem></Link>
-                                        <Link to="/reports"><DropdownItem icon={<Flag size={16} className="text-red-500" />}>Reports</DropdownItem></Link>
+                                        <Link to="/review"><DropdownItem icon={<GitPullRequest size={16} className="text-orange-500" />}>Review{navBadge}</DropdownItem></Link>
+                                        <Link to="/reports"><DropdownItem icon={<Flag size={16} className="text-red-500" />}>Reports{reportBadge}</DropdownItem></Link>
                                         {isAdmin && (
                                             <>
                                                 <Link to="/users"><DropdownItem icon={<UsersIcon size={16} className="text-blue-500" />}>User Management</DropdownItem></Link>

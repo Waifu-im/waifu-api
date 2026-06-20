@@ -116,4 +116,18 @@ public class GetImagesRequest
     /// </summary>
     [Description("Filter child entities (tags, artists) by review status (Moderator/Admin only). Default: Accepted.")]
     public ReviewStatusFilter ChildrenReviewStatus { get; set; } = ReviewStatusFilter.Accepted;
+
+    /// <summary>
+    /// Also include your own pending (not-yet-approved) uploads alongside the accepted images. Available to any
+    /// logged-in user (only ever surfaces your own pending content).
+    /// </summary>
+    [Description("Also include your own pending uploads alongside accepted images.")]
+    public bool IncludeMyPending { get; set; }
+
+    /// <summary>
+    /// Also include your own pending (not-yet-approved) tags/artists on each returned image, alongside the
+    /// accepted ones. Available to any logged-in user.
+    /// </summary>
+    [Description("Also include your own pending tags/artists on each image.")]
+    public bool IncludeMyPendingChildren { get; set; }
 }

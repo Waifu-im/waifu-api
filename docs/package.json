@@ -52,6 +52,11 @@
     "yaml": ">=1.10.3",
     "qs": ">=6.15.2",
     "uuid": ">=11.1.1",
+    "shell-quote": "^1.8.4",
+    "ws": "^8.21.0",
+    "launch-editor": "^2.14.1",
+    "joi": "^17.13.4",
+    "@babel/core": "^7.29.6",
     "openapi-to-postmanv2": {
       "js-yaml": ">=4.1.1"
     }

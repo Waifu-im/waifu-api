@@ -38,11 +38,36 @@ public static class ConfigurationKeys
         public const string Audience = "Jwt:Audience";
     }
 
-    public static class Moderation
+    public static class Review
     {
-        public const string RequireImageReview = "Moderation:RequireImageReview";
-        public const string RequireArtistReview = "Moderation:RequireArtistReview";
-        public const string RequireTagReview = "Moderation:RequireTagReview";
+        public const string RequireImageReview = "Review:RequireImageReview";
+        public const string RequireArtistReview = "Review:RequireArtistReview";
+        public const string RequireTagReview = "Review:RequireTagReview";
+
+        // Whether edit requests (proposed changes to existing content) require moderator approval.
+        public const string RequireEditRequestReview = "Review:RequireEditRequestReview";
+
+        // Minimum role that bypasses review when CREATING/uploading content of each type (auto-accepted).
+        // Missing/blank => default (TrustedUser). Set to "None" to disable bypass entirely.
+        public const string ImageReviewBypassMinRole = "Review:ImageReviewBypassMinRole";
+        public const string TagReviewBypassMinRole = "Review:TagReviewBypassMinRole";
+        public const string ArtistReviewBypassMinRole = "Review:ArtistReviewBypassMinRole";
+
+        // Minimum role that bypasses review for EDIT REQUESTS of each type (auto-applied). Configured
+        // independently from the creation bypass above. Missing/blank => default (TrustedUser). "None" disables.
+        public const string ImageEditReviewBypassMinRole = "Review:ImageEditReviewBypassMinRole";
+        public const string TagEditReviewBypassMinRole = "Review:TagEditReviewBypassMinRole";
+        public const string ArtistEditReviewBypassMinRole = "Review:ArtistEditReviewBypassMinRole";
+
+        // Review queue pagination.
+        public const string DefaultPageSize = "Review:DefaultPageSize";
+        public const string MaxPageSize = "Review:MaxPageSize";
+
+        // Maximum number of simultaneously-open (pending) edit tasks a single user may have. 0 = unlimited.
+        public const string MaxOpenEditsPerUser = "Review:MaxOpenEditsPerUser";
+
+        // Resolved review tasks older than this are pruned by the cleanup service. 0 = keep forever.
+        public const string TaskRetentionDays = "Review:TaskRetentionDays";
     }
 
     public static class Image
@@ -90,6 +115,7 @@ public static class ConfigurationKeys
         public const string MaxPageSize = "Report:MaxPageSize";
     }
 
+
     public static class StorageDiff
     {
         public const string DefaultPageSize = "StorageDiff:DefaultPageSize";
@@ -101,5 +127,6 @@ public static class ConfigurationKeys
         public const string TagCreationMinRole = "Permissions:TagCreationMinRole";
         public const string ArtistCreationMinRole = "Permissions:ArtistCreationMinRole";
         public const string ImageUploadMinRole = "Permissions:ImageUploadMinRole";
+        public const string SubmitEditMinRole = "Permissions:SubmitEditMinRole";
     }
 }

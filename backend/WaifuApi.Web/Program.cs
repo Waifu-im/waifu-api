@@ -77,9 +77,9 @@ void ValidateConfiguration(IConfiguration configuration)
         ConfigurationKeys.Jwt.Key,
         ConfigurationKeys.Jwt.Issuer,
         ConfigurationKeys.Jwt.Audience,
-        ConfigurationKeys.Moderation.RequireImageReview,
-        ConfigurationKeys.Moderation.RequireArtistReview,
-        ConfigurationKeys.Moderation.RequireTagReview,
+        ConfigurationKeys.Review.RequireImageReview,
+        ConfigurationKeys.Review.RequireArtistReview,
+        ConfigurationKeys.Review.RequireTagReview,
         ConfigurationKeys.Image.DefaultPageSize,
         ConfigurationKeys.Image.MaxPageSize,
         ConfigurationKeys.Image.MinWidth,
@@ -264,6 +264,9 @@ builder.Services.AddAuthorization(options =>
 
 // Register the background service for stats cleanup
 builder.Services.AddHostedService<StatsCleanupService>();
+
+// Prune resolved review tasks past their retention window.
+builder.Services.AddHostedService<ReviewTaskCleanupService>();
 
 var app = builder.Build();
 

@@ -173,6 +173,21 @@ public class UpdateImageCommandHandler : ICommandHandler<UpdateImageCommand, Ima
             image.ReviewStatus = request.ReviewStatus.Value;
         }
 
+        // Keep the review queue in sync if a moderator accepts directly rather than via the queue.
+        if (request.ReviewStatus == ReviewStatus.Accepted)
+        {
+            var openTask = await _context.ReviewTasks.FirstOrDefaultAsync(t =>
+                t.Kind == ReviewTaskKind.NewContent &&
+                t.TargetType == ReviewableContentType.Image &&
+                t.TargetId == image.Id &&
+                t.Status == ReviewTaskStatus.Pending, cancellationToken);
+            if (openTask != null)
+            {
+                openTask.Status = ReviewTaskStatus.Approved;
+                openTask.ResolvedAt = DateTime.UtcNow;
+            }
+        }
+
         await _context.SaveChangesAsync(cancellationToken);
 
         // Handle S3 upload if file was replaced
