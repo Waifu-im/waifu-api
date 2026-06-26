@@ -382,7 +382,7 @@ const ImageTaskCard = ({ task, actions }: { task: ReviewTask; actions: CardActio
                 <img
                     src={image.url}
                     alt={`Image ${task.targetId}`}
-                    className={`w-full h-full object-cover ${image.isNsfw ? 'blur-lg hover:blur-none transition-all duration-300' : ''}`}
+                    className={`w-full h-full object-cover ${image.isNsfw ? 'blur-lg hover:blur-none transition-[filter] duration-300 transform-gpu' : ''}`}
                     loading="lazy"
                 />
             </div>
