@@ -9,6 +9,7 @@ import { useState, useEffect } from "react";
 import api from "../services/api";
 import AlbumSelectionModal from "./modals/AlbumSelectionModal";
 import Skeleton from "./Skeleton";
+import { imgCard } from "../utils/cfImage";
 
 interface ImageCardProps {
     image: ImageDto;
@@ -115,7 +116,7 @@ const ImageCard = ({ image, onDelete, onRemove, onEdit, onSuggest, forceOverlay 
                     )}
 
                     <img
-                        src={image.url}
+                        src={imgCard(image.url)}
                         alt={`Img ${image.id}`}
                         loading="lazy"
                         onLoad={() => setIsImageLoaded(true)}

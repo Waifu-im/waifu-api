@@ -11,6 +11,7 @@ import { Check, Clock, ChevronDown, Trash2, Upload, Loader2, GitPullRequest } fr
 import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
 import { buildImagePayload } from '../../utils/editRequests';
+import { imgCard } from '../../utils/cfImage';
 import AcceptSubmissionNote from '../AcceptSubmissionNote';
 
 interface ImageModalProps {
@@ -254,7 +255,7 @@ const ImageModal = ({ isOpen, onClose, initialData, onSubmit, onDelete, suggestC
                             <label className="block text-sm font-bold mb-1.5 text-muted-foreground uppercase tracking-wider">Image</label>
                             <div className="w-full h-48 border border-border rounded-xl overflow-hidden bg-muted">
                                 {initialData?.url && (
-                                    <img src={initialData.url} className="w-full h-full object-contain" alt="Current image" />
+                                    <img src={imgCard(initialData.url)} className="w-full h-full object-contain" alt="Current image" />
                                 )}
                             </div>
                         </div>
@@ -272,7 +273,7 @@ const ImageModal = ({ isOpen, onClose, initialData, onSubmit, onDelete, suggestC
                                         </div>
                                     ) : initialData?.url ? (
                                         <div className="relative w-full h-full">
-                                            <img src={initialData.url} className="w-full h-full object-contain" alt="Current image" />
+                                            <img src={imgCard(initialData.url)} className="w-full h-full object-contain" alt="Current image" />
                                             <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white font-medium">
                                                 <Upload size={20} className="mr-2" /> Replace image
                                             </div>

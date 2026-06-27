@@ -16,6 +16,7 @@ import ConfirmModal from '../components/modals/ConfirmModal';
 import ReasonModal from '../components/modals/ReasonModal';
 import AlbumSelectionModal from '../components/modals/AlbumSelectionModal';
 import NsfwWarning from '../components/NsfwWarning';
+import NotFound from './NotFound';
 import { MetaTags } from '../hooks/useMetaTags';
 import { isBot } from '../utils/bot';
 
@@ -32,6 +33,7 @@ const ImagePage = () => {
   const [image, setImage] = useState<ImageDto | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notFound, setNotFound] = useState(false);
 
   const { showWarning: showNsfwWarning, setShowWarning: setShowNsfwWarning, grantConsent, hasConsent } = useNsfwConsent(false);
   const { updateImage } = useImageUpdate();
@@ -48,7 +50,7 @@ const ImagePage = () => {
   // Function to fetch image (can be called silently to refresh data)
   const fetchImage = async (silent = false) => {
     try {
-      if (!silent) setIsLoading(true);
+      if (!silent) { setIsLoading(true); setError(null); setNotFound(false); }
       // Removed userId query param as it's handled by auth token now
       const params: Record<string, string> = {};
       if (isAdminOrModerator) {
@@ -63,9 +65,13 @@ const ImagePage = () => {
       if (data.isNsfw && !silent && !hasConsent() && !isBot()) {
         setShowNsfwWarning(true);
       }
-    } catch (err) {
-      console.error("Failed to fetch image", err);
-      if (!silent) setError("Failed to load image.");
+    } catch (err: any) {
+      if (err?.response?.status === 404) {
+        if (!silent) setNotFound(true);
+      } else {
+        console.error("Failed to fetch image", err);
+        if (!silent) setError("Failed to load image.");
+      }
     } finally {
       if (!silent) setIsLoading(false);
     }
@@ -145,6 +151,7 @@ const ImagePage = () => {
   };
 
   if (isLoading) return <div className="p-10 text-center">Loading...</div>;
+  if (notFound) return <NotFound />;
   if (error || !image) return <div className="p-10 text-center text-destructive">{error || "Not Found"}</div>;
 
   // Split the caller's own proposed changes for this image so the tag/artist lists can mark removals and append additions.

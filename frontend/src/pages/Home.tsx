@@ -6,6 +6,7 @@ import { ImageDto, PaginatedList, NsfwMode, Orientation, AnimatedMode } from '..
 import { getEnv } from '../utils/env';
 import Skeleton from '../components/Skeleton';
 import { MetaTags } from '../hooks/useMetaTags';
+import { imgPreview } from '../utils/cfImage';
 
 interface PublicStats {
     totalRequests: number;
@@ -79,7 +80,7 @@ const Home = () => {
             {heroImage && (
                 <div className="absolute inset-0 z-0 overflow-hidden select-none">
                     <img
-                        src={heroImage.url}
+                        src={imgPreview(heroImage.url)}
                         className={`w-full h-full object-cover scale-110 blur-md grayscale-[20%] transition-opacity duration-700 ${imageLoaded ? 'opacity-[.55] dark:opacity-20' : 'opacity-0'}`}
                         alt="Atmosphere"
                         onLoad={() => setImageLoaded(true)}

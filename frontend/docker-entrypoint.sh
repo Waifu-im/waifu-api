@@ -11,7 +11,12 @@ echo "  VITE_CONTACT_EMAIL: \"${VITE_CONTACT_EMAIL}\"," >> /usr/share/nginx/html
 echo "  VITE_DISCORD_SERVER_URL: \"${VITE_DISCORD_SERVER_URL}\"," >> /usr/share/nginx/html/config.js
 echo "  VITE_STATUS_URL: \"${VITE_STATUS_URL}\"," >> /usr/share/nginx/html/config.js
 echo "  VITE_GITHUB_URL: \"${VITE_GITHUB_URL}\"," >> /usr/share/nginx/html/config.js
-echo "  VITE_TOS_URL: \"${VITE_TOS_URL}\"" >> /usr/share/nginx/html/config.js
+echo "  VITE_TOS_URL: \"${VITE_TOS_URL}\"," >> /usr/share/nginx/html/config.js
+echo "  VITE_IMG_TRANSFORM_ENABLED: \"${VITE_IMG_TRANSFORM_ENABLED:-false}\"," >> /usr/share/nginx/html/config.js
+echo "  VITE_IMG_TRANSFORM_PATH: \"${VITE_IMG_TRANSFORM_PATH}\"," >> /usr/share/nginx/html/config.js
+echo "  VITE_IMG_WIDTH_PARAM: \"${VITE_IMG_WIDTH_PARAM:-width}\"," >> /usr/share/nginx/html/config.js
+echo "  VITE_IMG_CARD_WIDTH: \"${VITE_IMG_CARD_WIDTH:-640}\"," >> /usr/share/nginx/html/config.js
+echo "  VITE_IMG_PREVIEW_WIDTH: \"${VITE_IMG_PREVIEW_WIDTH:-1280}\"" >> /usr/share/nginx/html/config.js
 echo "};" >> /usr/share/nginx/html/config.js
 
 # Generate site.webmanifest with environment variables

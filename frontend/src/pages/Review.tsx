@@ -31,6 +31,7 @@ import Pagination from '../components/Pagination';
 import TagChip from '../components/TagChip';
 import { StatusBadge as SharedStatusBadge, StatusTone } from '../components/StatusBadge';
 import { resolveTagsBySlugs, resolveArtistsByIds } from '../utils/metadataResolve';
+import { imgCard } from '../utils/cfImage';
 import { invalidateNavBadges } from '../hooks/useNavBadges';
 import {
     Check, X, ExternalLink, Image as ImageIcon, Tag as TagIcon,
@@ -378,11 +379,11 @@ const ImageTaskCard = ({ task, actions }: { task: ReviewTask; actions: CardActio
 
     const banner = image ? (
         <Link to={`/images/${task.targetId}`} className="block bg-muted">
-            <div className="w-full aspect-[16/10] overflow-hidden">
+            <div className="w-full aspect-[16/10] overflow-hidden" style={{ backgroundColor: image.dominantColor || undefined }}>
                 <img
-                    src={image.url}
+                    src={imgCard(image.url)}
                     alt={`Image ${task.targetId}`}
-                    className={`w-full h-full object-cover ${image.isNsfw ? 'blur-lg hover:blur-none transition-[filter] duration-300 transform-gpu' : ''}`}
+                    className={`w-full h-full object-cover ${image.isNsfw ? 'blur-xl hover:blur-none transition-[filter] duration-300 transform-gpu' : ''}`}
                     loading="lazy"
                 />
             </div>

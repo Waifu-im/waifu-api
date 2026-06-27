@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Clock, Check, X, Ban } from 'lucide-react';
 import { Report, ReportStatus } from '../types';
 import { StatusBadge, StatusTone } from './StatusBadge';
+import { imgCard } from '../utils/cfImage';
 
 const REPORT_STATUS: Record<ReportStatus, { tone: StatusTone; icon: ReactNode }> = {
     [ReportStatus.Pending]: { tone: 'pending', icon: <Clock size={12} /> },
@@ -47,9 +48,9 @@ export const ReportCard = ({ report, showReporter, footer }: ReportCardProps) =>
                 <Link to={`/images/${report.imageId}`} className="block bg-muted">
                     <div className="w-full aspect-[16/10] overflow-hidden">
                         <img
-                            src={report.image.url}
+                            src={imgCard(report.image.url)}
                             alt={`Reported image ${report.imageId}`}
-                            className={`w-full h-full object-cover ${report.image.isNsfw ? 'blur-lg hover:blur-none transition-all duration-300' : ''}`}
+                            className={`w-full h-full object-cover ${report.image.isNsfw ? 'blur-xl hover:blur-none transition-[filter] duration-300 transform-gpu' : ''}`}
                             loading="lazy"
                         />
                     </div>
