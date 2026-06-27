@@ -47,6 +47,7 @@ public sealed class TestHarness : IDisposable
         services.AddScoped<IWaifuDbContext>(sp => sp.GetRequiredService<TestDbContext>());
         services.AddScoped<IStorageService, FakeStorageService>();
         services.AddScoped<IImageProcessingService, FakeImageProcessingService>();
+        services.AddScoped<ICdnCacheService, FakeCdnCacheService>();
         services.AddApplication();
 
         _services = services.BuildServiceProvider();

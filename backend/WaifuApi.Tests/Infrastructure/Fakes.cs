@@ -16,3 +16,10 @@ public class FakeImageProcessingService : IImageProcessingService
     public Task<ImageMetadata> ProcessAsync(Stream stream, string fileName)
         => throw new InvalidOperationException("Image processing must not be invoked by the edit-request flow.");
 }
+
+/// <summary>No-op CDN cache; nothing to purge in tests.</summary>
+public class FakeCdnCacheService : ICdnCacheService
+{
+    public Task PurgeImageAsync(long imageId, IEnumerable<string> extensions, CancellationToken ct = default) => Task.CompletedTask;
+    public Task PurgeFilesAsync(IEnumerable<string> fileNames, CancellationToken ct = default) => Task.CompletedTask;
+}

@@ -21,7 +21,8 @@ public static class DependencyInjection
         services.AddScoped<IDiscordService, DiscordService>();
         services.AddScoped<IStorageService, S3Service>();
         services.AddScoped<IImageProcessingService, ImageProcessingService>();
-        
+        services.AddScoped<ICdnCacheService, CloudflareCacheService>();
+
         services.AddHttpClient();
 
         return services;

@@ -37,6 +37,7 @@ public class UpdateImageCommandHandler : ICommandHandler<UpdateImageCommand, Ima
     private readonly IWaifuDbContext _context;
     private readonly IStorageService _storageService;
     private readonly IImageProcessingService _imageProcessingService;
+    private readonly ICdnCacheService _cdnCache;
     private readonly string _cdnBaseUrl;
     private const int HammingDistanceThreshold = 4;
 
@@ -44,11 +45,13 @@ public class UpdateImageCommandHandler : ICommandHandler<UpdateImageCommand, Ima
         IWaifuDbContext context,
         IStorageService storageService,
         IImageProcessingService imageProcessingService,
+        ICdnCacheService cdnCache,
         IConfiguration configuration)
     {
         _context = context;
         _storageService = storageService;
         _imageProcessingService = imageProcessingService;
+        _cdnCache = cdnCache;
         _cdnBaseUrl = configuration["Cdn:BaseUrl"] ?? throw new InvalidOperationException("Cdn:BaseUrl is required.");
     }
 
@@ -227,6 +230,16 @@ public class UpdateImageCommandHandler : ICommandHandler<UpdateImageCommand, Ima
                 await _context.SaveChangesAsync(cancellationToken);
                 throw;
             }
+        }
+
+        // Only the bytes at {id}{ext} changed, so purge just this image (covers a same-URL replacement
+        // and, if the extension changed, the old file too). Metadata-only edits need no purge.
+        if (fileWasReplaced)
+        {
+            var extensions = oldExtension == image.Extension
+                ? new[] { image.Extension }
+                : new[] { image.Extension, oldExtension };
+            await _cdnCache.PurgeImageAsync(image.Id, extensions, cancellationToken);
         }
 
         var dto = image.ToDto(_cdnBaseUrl, includeUploaderId: true);

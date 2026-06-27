@@ -15,6 +15,23 @@ public static class ConfigurationKeys
         public const string BaseUrl = "Cdn:BaseUrl";
     }
 
+    public static class Cloudflare
+    {
+        public const string ZoneId = "Cloudflare:ZoneId";
+        public const string ApiToken = "Cloudflare:ApiToken";
+    }
+
+    // Shared image-transform settings (also consumed by the frontend). Used here to reconstruct the
+    // resized variant URLs when purging a single image's cache.
+    public static class ImageTransform
+    {
+        public const string Enabled = "IMG_TRANSFORM_ENABLED";
+        public const string Path = "IMG_TRANSFORM_PATH";
+        public const string WidthParam = "IMG_WIDTH_PARAM";
+        public const string CardWidth = "IMG_CARD_WIDTH";
+        public const string PreviewWidth = "IMG_PREVIEW_WIDTH";
+    }
+
     public static class S3
     {
         public const string AccessKey = "S3:AccessKey";

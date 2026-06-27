@@ -14,11 +14,13 @@ public class DeleteImageCommandHandler : ICommandHandler<DeleteImageCommand>
 {
     private readonly IWaifuDbContext _context;
     private readonly IStorageService _storageService;
+    private readonly ICdnCacheService _cdnCache;
 
-    public DeleteImageCommandHandler(IWaifuDbContext context, IStorageService storageService)
+    public DeleteImageCommandHandler(IWaifuDbContext context, IStorageService storageService, ICdnCacheService cdnCache)
     {
         _context = context;
         _storageService = storageService;
+        _cdnCache = cdnCache;
     }
 
     public async ValueTask<Unit> Handle(DeleteImageCommand request, CancellationToken cancellationToken)
@@ -54,6 +56,9 @@ public class DeleteImageCommandHandler : ICommandHandler<DeleteImageCommand>
         // Delete from DB
         _context.Images.Remove(image);
         await _context.SaveChangesAsync(cancellationToken);
+
+        // Clear the CDN cache for just this image so the edge doesn't keep serving the deleted file.
+        await _cdnCache.PurgeImageAsync(image.Id, new[] { image.Extension }, cancellationToken);
         return Unit.Value;
     }
 }
