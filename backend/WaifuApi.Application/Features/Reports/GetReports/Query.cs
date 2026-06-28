@@ -52,8 +52,7 @@ public class GetReportsQueryHandler : IQueryHandler<GetReportsQuery, PaginatedLi
 
     public async ValueTask<PaginatedList<ReportDto>> Handle(GetReportsQuery request, CancellationToken cancellationToken)
     {
-        var pageSize = request.PageSize == 0 ? _defaultPageSize : request.PageSize;
-        if (_maxPageSize > 0 && pageSize > _maxPageSize) pageSize = _maxPageSize;
+        var (page, pageSize) = PaginationUtils.Normalize(request.Page, request.PageSize, _defaultPageSize, _maxPageSize);
 
         var query = _context.Reports
             .AsNoTracking()
@@ -77,7 +76,7 @@ public class GetReportsQueryHandler : IQueryHandler<GetReportsQuery, PaginatedLi
 
         query = query.OrderByDescending(r => r.CreatedAt);
 
-        var paginatedReports = await PaginatedList<Report>.CreateAsync(query, request.Page, pageSize, _maxPageSize, _defaultPageSize, cancellationToken);
+        var paginatedReports = await PaginatedList<Report>.CreateAsync(query, page, pageSize, _maxPageSize, _defaultPageSize, cancellationToken);
 
         var isModeratorOrAdmin = RoleUtils.IsModeratorOrAdmin(request.UserRole);
         var reportDtos = paginatedReports.Items

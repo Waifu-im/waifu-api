@@ -7,6 +7,7 @@ using Mediator;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using WaifuApi.Application.Common.Models;
+using WaifuApi.Application.Common.Utilities;
 using WaifuApi.Application.Interfaces;
 using WaifuApi.Domain.Entities;
 using WaifuApi.Domain.Enums;
@@ -63,8 +64,7 @@ public class GetUsersQueryHandler : IQueryHandler<GetUsersQuery, PaginatedList<U
         }
 
         // Normal search/pagination flow
-        var pageSize = request.PageSize == 0 ? _defaultPageSize : request.PageSize;
-        if (_maxPageSize > 0 && pageSize > _maxPageSize) pageSize = _maxPageSize;
+        var (page, pageSize) = PaginationUtils.Normalize(request.Page, request.PageSize, _defaultPageSize, _maxPageSize);
 
         if (!string.IsNullOrEmpty(request.Name))
         {
@@ -89,8 +89,8 @@ public class GetUsersQueryHandler : IQueryHandler<GetUsersQuery, PaginatedList<U
         }).OrderByDescending(u => u.UploadedImageCount);
 
         var count = await query.CountAsync(cancellationToken);
-        var dtos = await projectedQuery.Skip((request.Page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
+        var dtos = await projectedQuery.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
 
-        return new PaginatedList<UserDto>(dtos, count, request.Page, pageSize, _maxPageSize, _defaultPageSize);
+        return new PaginatedList<UserDto>(dtos, count, page, pageSize, _maxPageSize, _defaultPageSize);
     }
 }

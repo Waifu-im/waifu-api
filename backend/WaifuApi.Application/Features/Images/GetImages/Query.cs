@@ -96,8 +96,7 @@ public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList
             });
         }
 
-        var pageSize = request.PageSize == 0 ? _defaultPageSize : request.PageSize;
-        if (_maxPageSize > 0 && pageSize > _maxPageSize) pageSize = _maxPageSize;
+        var (page, pageSize) = PaginationUtils.Normalize(request.Page, request.PageSize, _defaultPageSize, _maxPageSize);
 
         var filters = new ImageFilters
         {
@@ -141,7 +140,7 @@ public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList
              };
 
              totalCount = await joined.CountAsync(cancellationToken);
-             var pagedItems = await joined.Skip((request.Page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
+             var pagedItems = await joined.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
              var imageIds = pagedItems.Select(x => x.i.Id).ToList();
              addedToAlbumMap = pagedItems.ToDictionary(x => x.i.Id, x => x.ai.AddedAt);
 
@@ -161,7 +160,7 @@ public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList
 
             totalCount = await query.CountAsync(cancellationToken);
             query = ApplyChildrenReviewStatusIncludes(query, request.ChildrenReviewStatus, request.IncludeMyPendingChildren, request.UserId);
-            images = await query.Skip((request.Page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
+            images = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
         }
 
         var imageIdsForStats = images.Select(i => i.Id).ToList();
@@ -185,7 +184,7 @@ public class GetImagesQueryHandler : IQueryHandler<GetImagesQuery, PaginatedList
             return dto;
         }).ToList();
 
-        return new PaginatedList<ImageDto>(imageDtos, totalCount, request.Page, pageSize, _maxPageSize, _defaultPageSize);
+        return new PaginatedList<ImageDto>(imageDtos, totalCount, page, pageSize, _maxPageSize, _defaultPageSize);
     }
 
     private static IQueryable<Image> ApplyChildrenReviewStatusIncludes(IQueryable<Image> query, ReviewStatusFilter filter, bool includeMyPendingChildren, long? userId)

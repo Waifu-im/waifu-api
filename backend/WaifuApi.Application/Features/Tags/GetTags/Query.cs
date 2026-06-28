@@ -88,8 +88,7 @@ public class GetTagsQueryHandler : IQueryHandler<GetTagsQuery, PaginatedList<Tag
         }
 
         // Normal search/pagination flow
-        var pageSize = request.PageSize == 0 ? _defaultPageSize : request.PageSize;
-        if (_maxPageSize > 0 && pageSize > _maxPageSize) pageSize = _maxPageSize;
+        var (page, pageSize) = PaginationUtils.Normalize(request.Page, request.PageSize, _defaultPageSize, _maxPageSize);
 
         switch (request.ReviewStatus)
         {
@@ -130,8 +129,8 @@ public class GetTagsQueryHandler : IQueryHandler<GetTagsQuery, PaginatedList<Tag
         }).OrderByDescending(t => t.ImageCount);
 
         var count = await query.CountAsync(cancellationToken);
-        var dtos = await projectedQuery.Skip((request.Page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
+        var dtos = await projectedQuery.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
 
-        return new PaginatedList<TagDto>(dtos, count, request.Page, pageSize, _maxPageSize, _defaultPageSize);
+        return new PaginatedList<TagDto>(dtos, count, page, pageSize, _maxPageSize, _defaultPageSize);
     }
 }

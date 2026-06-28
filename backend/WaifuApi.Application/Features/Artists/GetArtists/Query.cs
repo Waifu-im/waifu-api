@@ -83,8 +83,7 @@ public class GetArtistsQueryHandler : IQueryHandler<GetArtistsQuery, PaginatedLi
         }
 
         // Normal search/pagination flow
-        var pageSize = request.PageSize == 0 ? _defaultPageSize : request.PageSize;
-        if (_maxPageSize > 0 && pageSize > _maxPageSize) pageSize = _maxPageSize;
+        var (page, pageSize) = PaginationUtils.Normalize(request.Page, request.PageSize, _defaultPageSize, _maxPageSize);
 
         switch (request.ReviewStatus)
         {
@@ -127,8 +126,8 @@ public class GetArtistsQueryHandler : IQueryHandler<GetArtistsQuery, PaginatedLi
         }).OrderByDescending(a => a.ImageCount);
 
         var count = await query.CountAsync(cancellationToken);
-        var dtos = await projectedQuery.Skip((request.Page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
+        var dtos = await projectedQuery.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
 
-        return new PaginatedList<ArtistDto>(dtos, count, request.Page, pageSize, _maxPageSize, _defaultPageSize);
+        return new PaginatedList<ArtistDto>(dtos, count, page, pageSize, _maxPageSize, _defaultPageSize);
     }
 }

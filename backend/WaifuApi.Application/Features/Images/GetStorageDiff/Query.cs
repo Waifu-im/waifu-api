@@ -9,6 +9,7 @@ using Microsoft.Extensions.Configuration;
 using WaifuApi.Application.Common.Constants;
 using WaifuApi.Application.Common.Extensions;
 using WaifuApi.Application.Common.Models;
+using WaifuApi.Application.Common.Utilities;
 using WaifuApi.Application.Interfaces;
 
 namespace WaifuApi.Application.Features.Images.GetStorageDiff;
@@ -52,9 +53,7 @@ public class GetStorageDiffQueryHandler : IQueryHandler<GetStorageDiffQuery, Pag
 
     public async ValueTask<PaginatedList<StorageDiffDto>> Handle(GetStorageDiffQuery request, CancellationToken cancellationToken)
     {
-        var pageSize = request.PageSize == 0 ? _defaultPageSize : request.PageSize;
-        if (_maxPageSize > 0 && pageSize > _maxPageSize) pageSize = _maxPageSize;
-        var page = request.Page < 1 ? 1 : request.Page;
+        var (page, pageSize) = PaginationUtils.Normalize(request.Page, request.PageSize, _defaultPageSize, _maxPageSize);
 
         var allS3Keys = await _storageService.ListObjectsAsync(cancellationToken);
         var s3Keys = allS3Keys.Where(k => !k.StartsWith("healthcheck/")).ToList();

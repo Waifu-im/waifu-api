@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using WaifuApi.Application.Common.Utilities;
 
 namespace WaifuApi.Application.Common.Models;
 
@@ -18,8 +19,9 @@ public class PaginatedList<T>
 
     public PaginatedList(List<T> items, int count, int pageNumber, int pageSize, int maxPageSize, int defaultPageSize)
     {
-        PageNumber = pageNumber;
-        TotalPages = (int)Math.Ceiling(count / (double)pageSize);
+        var (normalizedPage, normalizedPageSize) = PaginationUtils.Normalize(pageNumber, pageSize, defaultPageSize, maxPageSize);
+        PageNumber = normalizedPage;
+        TotalPages = (int)Math.Ceiling(count / (double)normalizedPageSize);
         TotalCount = count;
         Items = items;
         MaxPageSize = maxPageSize;
@@ -32,9 +34,10 @@ public class PaginatedList<T>
 
     public static async Task<PaginatedList<T>> CreateAsync(IQueryable<T> source, int pageNumber, int pageSize, int maxPageSize, int defaultPageSize, CancellationToken cancellationToken)
     {
+        var (normalizedPage, normalizedPageSize) = PaginationUtils.Normalize(pageNumber, pageSize, defaultPageSize, maxPageSize);
         var count = await source.CountAsync(cancellationToken);
-        var items = await source.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
+        var items = await source.Skip((normalizedPage - 1) * normalizedPageSize).Take(normalizedPageSize).ToListAsync(cancellationToken);
 
-        return new PaginatedList<T>(items, count, pageNumber, pageSize, maxPageSize, defaultPageSize);
+        return new PaginatedList<T>(items, count, normalizedPage, normalizedPageSize, maxPageSize, defaultPageSize);
     }
 }

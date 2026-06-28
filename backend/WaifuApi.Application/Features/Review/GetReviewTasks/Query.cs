@@ -9,6 +9,7 @@ using Microsoft.Extensions.Configuration;
 using WaifuApi.Application.Common.Constants;
 using WaifuApi.Application.Common.Extensions;
 using WaifuApi.Application.Common.Models;
+using WaifuApi.Application.Common.Utilities;
 using WaifuApi.Application.Interfaces;
 using WaifuApi.Domain.Entities;
 using WaifuApi.Domain.Enums;
@@ -46,8 +47,7 @@ public class GetReviewTasksQueryHandler : IQueryHandler<GetReviewTasksQuery, Pag
 
     public async ValueTask<PaginatedList<ReviewTaskDto>> Handle(GetReviewTasksQuery request, CancellationToken cancellationToken)
     {
-        var pageSize = request.PageSize == 0 ? _defaultPageSize : request.PageSize;
-        if (_maxPageSize > 0 && pageSize > _maxPageSize) pageSize = _maxPageSize;
+        var (page, pageSize) = PaginationUtils.Normalize(request.Page, request.PageSize, _defaultPageSize, _maxPageSize);
 
         var query = _context.ReviewTasks
             .AsNoTracking()
@@ -63,12 +63,12 @@ public class GetReviewTasksQueryHandler : IQueryHandler<GetReviewTasksQuery, Pag
 
         query = query.OrderByDescending(t => t.CreatedAt);
 
-        var page = await PaginatedList<ReviewTask>.CreateAsync(query, request.Page, pageSize, _maxPageSize, _defaultPageSize, cancellationToken);
+        var pagedTasks = await PaginatedList<ReviewTask>.CreateAsync(query, page, pageSize, _maxPageSize, _defaultPageSize, cancellationToken);
 
-        var targets = await LoadTargetsAsync(page.Items, cancellationToken);
-        var dtos = page.Items.Select(t => ReviewTaskMapping.ToDto(t, targets.Build(t))).ToList();
+        var targets = await LoadTargetsAsync(pagedTasks.Items, cancellationToken);
+        var dtos = pagedTasks.Items.Select(t => ReviewTaskMapping.ToDto(t, targets.Build(t))).ToList();
 
-        return new PaginatedList<ReviewTaskDto>(dtos, page.TotalCount, page.PageNumber, pageSize, _maxPageSize, _defaultPageSize);
+        return new PaginatedList<ReviewTaskDto>(dtos, pagedTasks.TotalCount, pagedTasks.PageNumber, pageSize, _maxPageSize, _defaultPageSize);
     }
 
     private async Task<TargetLookup> LoadTargetsAsync(IReadOnlyCollection<ReviewTask> tasks, CancellationToken ct)

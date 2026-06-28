@@ -7,6 +7,7 @@ using Mediator;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using WaifuApi.Application.Common.Models;
+using WaifuApi.Application.Common.Utilities;
 using WaifuApi.Application.Interfaces;
 
 namespace WaifuApi.Application.Features.Albums.GetAlbums;
@@ -41,8 +42,7 @@ public class GetAlbumsQueryHandler : IQueryHandler<GetAlbumsQuery, PaginatedList
 
     public async ValueTask<PaginatedList<AlbumDto>> Handle(GetAlbumsQuery request, CancellationToken cancellationToken)
     {
-        var pageSize = request.PageSize == 0 ? _defaultPageSize : request.PageSize;
-        if (_maxPageSize > 0 && pageSize > _maxPageSize) pageSize = _maxPageSize;
+        var (page, pageSize) = PaginationUtils.Normalize(request.Page, request.PageSize, _defaultPageSize, _maxPageSize);
 
         var query = _context.Albums
             .Where(a => a.UserId == request.UserId)
@@ -58,6 +58,6 @@ public class GetAlbumsQueryHandler : IQueryHandler<GetAlbumsQuery, PaginatedList
                 ImageCount = a.Items.Count // Changed from AlbumItems to Items
             });
 
-        return await PaginatedList<AlbumDto>.CreateAsync(query, request.Page, pageSize, _maxPageSize, _defaultPageSize, cancellationToken);
+        return await PaginatedList<AlbumDto>.CreateAsync(query, page, pageSize, _maxPageSize, _defaultPageSize, cancellationToken);
     }
 }
