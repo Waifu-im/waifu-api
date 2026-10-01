@@ -23,6 +23,7 @@ public class WaifuDbContext : DbContext, IWaifuDbContext
     public DbSet<ReviewTask> ReviewTasks { get; set; }
     public DbSet<DailyStat> DailyStats { get; set; }
     public DbSet<GlobalStat> GlobalStats { get; set; }
+    public DbSet<SiteBanner> SiteBanners { get; set; }
 
     public Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken)
         => Database.BeginTransactionAsync(cancellationToken);
@@ -176,6 +177,17 @@ public class WaifuDbContext : DbContext, IWaifuDbContext
         modelBuilder.Entity<GlobalStat>(entity =>
         {
             entity.HasKey(e => e.Key);
+        });
+
+        modelBuilder.Entity<SiteBanner>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).ValueGeneratedNever();   // singleton row
+            entity.Property(e => e.Message).IsRequired();
+            entity.HasOne(e => e.UpdatedBy)
+                .WithMany()
+                .HasForeignKey(e => e.UpdatedById)
+                .OnDelete(DeleteBehavior.SetNull);
         });
     }
 }

@@ -63,6 +63,14 @@ public sealed class TestHarness : IDisposable
         return await mediator.Send(command);
     }
 
+    /// <summary>Send a query through the real Mediator pipeline in its own scope.</summary>
+    public async Task<TResponse> QueryAsync<TResponse>(IQuery<TResponse> query)
+    {
+        using var scope = CreateScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+        return await mediator.Send(query);
+    }
+
     /// <summary>Mutate the database in a dedicated scope.</summary>
     public async Task WriteAsync(Func<TestDbContext, Task> action)
     {

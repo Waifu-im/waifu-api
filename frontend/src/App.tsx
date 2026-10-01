@@ -18,6 +18,7 @@ import MyReports from './pages/MyReports';
 import AdminStats from "@/pages/AdminStats.tsx";
 import StorageDiff from './pages/StorageDiff';
 import Contact from './pages/Contact';
+import SiteBannerSettings from './pages/SiteBannerSettings';
 import NotFound from './pages/NotFound';
 
 function App() {
@@ -42,6 +43,7 @@ function App() {
                 <Route path="api-keys" element={<ApiKeys />} />
                 <Route path="stats" element={<AdminStats />} />
                 <Route path="storage-diff" element={<StorageDiff />} />
+                <Route path="site-banner" element={<SiteBannerSettings />} />
                 <Route path="contact" element={<Contact />} />
                 <Route path="auth/callback" element={<Callback />} />
                 <Route path="*" element={<NotFound />} />

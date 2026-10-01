@@ -277,3 +277,32 @@ export interface SubmitEditBody {
   reason?: string;
   payload: EditPayload;
 }
+
+export enum BannerVariant {
+  Info = 'Info',
+  Success = 'Success',
+  Warning = 'Warning',
+  Danger = 'Danger'
+}
+
+/** The banner currently shown to visitors (GET /banner). */
+export interface Banner {
+  message: string;
+  variant: BannerVariant;
+  /** Dismissals are keyed on this, so an edited banner shows up again. */
+  updatedAt: string;
+}
+
+/** Full banner configuration for users allowed to manage it (GET/PUT /banner/settings). */
+export interface BannerSettings {
+  message: string;
+  variant: BannerVariant;
+  isEnabled: boolean;
+  updatedAt?: string;
+  updatedBy?: UserMinimal;
+}
+
+/** Server-resolved, configurable permissions of the current user (GET /users/me/permissions). */
+export interface UserPermissions {
+  canManageBanner: boolean;
+}

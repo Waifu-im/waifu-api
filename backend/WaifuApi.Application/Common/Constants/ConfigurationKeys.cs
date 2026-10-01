@@ -145,5 +145,9 @@ public static class ConfigurationKeys
         public const string ArtistCreationMinRole = "Permissions:ArtistCreationMinRole";
         public const string ImageUploadMinRole = "Permissions:ImageUploadMinRole";
         public const string SubmitEditMinRole = "Permissions:SubmitEditMinRole";
+
+        // Minimum role allowed to view/edit the site banner settings (enforced on /banner/settings).
+        // Missing/blank/invalid => Moderator.
+        public const string BannerManagementMinRole = "Permissions:BannerManagementMinRole";
     }
 }

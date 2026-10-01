@@ -6,6 +6,7 @@ using Mediator;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using WaifuApi.Application.Common.Constants;
 using WaifuApi.Application.Common.Models;
 using WaifuApi.Application.Features.Users.BanUser;
 using WaifuApi.Application.Features.Users.GetMe;
@@ -16,6 +17,7 @@ using WaifuApi.Domain.Entities;
 using WaifuApi.Domain.Enums;
 using WaifuApi.Web.Constants;
 using WaifuApi.Web.Models;
+using WaifuApi.Web.Services;
 
 namespace WaifuApi.Web.Controllers;
 
@@ -40,10 +42,12 @@ namespace WaifuApi.Web.Controllers;
 public class UsersController : ControllerBase
 {
     private readonly IMediator _mediator;
+    private readonly IPermissionService _permissionService;
 
-    public UsersController(IMediator mediator)
+    public UsersController(IMediator mediator, IPermissionService permissionService)
     {
         _mediator = mediator;
+        _permissionService = permissionService;
     }
 
     /// <summary>
@@ -62,6 +66,27 @@ public class UsersController : ControllerBase
         var userId = long.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
         var user = await _mediator.Send(new GetMeQuery(userId));
         return Ok(user);
+    }
+
+    /// <summary>
+    /// Get your configurable permissions.
+    /// </summary>
+    /// <remarks>
+    /// Resolves the server-configured role requirements against your role, so clients know which
+    /// restricted features (e.g. editing the site banner) to offer.
+    /// </remarks>
+    /// <returns>Your permissions.</returns>
+    /// <response code="200">Returns your permissions.</response>
+    /// <response code="401">Authentication required.</response>
+    [HttpGet("me/permissions")]
+    [ProducesResponseType(typeof(UserPermissionsDto), StatusCodes.Status200OK)]
+    public ActionResult<UserPermissionsDto> GetMyPermissions()
+    {
+        return Ok(new UserPermissionsDto
+        {
+            CanManageBanner = _permissionService.HasPermission(
+                ConfigurationKeys.Permissions.BannerManagementMinRole, Role.Moderator)
+        });
     }
 
     /// <summary>

@@ -26,6 +26,7 @@ public class TestDbContext : DbContext, IWaifuDbContext
     public DbSet<ReviewTask> ReviewTasks => Set<ReviewTask>();
     public DbSet<DailyStat> DailyStats => Set<DailyStat>();
     public DbSet<GlobalStat> GlobalStats => Set<GlobalStat>();
+    public DbSet<SiteBanner> SiteBanners => Set<SiteBanner>();
 
     public Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken)
         => Database.BeginTransactionAsync(cancellationToken);

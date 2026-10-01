@@ -10,13 +10,20 @@ public interface IPermissionService
     /// Check if the current user has the minimum role required for an action.
     /// Throws ForbiddenException with a friendly message if the user doesn't have permission.
     /// </summary>
-    void EnsurePermission(string configKey, string actionDescription);
+    /// <param name="defaultMinRole">Role required when the key is missing/invalid; null means no restriction.</param>
+    void EnsurePermission(string configKey, string actionDescription, Role? defaultMinRole = null);
+
+    /// <summary>
+    /// Non-throwing variant of <see cref="EnsurePermission"/>. Anonymous users never have permission.
+    /// </summary>
+    bool HasPermission(string configKey, Role? defaultMinRole = null);
 
     /// <summary>
     /// Get the minimum role required for an action from configuration.
-    /// Returns null if no restriction is configured (any authenticated user can perform the action).
+    /// Returns <paramref name="defaultMinRole"/> if no valid restriction is configured
+    /// (null = any authenticated user can perform the action).
     /// </summary>
-    Role? GetMinimumRole(string configKey);
+    Role? GetMinimumRole(string configKey, Role? defaultMinRole = null);
 
     /// <summary>
     /// Get a description of the role requirement for OpenAPI documentation.
@@ -36,9 +43,9 @@ public class PermissionService : IPermissionService
         _currentUser = currentUser;
     }
 
-    public void EnsurePermission(string configKey, string actionDescription)
+    public void EnsurePermission(string configKey, string actionDescription, Role? defaultMinRole = null)
     {
-        var minRole = GetMinimumRole(configKey);
+        var minRole = GetMinimumRole(configKey, defaultMinRole);
 
         // No restriction configured - any authenticated user can perform the action
         if (minRole == null)
@@ -60,13 +67,24 @@ public class PermissionService : IPermissionService
             $"This restriction is configured by the API administrator.");
     }
 
-    public Role? GetMinimumRole(string configKey)
+    public bool HasPermission(string configKey, Role? defaultMinRole = null)
+    {
+        if (!_currentUser.IsAuthenticated)
+        {
+            return false;
+        }
+
+        var minRole = GetMinimumRole(configKey, defaultMinRole);
+        return minRole == null || (_currentUser.UserRole ?? Role.User) >= minRole.Value;
+    }
+
+    public Role? GetMinimumRole(string configKey, Role? defaultMinRole = null)
     {
         var configValue = _configuration[configKey];
 
         if (string.IsNullOrEmpty(configValue))
         {
-            return null;
+            return defaultMinRole;
         }
 
         if (Enum.TryParse<Role>(configValue, ignoreCase: true, out var role))
@@ -74,7 +92,7 @@ public class PermissionService : IPermissionService
             return role;
         }
 
-        return null;
+        return defaultMinRole;
     }
 
     public string? GetRoleRequirementDescription(string configKey)

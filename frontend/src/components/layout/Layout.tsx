@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import {
     Sun, Moon, Menu, X, LogOut, Upload as UploadIcon,
     Home, Image as ImageIcon, Tag as TagIcon, ChevronRight, PanelLeft,
-    User as UserIcon, Library, ChevronDown, Palette, Key, Users as UsersIcon, Flag, BarChart, Monitor, Book, Mail, Activity, HardDrive, Github, FileText, GitPullRequest
+    User as UserIcon, Library, ChevronDown, Palette, Key, Users as UsersIcon, Flag, BarChart, Monitor, Book, Mail, Activity, HardDrive, Github, FileText, GitPullRequest, Megaphone
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -13,6 +13,8 @@ import { Dropdown, DropdownItem, DropdownLabel, DropdownSeparator } from '../Dro
 import { getEnv } from '../../utils/env';
 import { Role } from '../../types';
 import { useNavBadges, invalidateNavBadges } from '../../hooks/useNavBadges';
+import { usePermissions } from '../../hooks/useBanner';
+import SiteBanner from '../SiteBanner';
 
 const Layout = () => {
     const { theme, setTheme, resolvedTheme } = useTheme();
@@ -68,6 +70,8 @@ const Layout = () => {
 
     const isModOrAdmin = user && (user.role === Role.Moderator || user.role === Role.Admin);
     const isAdmin = user && user.role === Role.Admin;
+    // Banner management role is configured (and enforced) by the backend, Moderator+ by default.
+    const { canManageBanner } = usePermissions();
 
     return (
         <div className="min-h-screen bg-background text-foreground flex flex-col">
@@ -145,12 +149,19 @@ const Layout = () => {
                                     </>
                                 )}
 
-                                {isModOrAdmin && (
+                                {(isModOrAdmin || canManageBanner) && (
                                     <>
                                         <DropdownSeparator />
                                         <DropdownLabel>Administration</DropdownLabel>
-                                        <Link to="/review"><DropdownItem icon={<GitPullRequest size={16} className="text-orange-500" />}>Review{navBadge}</DropdownItem></Link>
-                                        <Link to="/reports"><DropdownItem icon={<Flag size={16} className="text-red-500" />}>Reports{reportBadge}</DropdownItem></Link>
+                                        {canManageBanner && (
+                                            <Link to="/site-banner"><DropdownItem icon={<Megaphone size={16} className="text-primary" />}>Site Banner</DropdownItem></Link>
+                                        )}
+                                        {isModOrAdmin && (
+                                            <>
+                                                <Link to="/review"><DropdownItem icon={<GitPullRequest size={16} className="text-orange-500" />}>Review{navBadge}</DropdownItem></Link>
+                                                <Link to="/reports"><DropdownItem icon={<Flag size={16} className="text-red-500" />}>Reports{reportBadge}</DropdownItem></Link>
+                                            </>
+                                        )}
                                         {isAdmin && (
                                             <>
                                                 <Link to="/users"><DropdownItem icon={<UsersIcon size={16} className="text-blue-500" />}>User Management</DropdownItem></Link>
@@ -404,6 +415,7 @@ const Layout = () => {
 
                 {/* CONTENT AREA */}
                 <main className="flex-1 overflow-x-hidden overflow-y-auto bg-muted/20 h-[calc(100vh-4rem)] relative">
+                    <SiteBanner />
                     <Outlet />
                 </main>
             </div>

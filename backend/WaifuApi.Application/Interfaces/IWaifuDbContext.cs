@@ -17,6 +17,7 @@ public interface IWaifuDbContext
     DbSet<ReviewTask> ReviewTasks { get; }
     DbSet<DailyStat> DailyStats { get; }
     DbSet<GlobalStat> GlobalStats { get; }
+    DbSet<SiteBanner> SiteBanners { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 
