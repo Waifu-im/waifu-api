@@ -1,6 +1,6 @@
 {
-  "name": "Waifu.im",
-  "short_name": "Waifu.im",
+  "name": "Waifu API",
+  "short_name": "Waifu API",
   "description": "The API for your Waifu content",
   "icons": [
     {

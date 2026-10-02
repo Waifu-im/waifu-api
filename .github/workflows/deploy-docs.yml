@@ -17,15 +17,15 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  DOCS_URL: https://docs.waifu.im
+  DOCS_URL: ${{ vars.DOCS_URL || 'https://docs.waifu.im' }}
   DOCS_BASE_URL: /
-  DOCS_ORG_NAME: Waifu-im
+  DOCS_ORG_NAME: ${{ vars.DOCS_ORG_NAME || 'Waifu-im' }}
   DOCS_PROJECT_NAME: waifu-api
-  API_BASE_URL: https://api.waifu.im
-  APP_NAME: Waifu.im
+  API_BASE_URL: ${{ vars.API_BASE_URL || 'https://api.waifu.im' }}
+  APP_NAME: ${{ vars.APP_NAME || 'Waifu.im' }}
   APP_TAGLINE: "The API for your Waifu content. Access thousands of categorized anime illustrations via our robust REST API or browse freely."
-  FRONTEND_URL: https://www.waifu.im
-  GITHUB_URL: https://github.com/Waifu-im/waifu-api
+  FRONTEND_URL: ${{ vars.FRONTEND_URL || 'https://www.waifu.im' }}
+  GITHUB_URL: ${{ vars.GITHUB_URL || 'https://github.com/Waifu-im/waifu-api' }}
 
 jobs:
   build:

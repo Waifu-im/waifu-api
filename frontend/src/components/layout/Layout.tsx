@@ -51,7 +51,7 @@ const Layout = () => {
         window.location.href = "/";
     };
 
-    const appTitle = getEnv('VITE_APP_TITLE') || 'WAIFU.IM';
+    const appTitle = getEnv('VITE_APP_TITLE') || 'Waifu API';
     const docsUrl = getEnv('VITE_DOCS_URL');
     const contactEmail = getEnv('VITE_CONTACT_EMAIL');
     const discordServerUrl = getEnv('VITE_DISCORD_SERVER_URL');

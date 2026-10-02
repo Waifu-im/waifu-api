@@ -24,7 +24,7 @@ export function MetaTags({
   type = 'website',
   isNsfw = false,
 }: MetaTagsProps) {
-  const appTitle = getEnv('VITE_APP_TITLE') || 'Waifu.im';
+  const appTitle = getEnv('VITE_APP_TITLE') || 'Waifu API';
   const fullTitle = title ? `${title} - ${appTitle}` : appTitle;
   const desc = description || defaultDescription;
   const canonicalUrl = url || window.location.href;

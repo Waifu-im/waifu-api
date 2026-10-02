@@ -5,11 +5,6 @@ public static class ConfigurationKeys
     public const string ApiBasePath = "API_BASE_PATH";
     public const string ApiBaseUrl = "API_BASE_URL";
 
-    public static class Frontend
-    {
-        public const string BaseUrl = "Frontend:BaseUrl";
-    }
-
     public static class Cdn
     {
         public const string BaseUrl = "Cdn:BaseUrl";

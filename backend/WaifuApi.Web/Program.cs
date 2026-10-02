@@ -64,7 +64,6 @@ void ValidateConfiguration(IConfiguration configuration)
     {
         ConfigurationKeys.ApiBasePath,
         ConfigurationKeys.ApiBaseUrl,
-        ConfigurationKeys.Frontend.BaseUrl,
         ConfigurationKeys.Cdn.BaseUrl,
         ConfigurationKeys.S3.AccessKey,
         ConfigurationKeys.S3.SecretKey,

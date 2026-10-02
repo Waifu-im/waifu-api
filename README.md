@@ -77,7 +77,6 @@ Deploy your own instance of the Waifu.im API using Docker.
    ```ini
    # Backend
    API_BASE_PATH="/"
-   Frontend__BaseUrl="https://www.waifu.im"
 
    # Frontend
    VITE_API_URL="https://api.waifu.im"
@@ -104,7 +103,6 @@ For active development, we recommend running the database via Docker and the ser
    ```ini
    # Backend
    API_BASE_PATH="/api"
-   Frontend__BaseUrl="http://localhost:5173"
 
    # Frontend
    VITE_API_URL="http://localhost:5261/api"

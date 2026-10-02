@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using WaifuApi.Application.Common.Constants;
 using WaifuApi.Application.Common.Exceptions;
 using WaifuApi.Application.Common.Extensions;
 using WaifuApi.Application.Common.Models;
@@ -22,13 +23,12 @@ public class GetImageByIdQueryHandler : IQueryHandler<GetImageByIdQuery, ImageDt
 {
     private readonly IWaifuDbContext _context;
     private readonly string _cdnBaseUrl;
-    private readonly string _frontendBaseUrl;
 
     public GetImageByIdQueryHandler(IWaifuDbContext context, IConfiguration configuration)
     {
         _context = context;
-        _cdnBaseUrl = configuration["Cdn:BaseUrl"] ?? "https://cdn.waifu.im";
-        _frontendBaseUrl = configuration["Frontend:BaseUrl"] ?? "https://waifu.im";
+        _cdnBaseUrl = configuration[ConfigurationKeys.Cdn.BaseUrl]
+            ?? throw new InvalidOperationException($"{ConfigurationKeys.Cdn.BaseUrl} is required.");
     }
 
     public async ValueTask<ImageDto> Handle(GetImageByIdQuery request, CancellationToken cancellationToken)
