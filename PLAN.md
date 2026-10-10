@@ -134,51 +134,76 @@ succeeding, and nothing in the system raises an error. The failure mode is
 
 ---
 
-#### Spike status: IN PROGRESS — not closed
+#### Spike status: CLOSED — bit-exact porting is impossible
 
-An oracle was built and run (`backend/go/tools/oracle`, a .NET 10 console app
-using the exact pinned package versions) together with a deterministic 554-image
-corpus (`backend/go/tools/corpusgen`). Golden vectors are committed at
-`backend/go/internal/images/phash/testdata/golden-vectors.tsv`.
+**The C# reference does not reproduce itself.**
 
-**Established with evidence:**
+Running the oracle twice — once normally, once with
+`DOTNET_EnableHWIntrinsic=0` — on the same 554-image corpus with the same
+library versions gives:
+
+| | |
+|---|---|
+| Hashes identical between SIMD and scalar | **248 / 554** |
+| Hashes differing | **306 / 554** |
+| Largest divergence | **38 bits** |
+| Diverging hashes still inside the dedup threshold (≤ 4) | 40 / 306 |
+
+The cause is `ResizeKernel.ConvolveCore`, which accumulates with
+`Vector256.MultiplyAddEstimate` when AVX2 is present and a plain float loop when
+it is not. Those paths do not agree.
+
+**What this means:** the ~4,000 hashes in the `Images` table were not produced
+by one algorithm. They are a mixture of at least two, determined by whichever
+machine computed them. There is no stable target to port *to*.
+
+**This also means duplicate detection is already unreliable.** The threshold is
+Hamming ≤ 4, but the algorithm's own hardware-dependent noise reaches 38 bits.
+Real duplicates are being missed today, before any rewrite.
+
+#### Revised decision — Fallback B, now the only option
+
+- **A (match the resize arithmetic) is unreachable.** There is nothing stable to
+  match.
+- **C (C# sidecar) is unreachable.** The service would return different hashes
+  on different machines, which is worse than not deduplicating at all.
+- **B (backfill) is the only coherent path.** Adopt one deterministic Go
+  algorithm, use it for every hash from now on, and re-hash the existing corpus
+  so the table is internally consistent again.
+
+Two consequences to accept explicitly:
+
+1. **Dedup will change.** A single consistent algorithm is a strict improvement
+   over a mixed table, but the backfill needs a maintenance window and a
+   rollback story (PLAN.md Fallback B, unchanged).
+2. **Re-validate the threshold.** With one algorithm and no hardware noise, a
+   Hamming ≤ 4 threshold may be too tight. Measure the true-positive/false-
+   positive tradeoff on the corpus once hashes are consistent, then tune.
+
+Reference vectors for both paths are committed under
+`internal/images/phash/testdata/` so the finding stays checkable.
+`TestReferenceIsSelfInconsistent` re-measures it and will log a warning if the
+reference ever becomes self-consistent, at which point this decision should be
+revisited.
+
+#### What was established along the way
 
 | Finding | Evidence |
 |---|---|
-| Default resampler is `KnownResamplers.Bicubic` | 554/554 planes byte-identical to reference |
-| ImageSharp Bicubic **is Catmull-Rom** (`a = -0.5`) | `BicubicResampler.GetValue`, verified algebraically equivalent |
-| The algorithm resizes to **64×64**, not 32 | `PerceptualHash.SIZE = 64` (textbook pHash uses 32) |
-| Grayscale is **Bt601** luma, not a flat average | RGB(220,30,30) → 87 in both |
-| The DC term is the **most significant bit** | `mask = 1UL << 63`, values consumed row-major from index 0 |
-| Median is the **mean of the 32nd and 33rd** values | `OrderBy().Skip(31).Take(2).Average()` |
-| Window bounds use an **integer** radius | `ResizeKernelMap.BuildKernel`: `radius = (int)Ceiling(scale*2)` |
+| Default resampler is `KnownResamplers.Bicubic` | 554/554 planes byte-identical |
+| ImageSharp Bicubic **is Catmull-Rom** (`a = -0.5`) | `BicubicResampler.GetValue`, verified algebraically |
+| Algorithm resizes to **64×64**, not 32 | `PerceptualHash.SIZE = 64` |
+| Grayscale is **Bt601** luma | RGB(220,30,30) → 87 in both |
+| DC term is the **most significant bit** | `mask = 1UL << 63` |
+| Median is the **mean of the 32nd and 33rd** | `OrderBy().Skip(31).Take(2).Average()` |
+| Window bounds use an **integer** radius | `radius = (int)Ceiling(scale*2)`, `left = Ceiling(c-r)`, `right = Floor(c+r)` |
 
-**Two real bugs found and fixed in the Go implementation:**
-1. The vertical resize pass returned the plane **transposed**, so every row
-   read walked a single line. This produced flat output and looked like a
-   filter problem.
-2. Window bounds were computed from a **float** radius with
-   `Floor`/`Ceiling`. ImageSharp uses an **integer** radius with
-   `Ceiling`/`Floor`, which yields one fewer trailing tap on downscales.
-
-**Where it currently stands:** lossless PNG images still mismatch at
-**107/212** with Catmull-Rom. JPEG is 115/340, so lossy decoding is *not* the
-dominant cause. Identity-resize and solid-colour cases match exactly.
-
-**Leading hypothesis for the residual mismatch:** `ResizeKernel.ConvolveCore`
-accumulates with `Vector256.MultiplyAddEstimate`, which is documented as a
-lower-precision *estimate* rather than a true FMA. If so, the reference resize
-may not be bit-reproducible even across different .NET machines — which would
-mean exact reproduction is impossible without matching their exact SIMD path.
-
-**This must be resolved before Phase 5**, because it determines whether Fallback
-A/B are even reachable:
-
-- *If the reference is reproducible:* finish matching the resize arithmetic.
-- *If it is not:* the stored hashes were themselves produced by whatever SIMD
-  path that machine used, so dedup cannot be bit-preserved at all. The decision
-  then becomes an explicit product choice — re-hash the whole corpus (Fallback
-  B) and accept a one-off dedup gap — not a porting problem to grind on.
+Two real bugs found and fixed in the Go port:
+1. The vertical resize pass returned the plane **transposed**, flattening output
+   and masquerading as a filter problem.
+2. Window bounds were computed from a **float** radius with `Floor`/`Ceiling`
+   instead of an integer radius with `Ceiling`/`Floor`, adding a spurious
+   trailing tap on downscales.
 
 #### Fallback paths, in order of preference
 

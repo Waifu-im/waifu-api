@@ -91,13 +91,13 @@ func cubicBSpline(name string, b, c float64) Kernel {
 			at := math.Abs(t)
 			switch {
 			case at < 1:
-				return ((12 - 9*b - 6*c)*at*at*at +
-					(-18 + 12*b + 6*c)*at*at +
+				return ((12-9*b-6*c)*at*at*at +
+					(-18+12*b+6*c)*at*at +
 					(6 - 2*b)) / 6
 			case at < 2:
-				return ((-b - 6*c)*at*at*at +
-					(6*b + 30*c)*at*at +
-					(-12*b - 48*c)*at +
+				return ((-b-6*c)*at*at*at +
+					(6*b+30*c)*at*at +
+					(-12*b-48*c)*at +
 					(8*b + 24*c)) / 6
 			default:
 				return 0
@@ -160,12 +160,21 @@ var nearestKernel = Kernel{
 	},
 }
 
-// CandidateKernels lists every resampler the spike compares, in the order they
-// should be tried. The first one that achieves 100% match against the golden
-// vectors is the one this package uses by default.
+// DefaultKernel is the resampler this service uses.
+//
+// It is Catmull-Rom, which is exactly what ImageSharp's default bicubic
+// resampler computes. See tools/oracle/README.md: the reference is not
+// reproducible against itself, so this package does not attempt to reproduce a
+// particular SIMD path. It aims to be deterministic and self-consistent, which
+// is the property the backfill in PLAN.md section 6.1 depends on.
+var DefaultKernel = cubicBSpline("catmullrom", 0, 0.5)
+
+// CandidateKernels lists every resampler that was evaluated against the C#
+// reference during the spike. They are kept so the comparison can be repeated
+// and so the choice of DefaultKernel can be re-justified later.
 var CandidateKernels = []Kernel{
+	DefaultKernel,
 	cubicBSpline("bicubic-b0.5-c0.5", 0.5, 0.5),
-	cubicBSpline("catmullrom", 0, 0.5),
 	cubicBSpline("mitchell", 1.0/3.0, 1.0/3.0),
 	lanczos(3),
 	biLinearKernel,
