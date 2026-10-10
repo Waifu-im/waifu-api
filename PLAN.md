@@ -582,8 +582,58 @@ by any technical measure — only by starting Phase 0 now and by being honest ab
 the difference between "6 months to a working system" and "6 months to a working
 system plus everything in §8 that slipped."
 
-Budget explicitly for: the pHash spike (§6.1) going wrong, contract drift found
-late, and behaviours discoverable only by reading C#.
+---
+
+## 13. Progress log
+
+### Delivered
+
+**Phase 0 — foundation, complete.**
+
+| Component | Path | Notes |
+|---|---|---|
+| Typed configuration | `backend/go/internal/config` | Fail-fast; rejects typos the C# service silently accepts |
+| ProblemDetails errors | `backend/go/internal/apierror` | Wire shape pinned by tests; frontend interceptor contract |
+| Structured logging | `backend/go/internal/logging` | stdlib `slog`, JSON in production |
+| Image processing | `backend/go/internal/imageproc` | Metadata, dimension limits, dominant colour, GIF frame detection |
+| Perceptual hash | `backend/go/internal/images/phash` | Deterministic; spike closed (§6.1) |
+| Database layer | `backend/go/internal/store` | pgx pool, Supabase pooler-mode detection |
+| HTTP layer | `backend/go/internal/httpapi` | Routing, recovery, body limit, timeout, request logging |
+| Server entrypoint | `backend/go/cmd/server` | Fail-fast startup, graceful SIGTERM shutdown |
+| Container image | `backend/go/Dockerfile` | **19.2 MB** vs **191.8 MB** for the C# runtime |
+| CI | `.github/workflows/go-backend.yml` | vet, gofmt, race tests, image build, oracle parity job |
+| Hash oracle | `backend/go/tools/oracle` | .NET 10 containerised, exact pinned package versions |
+| Test corpus generator | `backend/go/tools/corpusgen` | Deterministic 554-image corpus |
+
+**Tests:** all packages green under `-race`; `go vet` clean; `gofmt` clean.
+
+**Verified behaviours:**
+- Empty environment → all 36 missing variables reported at once, non-zero exit
+- Misspelled role (`TrusedUser`) → rejected with the valid values listed, instead
+  of silently degrading to `TrustedUser`
+- Non-boolean (`yes`) → rejected instead of being treated as false
+- Contradictory dimension limits and short JWT keys → rejected at startup
+
+### Not started
+
+Phases 1–8. In particular the 58 endpoints, sqlc query layer, contract-test
+harness, and the corpus backfill from §6.1 Fallback B.
+
+### Next actions, in order
+
+1. **Backfill plan (§6.1 B)** — decide maintenance window and rollback before
+   any upload path goes live, because dedup is currently operating on a
+   mixed-vocabulary table.
+2. **sqlc against the frozen schema** — unblocks all data access.
+3. **Contract harness (§7)** — Phase 1, before any endpoint moves.
+4. **Read path** — `/images`, `/tags`, `/artists` GETs.
+
+### Corrections made to this plan during implementation
+
+- The §6.1 premise ("match the resize filter, expect a day") was wrong. The
+  reference is not reproducible against itself, so the spike closed on a
+  different conclusion entirely. See §6.1.
+- Render free tier is **0.1 CPU**, not the 0.5 assumed in §6.6.
 
 ### 11.1 What AI assistance does and does not compress
 

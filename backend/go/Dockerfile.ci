@@ -1,0 +1,40 @@
+# Build context for the Go backend.
+#
+# Only the Go module is needed. Excluding the C# sources keeps the build context
+# small and makes it impossible to accidentally depend on a file from the
+# service being replaced.
+
+# ---- Test -----------------------------------------------------------------
+# Unit tests, including the perceptual-hash package. The corpus-backed tests
+# skip themselves when PHASH_CORPUS_DIR is absent, which is the case in CI by
+# default; the deterministic tests always run.
+FROM golang:1.27-alpine AS test
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN go vet ./... && go test ./...
+
+# ---- Build ----------------------------------------------------------------
+FROM golang:1.27-alpine AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+ARG VERSION=0.0.0-local
+RUN CGO_ENABLED=0 GOOS=linux go build \
+      -trimpath \
+      -ldflags="-s -w -X main.version=${VERSION}" \
+      -o /out/server \
+      ./cmd/server
+
+# ---- Runtime --------------------------------------------------------------
+FROM gcr.io/distroless/static-debian12:nonroot
+
+COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY --from=build /out/server /server
+
+USER nonroot:nonroot
+EXPOSE 8080
+
+ENTRYPOINT ["/server"]

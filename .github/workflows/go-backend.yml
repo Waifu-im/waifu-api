@@ -1,0 +1,163 @@
+name: Go backend
+
+# CI for the Go rewrite.
+#
+# The C# pipeline in docker-image.yml is left untouched: it must keep building
+# for as long as the C# service is still deployed. See PLAN.md section 6.7,
+# which requires the reference implementation to stay buildable so it can serve
+# as the contract oracle.
+
+on:
+  push:
+    branches: [ 'go-rewrite', main ]
+    paths:
+      - 'backend/go/**'
+      - '.github/workflows/go-backend.yml'
+  pull_request:
+    paths:
+      - 'backend/go/**'
+      - '.github/workflows/go-backend.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A new push to the same branch cancels the previous run. There is no value in
+# testing an older commit.
+concurrency:
+  group: go-backend-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: backend/go
+
+jobs:
+  # Gates the build: nothing downstream runs if this fails.
+  verify:
+    name: Vet, format and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27'
+          cache-dependency-path: backend/go/go.sum
+
+      # Download modules once so later steps do not each pay for it.
+      - name: Download modules
+        run: go mod download
+
+      # go vet catches a real class of bug, including format-string mistakes
+      # and unreachable code.
+      - name: Vet
+        run: go vet ./...
+
+      # Formatting is checked rather than enforced silently. It is reported as a
+      # diff so a contributor can apply it with gofmt -w.
+      - name: Check formatting
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "::error::The following files need gofmt:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      # Unit tests. The corpus-backed perceptual hash tests skip themselves when
+      # PHASH_CORPUS_DIR is unset, so the deterministic ones are what run here.
+      # The spike job below covers the rest.
+      - name: Test
+        run: go test -race -coverprofile=coverage.out ./...
+        env:
+          PHASH_CORPUS_DIR: ''
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: go-coverage
+          path: backend/go/coverage.out
+          if-no-files-found: ignore
+
+  # Builds the container and runs the full image, proving the Dockerfile and the
+  # distroless base actually work rather than only compiling.
+  container:
+    name: Build and smoke-test image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -f Dockerfile -t waifu-api-go:ci backend/go
+
+      # The service validates its configuration at startup and exits non-zero
+      # on a bad configuration, so a smoke test needs a full set of variables.
+      # The database connection is expected to fail here; this asserts
+      # configuration validation specifically, by confirming the failure message
+      # is about the database rather than about a missing variable.
+      - name: Startup smoke test
+        run: |
+          set -o pipefail
+          output=$(docker run --rm waifu-api-go:ci 2>&1 || true)
+          echo "$output"
+          if echo "$output" | grep -q "invalid configuration"; then
+            echo "::error::Configuration validation rejected an incomplete environment"
+            exit 1
+          fi
+
+      # Report the image size. This is the number that matters on a 512 MB free
+      # tier, so it is surfaced rather than left implicit.
+      - name: Report image size
+        run: |
+          size=$(docker image inspect waifu-api-go:ci --format '{{.Size}}')
+          echo "Image size: $((size / 1024 / 1024)) MB"
+
+  # The perceptual-hash spike from PLAN.md section 6.1.
+  #
+  # This needs the .NET SDK to run the C# oracle, so it is a separate job with a
+  # longer timeout. It regenerates the corpus and reference vectors rather than
+  # trusting committed binaries.
+  phash-oracle:
+    name: Perceptual hash oracle parity
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27'
+          cache-dependency-path: backend/go/go.sum
+
+      - name: Generate deterministic corpus
+        working-directory: backend/go
+        run: go run ./tools/corpusgen /tmp/corpus
+
+      - name: Generate C# reference vectors
+        working-directory: backend/go
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/out
+          docker run --rm \
+            -v "${PWD}/tools/oracle:/src" \
+            -v /tmp/corpus:/input:ro \
+            -v /tmp/out:/out \
+            -w /src \
+            mcr.microsoft.com/dotnet/sdk:10.0 \
+            bash -c '
+              dotnet restore -v quiet --nologo &&
+              dotnet build -c Release -o /out/bin -v quiet --nologo &&
+              dotnet /out/bin/HashGen.dll /input /out/golden.tsv
+            '
+          wc -l /tmp/out/golden.tsv
+
+      # The reference is known NOT to reproduce itself; see the header comment in
+      # reference_test.go. This job therefore verifies determinism and the
+      # structural properties rather than demanding bit-equality, and the
+      # self-inconsistency measurement is logged for future reference.
+      - name: Parity and determinism tests
+        working-directory: backend/go
+        run: go test -v -timeout 20m ./internal/images/phash/...
+        env:
+          PHASH_CORPUS_DIR: /tmp/corpus

@@ -134,9 +134,9 @@ func stripes(px int, horizontal bool) patternFunc {
 	return func(x, y, w, h int) color.RGBA {
 		on := false
 		if horizontal {
-			on = (y / px) % 2 == 0
+			on = (y/px)%2 == 0
 		} else {
-			on = (x / px) % 2 == 0
+			on = (x/px)%2 == 0
 		}
 		if on {
 			return color.RGBA{250, 250, 250, 255}
