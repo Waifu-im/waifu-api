@@ -17,7 +17,9 @@ import (
 	"strings"
 
 	"waifuapi/internal/apierror"
+	"waifuapi/internal/auth"
 	"waifuapi/internal/config"
+	"waifuapi/internal/repo"
 	"waifuapi/internal/store"
 )
 
@@ -27,13 +29,15 @@ import (
 // size a plain struct is simpler than any DI framework, and it makes the set of
 // dependencies obvious at a glance.
 type Server struct {
-	cfg *config.Config
-	db  *store.DB
+	cfg  *config.Config
+	db   *store.DB
+	repo *repo.Repo
+	log  Logger
 }
 
 // NewServer builds a Server.
-func NewServer(cfg *config.Config, db *store.DB) *Server {
-	return &Server{cfg: cfg, db: db}
+func NewServer(cfg *config.Config, db *store.DB, data *repo.Repo, log Logger) *Server {
+	return &Server{cfg: cfg, db: db, repo: data, log: log}
 }
 
 // Register mounts every route onto the mux.
@@ -52,6 +56,11 @@ func (s *Server) Register(mux *http.ServeMux) {
 	// POST /ping exists in the C# service and is part of the API contract;
 	// it answers identically so existing health checks keep working.
 	mux.HandleFunc("POST "+base+"ping", s.handlePing)
+
+	s.registerImageRoutes(mux)
+	s.registerCatalogRoutes(mux)
+	s.registerBannerRoutes(mux)
+	s.registerStatsRoutes(mux)
 }
 
 // handleHealthz reports process and database liveness.
@@ -126,12 +135,13 @@ func writeJSON(w http.ResponseWriter, status int, value any) {
 //	maxBodySize rejects oversized uploads before they are parsed
 //	timeout     bounds handler execution
 //	logging     records the outcome, and therefore must run inside recovery
-func (s *Server) Handler(mux *http.ServeMux, log Logger) http.Handler {
+func (s *Server) Handler(mux *http.ServeMux, authenticator *auth.Authenticator, lookup auth.UserLookup) http.Handler {
 	return chain(mux,
-		withRecovery(log),
+		withRecovery(s.log),
+		withAuthentication(authenticator, lookup, s.log),
 		withMaxBodySize(s.cfg.MaxUploadSizeBytes),
 		withRequestTimeout(defaultRequestTimeout),
-		withLogging(log),
+		withLogging(s.log),
 	)
 }
 

@@ -1,9 +1,11 @@
 package httpapi
 
 import (
+	"errors"
 	"net/http"
 
 	"waifuapi/internal/apierror"
+	"waifuapi/internal/auth"
 )
 
 // internalServerError writes a generic 500 ProblemDetails.
@@ -37,4 +39,15 @@ func itoa(v int64) string {
 		v /= 10
 	}
 	return string(digits[i:])
+}
+
+// errorsIsNoCredentials reports whether an authentication error means the
+// request simply carried no credentials, which is a valid anonymous state.
+func errorsIsNoCredentials(err error) bool {
+	return errors.Is(err, auth.ErrNoCredentials)
+}
+
+// writeUnauthorized sends a 401 ProblemDetails.
+func writeUnauthorized(w http.ResponseWriter, r *http.Request) {
+	apierror.Unauthorized("Authentication is required.").Write(w, r.URL.Path)
 }

@@ -598,7 +598,11 @@ system plus everything in §8 that slipped."
 | Image processing | `backend/go/internal/imageproc` | Metadata, dimension limits, dominant colour, GIF frame detection |
 | Perceptual hash | `backend/go/internal/images/phash` | Deterministic; spike closed (§6.1) |
 | Database layer | `backend/go/internal/store` | pgx pool, Supabase pooler-mode detection |
-| HTTP layer | `backend/go/internal/httpapi` | Routing, recovery, body limit, timeout, request logging |
+| Frozen schema | `backend/go/internal/store/schema.sql` | All 14 tables, extracted from the EF model snapshot |
+| Row models + hash codec | `backend/go/internal/store/models` | `bit(64)` conversion, Hamming distance |
+| Query layer | `backend/go/internal/repo` | Images, tags, artists, users, banner, stats, review tasks, API keys |
+| Authentication | `backend/go/internal/auth` | JWT + API keys, signing method pinned |
+| HTTP layer | `backend/go/internal/httpapi` | Routing, recovery, auth, body limit, timeout, request logging |
 | Server entrypoint | `backend/go/cmd/server` | Fail-fast startup, graceful SIGTERM shutdown |
 | Container image | `backend/go/Dockerfile` | **19.2 MB** vs **191.8 MB** for the C# runtime |
 | CI | `.github/workflows/go-backend.yml` | vet, gofmt, race tests, image build, oracle parity job |
@@ -613,20 +617,56 @@ system plus everything in §8 that slipped."
   of silently degrading to `TrustedUser`
 - Non-boolean (`yes`) → rejected instead of being treated as false
 - Contradictory dimension limits and short JWT keys → rejected at startup
+- `alg: none` tokens rejected; wrong issuer, audience or key rejected; expired
+  tokens rejected
+- Pending content returns 404, not 403, so unreviewed content is not disclosed
+
+### End-to-end verification
+
+Run against a real `pgvector/pgvector:pg18` container with the frozen schema
+loaded and seeded data, driving the **containerised production image**:
+
+| Endpoint | Result |
+|---|---|
+| `GET /ping`, `GET /healthz` | 200 |
+| `GET /images` | 2 accepted images; pending correctly hidden; pagination correct |
+| `GET /images` filters | `isNsfw`, `orientation`, `widthMin`, `tags`, `isAnimated`, `sortBy` all correct |
+| `GET /images/{id}` | 200; pending → 404; missing → 404 ProblemDetails |
+| `GET /tags`, `/tags/{id}` | Correct; pending → 404 |
+| `GET /artists`, `/artists/{id}` | Correct; pending → 404 |
+| `GET /stats/public` | Counts exclude pending content |
+| `GET /banner` | 204 when unset, 200 with payload once published |
+| `GET /banner/settings` | 403 anonymous, 200 for admin |
+| `PUT /banner/settings` | Admin OK; user 403; oversized message 400; bad token 401 |
+
+Three real bugs were caught this way and fixed: a pluralised table name in the
+sort whitelist (`"Images"` vs `"Image"`), ORDER BY referencing the table rather
+than its alias, and `bit(64)` failing to scan into a Go string.
 
 ### Not started
 
-Phases 1–8. In particular the 58 endpoints, sqlc query layer, contract-test
-harness, and the corpus backfill from §6.1 Fallback B.
+- **Upload path** — S3 upload, duplicate detection, transactional image plus
+  review task creation. The pieces exist (`imageproc`, `FindDuplicateByHash`,
+  `CreateImage`, `CreateReviewTask`) but are not yet wired to a handler.
+- **Review endpoints** — `GET/POST/PATCH/PATCH approve/PATCH reject` on
+  `/review/tasks`. Repo methods exist; handlers do not.
+- **Discord OAuth** — login, token issuance, user upsert.
+- **Albums, reports, API keys, admin endpoints** — 8 of 12 controllers remain.
+- **sqlc adoption** — queries are hand-written pending the Supabase
+  connection-mode decision.
+- **Contract harness** — Phase 1, required before any route moves.
+- **Corpus backfill** — §6.1 Fallback B.
 
 ### Next actions, in order
 
-1. **Backfill plan (§6.1 B)** — decide maintenance window and rollback before
-   any upload path goes live, because dedup is currently operating on a
-   mixed-vocabulary table.
-2. **sqlc against the frozen schema** — unblocks all data access.
-3. **Contract harness (§7)** — Phase 1, before any endpoint moves.
-4. **Read path** — `/images`, `/tags`, `/artists` GETs.
+1. **Corpus backfill (§6.1 B)** — dedup is currently operating on a
+   mixed-vocabulary table, so this is a live correctness issue, not a rewrite
+   concern.
+2. **Upload + review handlers** — completes the feature that motivated the
+   rewrite.
+3. **sqlc against the frozen schema** — unblocks the remaining query work.
+4. **Contract harness (§7)** — before any endpoint moves.
+5. **Discord OAuth**, then albums/reports/API keys.
 
 ### Corrections made to this plan during implementation
 

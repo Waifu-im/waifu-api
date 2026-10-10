@@ -23,9 +23,11 @@ import (
 	"syscall"
 	"time"
 
+	"waifuapi/internal/auth"
 	"waifuapi/internal/config"
 	"waifuapi/internal/httpapi"
 	"waifuapi/internal/logging"
+	"waifuapi/internal/repo"
 	"waifuapi/internal/store"
 )
 
@@ -79,12 +81,16 @@ func run() error {
 	log.Info("database connected")
 
 	// ---- HTTP ----------------------------------------------------------
-	server := httpapi.NewServer(cfg, db)
+	data := repo.New(db.Pool())
+	tokens := auth.NewTokenIssuer(cfg.JWT)
+	authenticator := auth.NewAuthenticator(tokens)
+
+	server := httpapi.NewServer(cfg, db, data, log)
 
 	mux := http.NewServeMux()
 	server.Register(mux)
 
-	handler := server.Handler(mux, log)
+	handler := server.Handler(mux, authenticator, data)
 
 	httpServer := &http.Server{
 		Addr:    fmt.Sprintf(":%d", cfg.Port),
