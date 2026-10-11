@@ -477,10 +477,10 @@ func (s *Server) handleListUsers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	users, total, err := s.repo.ListUsers(r.Context(), repo.UserFilter{
-		Name:       search,
-		IncludedID: singleOrNil(includedIDs),
-		Page:       page.Page,
-		PageSize:   page.PageSize,
+		Name:        search,
+		IncludedIDs: includedIDs,
+		Page:        page.Page,
+		PageSize:    page.PageSize,
 	})
 	if err != nil {
 		s.logError(r, "list users", err)
@@ -665,9 +665,3 @@ func (s *Server) handleUpdateUserBan(w http.ResponseWriter, r *http.Request) {
 }
 
 // singleOrNil returns the first element, or nil for an empty slice.
-func singleOrNil(values []int64) *int64 {
-	if len(values) == 0 {
-		return nil
-	}
-	return &values[0]
-}

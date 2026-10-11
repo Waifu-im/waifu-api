@@ -190,8 +190,11 @@ type UserFilter struct {
 	// pastes an id rather than typing a name.
 	Name string
 
-	// IncludedID restricts the result to one user and switches off pagination.
-	IncludedID *int64
+	// IncludedIDs restricts the result to exactly these users and switches off
+	// pagination. It is a list because the C# handler matches
+	// request.IncludedIds.Contains(u.Id); taking only the first element made a
+	// multi-select picker silently return one user.
+	IncludedIDs []int64
 
 	Page     int
 	PageSize int
@@ -213,30 +216,32 @@ type UserEntry struct {
 // userSelect is the projection shared by the listing and the exact lookup.
 //
 // The two counts are correlated subqueries rather than joins so they cannot
-// multiply the row count.
+// multiply the row count. Both are aliased: ListUsers orders by the first one,
+// and an unaliased subquery is not a resolvable name in ORDER BY, which made
+// GET /users fail with "column does not exist" for every caller.
 const userSelect = `SELECT u."Id", u."DiscordId", u."Name", u."AvatarUrl", u."Role",
        u."RequestCount", u."JwtRequestCount", u."ApiKeyRequestCount",
        u."IsBlacklisted", u."BlacklistReason",
        (SELECT COUNT(*) FROM "Images" i
-         WHERE i."UploaderId" = u."Id" AND i."ReviewStatus" = 1),
+         WHERE i."UploaderId" = u."Id" AND i."ReviewStatus" = 1) AS "UploadedImageCount",
        (SELECT COUNT(*) FROM "AlbumItems" ai
-         WHERE EXISTS (SELECT 1 FROM "Albums" a WHERE a."Id" = ai."AlbumId" AND a."UserId" = u."Id"))`
+         WHERE EXISTS (SELECT 1 FROM "Albums" a WHERE a."Id" = ai."AlbumId" AND a."UserId" = u."Id")) AS "AlbumImageCount"`
 
 // ListUsers returns a page of users for administration.
 func (r *Repo) ListUsers(ctx context.Context, filter UserFilter) ([]UserEntry, int64, error) {
 	where := "TRUE"
 	var args []any
 
-	if filter.IncludedID != nil {
-		args = append(args, *filter.IncludedID)
-		where = fmt.Sprintf(`u."Id" = $%d`, len(args))
+	if len(filter.IncludedIDs) > 0 {
+		args = append(args, filter.IncludedIDs)
+		where = fmt.Sprintf(`u."Id" = ANY($%d)`, len(args))
 	} else if filter.Name != "" {
 		args = append(args, "%"+strings.ToLower(filter.Name)+"%")
 		where = fmt.Sprintf(
 			`(LOWER(u."Name") LIKE $%d OR u."DiscordId" LIKE $%d)`, len(args), len(args))
 	}
 
-	if filter.IncludedID == nil {
+	if len(filter.IncludedIDs) == 0 {
 		var total int64
 		if err := r.db.QueryRow(ctx,
 			fmt.Sprintf(`SELECT COUNT(*) FROM "Users" u WHERE %s`, where), args...).
