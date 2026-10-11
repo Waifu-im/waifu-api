@@ -314,6 +314,21 @@ func (s *Server) handleEditReviewTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The apply writes to the pending entity and the task row, so both belong in
+	// one transaction. EditReviewTask/Command.cs opens one for the same reason.
+	//
+	// applyNewContent previously ran with a nil transaction, which reached
+	// replaceImageRelations and panicked on the first Exec: correcting a
+	// still-pending upload returned 500 every time.
+	tx, err := s.pool().Begin(r.Context())
+	if err != nil {
+		s.logError(r, "begin review task edit", err)
+		internalServerError(w, r)
+		return
+	}
+	// Rollback is a no-op once committed, so it is deferred unconditionally.
+	defer func() { _ = tx.Rollback(contextWithoutCancel(r)) }()
+
 	var target *reviewTargetDto
 	var stored []byte
 
@@ -326,12 +341,22 @@ func (s *Server) handleEditReviewTask(w http.ResponseWriter, r *http.Request) {
 		stored = normalized
 		target = prepared
 	} else {
-		applied, err := s.applyNewContent(r, task, content)
+		applied, err := s.applyNewContent(r, tx, task, content)
 		if err != nil {
 			writeEditError(w, r, err)
 			return
 		}
 		target = applied
+
+		// New content is written straight onto the pending entity, so the task's
+		// stored payload is not rewritten.
+		//
+		// EditReviewTask/Command.cs leaves task.Payload alone on this branch, and
+		// the update statement below always assigns it, so passing the payload
+		// through unchanged is what reproduces that. Leaving stored nil here sent
+		// a NULL into a jsonb column and panicked on every moderator correction
+		// of a still-pending upload.
+		stored = task.Payload
 	}
 
 	// A moderator correcting someone else's submission leaves a marker, so the
@@ -341,6 +366,12 @@ func (s *Server) handleEditReviewTask(w http.ResponseWriter, r *http.Request) {
 
 	if err := s.repo.UpdateReviewTaskContent(r.Context(), id, stored, moderatorEdit); err != nil {
 		s.logError(r, "update review task content", err)
+		internalServerError(w, r)
+		return
+	}
+
+	if err := tx.Commit(r.Context()); err != nil {
+		s.logError(r, "commit review task edit", err)
 		internalServerError(w, r)
 		return
 	}
@@ -701,14 +732,14 @@ func (s *Server) applyEdit(ctx context.Context, tx repo.Tx, targetType models.Re
 //
 // The review status and the uploader are deliberately untouched: this corrects
 // what was submitted, it does not publish it. Publishing is approve's job.
-func (s *Server) applyNewContent(r *http.Request, task models.ReviewTask, content json.RawMessage) (*reviewTargetDto, error) {
+func (s *Server) applyNewContent(r *http.Request, tx repo.Tx, task models.ReviewTask, content json.RawMessage) (*reviewTargetDto, error) {
 	switch task.TargetType {
 	case models.TargetImage:
 		var request imageEditPayload
 		if err := decodeStrict(content, &request); err != nil {
 			return nil, err
 		}
-		if err := s.repo.ApplyImageEdit(r.Context(), nil, task.TargetId, repo.ImageEditFields{
+		if err := s.repo.ApplyImageEdit(r.Context(), tx, task.TargetId, repo.ImageEditFields{
 			Source: request.Source,
 			IsNsfw: request.IsNsfw,
 		}); err != nil {

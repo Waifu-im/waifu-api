@@ -209,8 +209,17 @@ func (s *Server) handleGetTag(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// ReviewStatus is carried, matching GetTagById/Query.cs. CreatorId and
+	// ImageCount are deliberately left unset: that projection does not populate
+	// them either, so a single-tag lookup reports null and 0 there too, and
+	// filling them here would be a divergence in the other direction.
+	status := tag.ReviewStatus.String()
 	writeJSON(w, http.StatusOK, TagDto{
-		ID: tag.ID, Name: tag.Name, Slug: tag.Slug, Description: tag.Description,
+		ID:           tag.ID,
+		Name:         tag.Name,
+		Slug:         tag.Slug,
+		Description:  tag.Description,
+		ReviewStatus: &status,
 	})
 }
 
@@ -228,8 +237,13 @@ func (s *Server) handleGetTagBySlug(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	status := tag.ReviewStatus.String()
 	writeJSON(w, http.StatusOK, TagDto{
-		ID: tag.ID, Name: tag.Name, Slug: tag.Slug, Description: tag.Description,
+		ID:           tag.ID,
+		Name:         tag.Name,
+		Slug:         tag.Slug,
+		Description:  tag.Description,
+		ReviewStatus: &status,
 	})
 }
 
