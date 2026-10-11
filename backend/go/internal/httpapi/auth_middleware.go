@@ -90,3 +90,21 @@ var (
 	_ = time.Now
 	_ = config.RoleUser
 )
+
+// logConversionFailure records a WebP conversion failure.
+//
+// Conversion failures never fail a request: the original bytes are stored
+// instead, matching ImageConverter.cs which catches, warns, and returns null.
+// They still deserve a log line, because a silent run of them means uploads
+// are being stored unconverted while the operator believes the feature is on.
+//
+// This takes a context rather than the request because the replacement path
+// runs after the handler has returned and has no *http.Request to hand.
+func (s *Server) logConversionFailure(ctx context.Context, err error) {
+	if s.log == nil {
+		return
+	}
+	s.log.Error("webp conversion failed; storing original bytes",
+		"error", err.Error(),
+	)
+}

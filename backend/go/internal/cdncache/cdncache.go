@@ -43,11 +43,28 @@ type Config struct {
 	Token   string
 	BaseURL string
 
+	// APIBaseURL is the Cloudflare API root. It defaults to the public endpoint
+	// when empty, and is overridable so the package can be exercised against a
+	// local test server instead of the real API.
+	APIBaseURL string
+
 	TransformEnabled bool
 	TransformPath    string
 	WidthParam       string
 	CardWidth        int
-	PreviewWidth     int
+	// PreviewWidth is the width used by the image page's larger preview.
+	PreviewWidth int
+}
+
+// DefaultAPIBaseURL is Cloudflare's public purge API.
+const DefaultAPIBaseURL = "https://api.cloudflare.com/client/v4"
+
+// apiBaseURL returns the configured API root, or the public one.
+func (c Config) apiBaseURL() string {
+	if c.APIBaseURL != "" {
+		return strings.TrimRight(c.APIBaseURL, "/")
+	}
+	return DefaultAPIBaseURL
 }
 
 // IsConfigured reports whether purging is possible at all.
@@ -71,6 +88,17 @@ type Purger struct {
 // keeps it testable with a two-line fake.
 type Logger interface {
 	Warn(msg string, err error, args ...any)
+}
+
+// warn reports through the logger, tolerating a nil one.
+//
+// Every failure here is already non-fatal, so panicking because nobody
+// supplied a logger would turn a cosmetic problem into a crash.
+func (p *Purger) warn(msg string, err error, args ...any) {
+	if p.log == nil {
+		return
+	}
+	p.log.Warn(msg, err, args...)
 }
 
 // New builds a Purger.
@@ -213,14 +241,14 @@ func (p *Purger) resizeURL(original string, width int) string {
 func (p *Purger) sendPurge(ctx context.Context, urls []string) {
 	body, err := json.Marshal(map[string][]string{"files": urls})
 	if err != nil {
-		p.log.Warn("encode cloudflare purge request", err)
+		p.warn("encode cloudflare purge request", err)
 		return
 	}
 
-	endpoint := "https://api.cloudflare.com/client/v4/zones/" + p.config.ZoneID + "/purge_cache"
+	endpoint := p.config.apiBaseURL() + "/zones/" + p.config.ZoneID + "/purge_cache"
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
 	if err != nil {
-		p.log.Warn("build cloudflare purge request", err)
+		p.warn("build cloudflare purge request", err)
 		return
 	}
 	request.Header.Set("Authorization", "Bearer "+p.config.Token)
@@ -228,13 +256,13 @@ func (p *Purger) sendPurge(ctx context.Context, urls []string) {
 
 	response, err := p.client.Do(request)
 	if err != nil {
-		p.log.Warn("cloudflare cache purge failed", err, "urls", len(urls))
+		p.warn("cloudflare cache purge failed", err, "urls", len(urls))
 		return
 	}
 	defer response.Body.Close()
 
 	if response.StatusCode >= 300 {
-		p.log.Warn("cloudflare cache purge rejected", nil,
+		p.warn("cloudflare cache purge rejected", nil,
 			"status", response.Status, "urls", len(urls))
 	}
 }

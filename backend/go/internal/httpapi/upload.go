@@ -125,6 +125,31 @@ func (s *Server) handleUploadImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Re-encode to WebP when configured.
+	//
+	// This deliberately runs AFTER duplicate detection would have run and is
+	// applied to what is stored, not to what was measured: the perceptual hash
+	// above is computed from the original bytes so that a re-encoded upload and
+	// a raw upload of the same image still collide. Hashing the converted copy
+	// would weaken dedupe across the boundary.
+	storedData := data
+	storedExtension := metadata.Extension
+	storedContentType := contentType
+	storedByteSize := metadata.ByteSize
+
+	if conversion, err := imageproc.TryConvertWebP(
+		data, metadata.Extension, metadata.IsAnimated, s.cfg.Image.WebpConversion()); err != nil {
+		// Never fail an upload because re-encoding went wrong. The bytes the
+		// client sent are still serviceable, and ImageConverter.cs catches,
+		// warns and returns null in the same situation.
+		s.logError(r, "webp conversion", err)
+	} else if conversion != nil {
+		storedData = conversion.Content
+		storedExtension = conversion.Extension
+		storedContentType = conversion.ContentType
+		storedByteSize = conversion.ByteSize
+	}
+
 	// ---- 3. Duplicate detection ----
 	duplicateID, err := s.repo.FindDuplicateByHash(r.Context(), parseHashString(metadata.PerceptualHash))
 	if err != nil {
@@ -212,8 +237,8 @@ func (s *Server) handleUploadImage(w http.ResponseWriter, r *http.Request) {
 		UploaderID:     &caller.UserID,
 		Width:          int64(metadata.Width),
 		Height:         int64(metadata.Height),
-		ByteSize:       metadata.ByteSize,
-		Extension:      metadata.Extension,
+		ByteSize:       storedByteSize,
+		Extension:      storedExtension,
 		DominantColor:  metadata.DominantColor,
 		Source:         source,
 		IsNsfw:         isNsfw,
@@ -246,7 +271,7 @@ func (s *Server) handleUploadImage(w http.ResponseWriter, r *http.Request) {
 	// storage failure rolls back both rows together.
 	key := storageKey(image.ID, image.Extension)
 
-	if err := s.storage.Put(r.Context(), key, bytes.NewReader(data), contentType); err != nil {
+	if err := s.storage.Put(r.Context(), key, bytes.NewReader(storedData), storedContentType); err != nil {
 		// The deferred rollback removes the image and the review task. The
 		// object may be partially written, so remove it too; that is idempotent.
 		_ = s.storage.Delete(contextWithoutCancel(r), key)

@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -216,6 +217,11 @@ func (s *Server) applyImageUpdate(ctx context.Context, id int64, fields imageUpd
 
 	oldExtension := image.Extension
 
+	// Set when a replacement file is stored, so the post-commit write below puts
+	// the same bytes in the bucket that the row describes.
+	var storedReplacement []byte
+	var storedReplacementType string
+
 	// A replacement file is measured before anything is written, so an
 	// undecodable upload aborts with the original image untouched.
 	if len(fields.replacement) > 0 {
@@ -231,6 +237,26 @@ func (s *Server) applyImageUpdate(ctx context.Context, id int64, fields imageUpd
 		if err != nil {
 			return fmt.Errorf("process replacement: %w", err)
 		}
+
+		// Re-encode after measuring, for the same reason the upload path does:
+		// the perceptual hash stays derived from the original pixels, so a
+		// converted replacement still collides with an existing raw upload of
+		// the same image.
+		replacement := fields.replacement
+		replacementType := fields.declaredType
+
+		if conversion, err := imageproc.TryConvertWebP(fields.replacement,
+			metadata.Extension, metadata.IsAnimated, s.cfg.Image.WebpConversion()); err != nil {
+			s.logConversionFailure(ctx, err)
+		} else if conversion != nil {
+			replacement = conversion.Content
+			replacementType = conversion.ContentType
+			metadata.Extension = conversion.Extension
+			metadata.ByteSize = conversion.ByteSize
+		}
+
+		storedReplacement = replacement
+		storedReplacementType = replacementType
 
 		extension := metadata.Extension
 		if extension != "" && extension != oldExtension {
@@ -329,7 +355,7 @@ func (s *Server) applyImageUpdate(ctx context.Context, id int64, fields imageUpd
 	// file belongs anyway.
 	if len(fields.replacement) > 0 {
 		if err := s.storage.Put(context.WithoutCancel(ctx), storageKey(id, oldExtension),
-			strings.NewReader(string(fields.replacement)), fields.declaredType); err != nil {
+			bytes.NewReader(storedReplacement), storedReplacementType); err != nil {
 			return fmt.Errorf("store replacement: %w", err)
 		}
 		s.purger.PurgeImage(context.WithoutCancel(ctx), id, []string{image.Extension, oldExtension})

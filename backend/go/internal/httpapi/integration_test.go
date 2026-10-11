@@ -43,15 +43,22 @@ import (
 type fakeStore struct {
 	objects map[string][]byte
 
+	// contentTypes records the content type each object was written with, so
+	// tests can assert that the stored metadata type matches the stored bytes.
+	contentTypes map[string]string
+
 	// failPut, when set, makes Put fail. Used to exercise the rollback.
 	failPut bool
 }
 
 func newFakeStore() *fakeStore {
-	return &fakeStore{objects: make(map[string][]byte)}
+	return &fakeStore{
+		objects:      make(map[string][]byte),
+		contentTypes: make(map[string]string),
+	}
 }
 
-func (f *fakeStore) Put(_ context.Context, key string, body io.Reader, _ string) error {
+func (f *fakeStore) Put(_ context.Context, key string, body io.Reader, contentType string) error {
 	if f.failPut {
 		return fmt.Errorf("simulated storage failure")
 	}
@@ -60,6 +67,7 @@ func (f *fakeStore) Put(_ context.Context, key string, body io.Reader, _ string)
 		return err
 	}
 	f.objects[key] = data
+	f.contentTypes[key] = contentType
 	return nil
 }
 
@@ -102,6 +110,17 @@ type harness struct {
 // are meaningful.
 func newHarness(t *testing.T) *harness {
 	t.Helper()
+	return newHarnessWithConfig(t, nil)
+}
+
+// newHarnessWithConfig builds a harness whose configuration can be adjusted
+// before the server is constructed.
+//
+// Tests that exercise a configuration-dependent behaviour, such as WebP
+// conversion, need a real server built with that setting rather than a unit
+// test of the setting itself.
+func newHarnessWithConfig(t *testing.T, mutate func(*config.Config)) *harness {
+	t.Helper()
 
 	databaseURL := os.Getenv("WAIFU_TEST_DATABASE_URL")
 	if databaseURL == "" {
@@ -127,6 +146,9 @@ func newHarness(t *testing.T) *harness {
 	}
 
 	cfg := testConfig(databaseURL)
+	if mutate != nil {
+		mutate(cfg)
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()

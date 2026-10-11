@@ -24,6 +24,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"waifuapi/internal/imageproc"
 )
 
 // Role is a user privilege level.
@@ -266,6 +268,37 @@ type ImageConfig struct {
 	AnimatedMinHeight int
 	AnimatedMaxWidth  int
 	AnimatedMaxHeight int
+
+	// WebpEnabled gates re-encoding uploads to WebP on ingest. Off by
+	// default: it changes what is stored for every future upload, so it is
+	// opt-in rather than baked in. Mirrors ImageConverter.cs.
+	WebpEnabled bool
+
+	// WebpQuality is 1-100. Defaults to the value the offline migration used.
+	WebpQuality int
+
+	// WebpSourceExtensions is the comma-separated list of eligible source
+	// formats. PNG only by default; see ImageConverter.cs for why JPEG is
+	// excluded.
+	WebpSourceExtensions string
+
+	// WebpMethod is the libwebp effort level, 0-6.
+	WebpMethod int
+}
+
+// WebpConversion projects the WebP settings into the shape the image package
+// takes.
+//
+// Parsing is deferred to that package so the same code path serves this
+// constructor and any future caller, rather than duplicating the defaulting
+// rules in two places.
+func (c ImageConfig) WebpConversion() imageproc.ConversionConfig {
+	return imageproc.ConversionConfig{
+		Enabled:          c.WebpEnabled,
+		Quality:          c.WebpQuality,
+		SourceExtensions: imageproc.ParseConversionSourceExtensions(c.WebpSourceExtensions),
+		Method:           c.WebpMethod,
+	}
 }
 
 // DiscordConfig configures OAuth login.
@@ -554,6 +587,31 @@ func Load(l *Loader) (*Config, error) {
 	cfg.Image.AnimatedMinHeight = l.requireInt("Image__AnimatedMinHeight", &missing)
 	cfg.Image.AnimatedMaxWidth = l.requireInt("Image__AnimatedMaxWidth", &missing)
 	cfg.Image.AnimatedMaxHeight = l.requireInt("Image__AnimatedMaxHeight", &missing)
+
+	// WebP conversion settings are optional, and default to off.
+	//
+	// The C# service reads these with GetValue<T>, which yields the type's zero
+	// value when the key is absent: false, 0 and an empty string respectively.
+	// The defaults applied here restore the values ImageConverter.cs falls back
+	// to internally, because a quality of 0 would be rejected by the encoder
+	// rather than meaning "unset".
+	cfg.Image.WebpEnabled, err = l.optionalBool("Image__WebpConversionEnabled", false)
+	if err != nil {
+		missing = append(missing, "Image__WebpConversionEnabled")
+	}
+	cfg.Image.WebpSourceExtensions = l.get("Image__WebpSourceExtensions")
+
+	quality, qualityErr := l.optionalInt("Image__WebpQuality", imageproc.DefaultWebpQuality)
+	if qualityErr != nil {
+		missing = append(missing, "Image__WebpQuality")
+	}
+	cfg.Image.WebpQuality = quality
+
+	method, methodErr := l.optionalInt("Image__WebpMethod", imageproc.DefaultWebpMethod)
+	if methodErr != nil {
+		missing = append(missing, "Image__WebpMethod")
+	}
+	cfg.Image.WebpMethod = method
 
 	cfg.Discord.ClientID = l.require("Discord__ClientId", &missing)
 	cfg.Discord.ClientSecret = l.require("Discord__ClientSecret", &missing)
