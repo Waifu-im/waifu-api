@@ -598,7 +598,7 @@ system plus everything in §8 that slipped."
 | Image processing | `backend/go/internal/imageproc` | Metadata, dimension limits, dominant colour, GIF frame detection |
 | Perceptual hash | `backend/go/internal/images/phash` | Deterministic; spike closed (§6.1) |
 | Database layer | `backend/go/internal/store` | pgx pool, Supabase pooler-mode detection |
-| Frozen schema | `backend/go/internal/store/schema.sql` | All 14 tables, extracted from the EF model snapshot |
+| Frozen schema | `backend/go/internal/store/schema.sql` | All 14 tables, extracted from the EF model snapshot's `ToTable` names. Guarded by `schema_contract_test.go`, which re-parses the snapshot and fails on any drift |
 | Row models + hash codec | `backend/go/internal/store/models` | `bit(64)` conversion, Hamming distance |
 | Query layer | `backend/go/internal/repo` | Images, tags, artists, users, banner, stats, review tasks, API keys |
 | Authentication | `backend/go/internal/auth` | JWT + API keys, signing method pinned |
@@ -639,9 +639,53 @@ loaded and seeded data, driving the **containerised production image**:
 | `GET /banner/settings` | 403 anonymous, 200 for admin |
 | `PUT /banner/settings` | Admin OK; user 403; oversized message 400; bad token 401 |
 
-Three real bugs were caught this way and fixed: a pluralised table name in the
+Four real bugs were caught this way and fixed: a pluralised table name in the
 sort whitelist (`"Images"` vs `"Image"`), ORDER BY referencing the table rather
 than its alias, and `bit(64)` failing to scan into a Go string.
+
+The fourth was the same pluralisation bug in its full, uncovered form, and it is
+worth recording because the test suite could not catch it. Every table in
+production is plural (`Images`, `Tags`, `Users`, `ReviewTasks`, `DailyStats`,
+`SiteBanners`, `GlobalStats`, `ApiKeys`, `Albums`, `AlbumItems`, `Artists`,
+`Reports`), and both join tables pluralise their foreign keys (`ArtistImage`
+carries `ArtistsId`/`ImagesId`; `ImageTag` carries `ImagesId`/`TagsId`). The Go
+schema had been derived from the EF model's *entity* names rather than its
+`ToTable` names, so all fourteen tables and both join tables disagreed with
+production. Nothing failed, because the test database is created from the same
+schema file: the suite was green and the service would have failed every request
+against the real database after deploy.
+
+`schema_contract_test.go` now parses `WaifuDbContextModelSnapshot.cs` directly and
+diffs it against `schema.sql`, so this is a test failure rather than an outage.
+The general lesson: a frozen schema file is only a safeguard if something checks
+it against its source. Self-consistent fixtures cannot detect a shared
+misassumption.
+
+### Deliberate divergences from the C# service
+
+One is recorded here rather than silently in the code, because "the Go service is
+1:1 except the language" is the rule and every exception needs a reason an
+operator can find.
+
+**`isSafeObjectKey` in `DELETE /storage-diff/s3`** rejects object keys outside the
+image namespace. The C# `DeleteS3ObjectsCommand` applies no check and deletes
+whatever it is given.
+
+Kept deliberately, because the guard costs nothing real: image objects are named
+`{id}{extension}` — `1234.png` — and the check permits dots, so it can never
+block the intended use, which is deleting orphans found via `OrphansInS3`. Those
+keys are image keys by construction. What it does block is a caller passing
+`healthcheck/ping`, or any future non-image asset, which the original would
+destroy. A rejection is logged rather than silent, so the guard is observable.
+
+**Upload content-type sniffing** was the other divergence and has been REMOVED.
+The C# `UploadImageCommandValidator` checks the declared `ContentType` against a
+four-entry allowlist and never looks at the bytes, so a real PNG sent as
+`application/octet-stream` is a 400. Sniffing the bytes was more accurate and
+would not have let a non-image through, but it accepted uploads the original
+rejects, which is still a behaviour change. If that behaviour is wanted it
+belongs in a change to the C# service first, so clients can be deployed against
+it deliberately.
 
 ### Not started
 

@@ -24,7 +24,9 @@ package repo
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
@@ -32,6 +34,16 @@ import (
 
 	"waifuapi/internal/store/models"
 )
+
+// Tx is the subset of pgx.Tx these queries use.
+//
+// It exists as a named interface rather than taking pgx.Tx directly so the
+// review-queue decision logic can be tested against a recording double. A
+// *pgxpool.Pool and a pgx.Tx both satisfy it, so nothing else changes.
+type Tx interface {
+	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+}
 
 // Repo groups the data access methods.
 type Repo struct {
@@ -46,6 +58,11 @@ type DBQuerier interface {
 	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
 	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
+
+	// Begin opens a transaction. *pgxpool.Pool satisfies this, and so does a
+	// pooled connection, which is why multi-statement writes such as the upload
+	// and the review transitions can share one implementation.
+	Begin(ctx context.Context) (pgx.Tx, error)
 }
 
 // New builds a Repo.
@@ -57,58 +74,65 @@ func New(db DBQuerier) *Repo {
 // Images
 // ---------------------------------------------------------------------------
 
-// ImageFilter carries the optional parameters of GET /images.
+// ImageFilter carries the parameters of GET /images and
+// GET /users/{userId}/albums/{albumId}/images.
 //
-// Every field is a pointer so "not supplied" is distinguishable from "supplied
-// with a zero value". For example IsNsfw=false is a meaningful filter, whereas
-// omitting it means "do not filter".
+// The field names and semantics mirror GetImagesQuery plus ImageFilters, so the
+// two filters merge the way the C# service merges them: the album endpoint sets
+// AlbumID and the caller supplies everything else.
+//
+// The three-state fields are plain ints rather than pointers because their
+// zero values are meaningful: NsfwFalse excludes NSFW and FilterAccepted shows
+// published content, both of which are the documented defaults.
 type ImageFilter struct {
-	IsNsfw      *bool
-	Orientation string // Landscape | Portrait | Square
-	IsAnimated  *bool
-	MinWidth    *int
-	MinHeight   *int
-	MaxWidth    *int
-	MaxHeight   *int
-	MinFileSize *int64
-	MaxFileSize *int64
-	TagSlugs    []string
-	ExcludedIDs []int64
-	ForcedIDs   []int64
-	ArtistIDs   []int64
-	UploaderIDs []int64
-	SortBy      string
-	SortOrder   string
-	Page        int
-	PageSize    int
+	Nsfw        models.NsfwMode
+	Animated    models.AnimatedMode
+	Orientation models.Orientation
+	OrderBy     models.ImageOrderBy
+
+	// Tag and artist filters accept either an id or a slug/name, exactly as the
+	// C# service does: a value that parses as an integer is an id, anything else
+	// is matched as a slug (tags) or a lowercased name (artists).
+	IncludedTags    []string
+	ExcludedTags    []string
+	IncludedArtists []string
+	ExcludedArtists []string
+	IncludedIDs     []string
+	ExcludedIDs     []string
+
+	// Width, Height and ByteSize are range expressions rather than numbers:
+	// "1920", ">=1920", ">1920", "<=1920", "<1920" or "1280..1920".
+	Width    string
+	Height   string
+	ByteSize string
+
+	// UserID is the caller, used for the "my pending" unions and for the
+	// per-user liked/albums fields. It is never taken from the query string.
+	UserID *int64
+
+	// AlbumID restricts the result to one album and switches the review-status
+	// clause to album semantics.
+	AlbumID *int64
+
+	// ReviewStatus and ChildrenReviewStatus are moderators-only, except for
+	// FilterAll which the handler rejects for ordinary callers.
+	ReviewStatus         models.ReviewStatusFilter
+	ChildrenReviewStatus models.ReviewStatusFilter
+
+	// UploaderID filters by uploader. It is moderator-only.
+	UploaderID *int64
+
+	IncludeMyPending         bool
+	IncludeMyPendingChildren bool
+
+	Page     int
+	PageSize int
 }
 
-// allowedImageSorts is the ORDER BY whitelist.
+// imageColumns is the projection for image rows.
 //
-// A sort column cannot be a bound parameter in SQL, so it has to be validated
-// against a fixed set. Anything not listed here is rejected rather than
-// defaulted, so an unsupported sort produces a clear 400 instead of silently
-// returning a different ordering than the client asked for.
-var allowedImageSorts = map[string]string{
-	"id":         `i."Id"`,
-	"uploadedAt": `i."UploadedAt"`,
-	"width":      `i."Width"`,
-	"height":     `i."Height"`,
-	"byteSize":   `i."ByteSize"`,
-	"random":     `RANDOM()`,
-}
-
-// allowedOrientations constrains the orientation filter.
-// Fragments reference the "i" alias, which is how both the paged and the count
-// query expose the Image table.
-var allowedOrientations = map[string]string{
-	"Landscape": `i."Width" > i."Height"`,
-	"Portrait":  `i."Width" < i."Height"`,
-	"Square":    `i."Width" = i."Height"`,
-}
-
-// imageColumns is the projection for image rows, including the joined tag and
-// artist names the response needs.
+// The perceptual hash is cast to text because bit(64) has no binary decoder for
+// a Go string; models.PerceptualHashFromBitString converts it in Go.
 const imageColumns = `
     i."Id",
     i."UploaderId",
@@ -121,141 +145,276 @@ const imageColumns = `
     i."IsNsfw",
     i."IsAnimated",
     i."UploadedAt",
-    -- bit(64) has no binary decoder for a Go string, so it is cast to text
-    -- here rather than in the scan helper.
     i."PerceptualHash"::text AS "PerceptualHash",
     i."ReviewStatus"`
 
-// buildImageQuery assembles the filtered image query.
+// imageWhere builds the shared WHERE clause for both the paged and the count
+// statement.
 //
-// It returns the SQL text and the ordered argument list. Fragments are appended
-// in a fixed order so the generated SQL is deterministic, which makes the
-// contract tests readable.
-func buildImageQuery(filter ImageFilter) (string, []any) {
+// Everything is a parameter; only the fragments themselves are concatenated,
+// and they are a fixed set chosen by this function, never by the caller.
+func imageWhere(filter ImageFilter) (string, []any) {
 	var conditions []string
 	var args []any
 
-	// The alias "i" is fixed rather than user-controlled.
-	conditions = append(conditions, `i."ReviewStatus" = $1`)
-	args = append(args, int(models.ReviewAccepted))
-
-	add := func(format string, value any) {
+	add := func(condition string, value any) {
 		args = append(args, value)
-		conditions = append(conditions, fmt.Sprintf(format, len(args)))
+		conditions = append(conditions, fmt.Sprintf(condition, len(args)))
 	}
 
-	if filter.IsNsfw != nil {
-		add(`i."IsNsfw" = $%d`, *filter.IsNsfw)
-	}
-	if filter.IsAnimated != nil {
-		add(`i."IsAnimated" = $%d`, *filter.IsAnimated)
-	}
-	if filter.MinWidth != nil {
-		add(`i."Width" >= $%d`, *filter.MinWidth)
-	}
-	if filter.MaxWidth != nil {
-		add(`i."Width" <= $%d`, *filter.MaxWidth)
-	}
-	if filter.MinHeight != nil {
-		add(`i."Height" >= $%d`, *filter.MinHeight)
-	}
-	if filter.MaxHeight != nil {
-		add(`i."Height" <= $%d`, *filter.MaxHeight)
-	}
-	if filter.MinFileSize != nil {
-		add(`i."ByteSize" >= $%d`, *filter.MinFileSize)
-	}
-	if filter.MaxFileSize != nil {
-		add(`i."ByteSize" <= $%d`, *filter.MaxFileSize)
-	}
-
-	if orientationSQL, ok := allowedOrientations[filter.Orientation]; ok {
-		conditions = append(conditions, orientationSQL)
-	}
-
-	// Tag filter: images carrying any of the given slugs. Exists rather than a
-	// join so the result set cannot be multiplied by the number of matching
-	// tags.
-	if len(filter.TagSlugs) > 0 {
-		args = append(args, filter.TagSlugs)
-		conditions = append(conditions, fmt.Sprintf(`EXISTS (
-        SELECT 1 FROM "ImageTag" it
-        JOIN "Tag" t ON t."Id" = it."TagId"
-        WHERE it."ImageId" = i."Id" AND t."Slug" = ANY($%d))`, len(args)))
+	switch {
+	case filter.AlbumID != nil:
+		// Inside an album the review filter is applied literally: Pending shows
+		// pending images, Accepted hides them, All shows both. There is no
+		// "my pending" union here.
+		switch filter.ReviewStatus {
+		case models.FilterPending:
+			conditions = append(conditions, `i."ReviewStatus" = 0`)
+		case models.FilterAll:
+			// no clause
+		default:
+			conditions = append(conditions, `i."ReviewStatus" = 1`)
+		}
+	default:
+		switch filter.ReviewStatus {
+		case models.FilterPending:
+			conditions = append(conditions, `i."ReviewStatus" = 0`)
+		case models.FilterAll:
+			// no clause
+		default:
+			if filter.IncludeMyPending && filter.UserID != nil {
+				add(`(i."ReviewStatus" = 1 OR (i."ReviewStatus" = 0 AND i."UploaderId" = $%d))`,
+					*filter.UserID)
+			} else {
+				conditions = append(conditions, `i."ReviewStatus" = 1`)
+			}
+		}
 	}
 
-	if len(filter.ArtistIDs) > 0 {
-		args = append(args, filter.ArtistIDs)
-		conditions = append(conditions, fmt.Sprintf(`EXISTS (
-        SELECT 1 FROM "ArtistImage" ai
-        WHERE ai."ImageId" = i."Id" AND ai."ArtistId" = ANY($%d))`, len(args)))
+	switch filter.Nsfw {
+	case models.NsfwTrue:
+		conditions = append(conditions, `i."IsNsfw" = true`)
+	case models.NsfwAll:
+		// no clause
+	default:
+		conditions = append(conditions, `i."IsNsfw" = false`)
 	}
 
-	if len(filter.UploaderIDs) > 0 {
-		args = append(args, filter.UploaderIDs)
-		conditions = append(conditions, fmt.Sprintf(`i."UploaderId" = ANY($%d)`, len(args)))
+	switch filter.Animated {
+	case models.AnimatedTrue:
+		conditions = append(conditions, `i."IsAnimated" = true`)
+	case models.AnimatedFalse:
+		conditions = append(conditions, `i."IsAnimated" = false`)
 	}
 
-	if len(filter.ExcludedIDs) > 0 {
-		args = append(args, filter.ExcludedIDs)
-		conditions = append(conditions, fmt.Sprintf(`NOT (i."Id" = ANY($%d))`, len(args)))
+	switch filter.Orientation {
+	case models.OrientationLandscape:
+		conditions = append(conditions, `i."Width" > i."Height"`)
+	case models.OrientationPortrait:
+		conditions = append(conditions, `i."Height" > i."Width"`)
+	case models.OrientationSquare:
+		conditions = append(conditions, `i."Width" = i."Height"`)
 	}
 
-	// Forced IDs are added as an OR branch rather than an AND, because forcing
-	// an image in means it appears regardless of the other filters.
-	forcedClause := ""
-	if len(filter.ForcedIDs) > 0 {
-		args = append(args, filter.ForcedIDs)
-		forcedClause = fmt.Sprintf(` OR i."Id" = ANY($%d)`, len(args))
+	// Included tags are ANDed one clause per value, which is what "only images
+	// with ALL these tags" means. Exists rather than a join, so the result set
+	// cannot be multiplied by the number of matching tags.
+	for _, value := range filter.IncludedTags {
+		if id, err := parseInt64(value); err == nil {
+			add(`EXISTS (SELECT 1 FROM "ImageTag" it WHERE it."ImagesId" = i."Id" AND it."TagsId" = $%d)`, id)
+			continue
+		}
+		add(`EXISTS (
+            SELECT 1 FROM "ImageTag" it
+            JOIN "Tags" t ON t."Id" = it."TagsId"
+            WHERE it."ImagesId" = i."Id" AND t."Slug" = $%d)`, strings.ToLower(strings.TrimSpace(value)))
 	}
 
-	where := strings.Join(conditions, "\n    AND ")
-	if forcedClause != "" {
-		where = "(" + where + ")" + forcedClause
+	for _, value := range filter.ExcludedTags {
+		if id, err := parseInt64(value); err == nil {
+			add(`NOT EXISTS (SELECT 1 FROM "ImageTag" it WHERE it."ImagesId" = i."Id" AND it."TagsId" = $%d)`, id)
+			continue
+		}
+		add(`NOT EXISTS (
+            SELECT 1 FROM "ImageTag" it
+            JOIN "Tags" t ON t."Id" = it."TagsId"
+            WHERE it."ImagesId" = i."Id" AND t."Slug" = $%d)`, strings.ToLower(strings.TrimSpace(value)))
 	}
 
-	sortColumn, ok := allowedImageSorts[filter.SortBy]
-	if !ok {
-		sortColumn = allowedImageSorts["id"]
+	for _, value := range filter.IncludedArtists {
+		if id, err := parseInt64(value); err == nil {
+			add(`EXISTS (SELECT 1 FROM "ArtistImage" ai WHERE ai."ImagesId" = i."Id" AND ai."ArtistsId" = $%d)`, id)
+			continue
+		}
+		add(`EXISTS (
+            SELECT 1 FROM "ArtistImage" ai
+            JOIN "Artists" a ON a."Id" = ai."ArtistsId"
+            WHERE ai."ImagesId" = i."Id" AND LOWER(a."Name") = $%d)`, strings.ToLower(strings.TrimSpace(value)))
 	}
-	order := "DESC"
-	if strings.EqualFold(filter.SortOrder, "asc") {
-		order = "ASC"
+
+	for _, value := range filter.ExcludedArtists {
+		if id, err := parseInt64(value); err == nil {
+			add(`NOT EXISTS (SELECT 1 FROM "ArtistImage" ai WHERE ai."ImagesId" = i."Id" AND ai."ArtistsId" = $%d)`, id)
+			continue
+		}
+		add(`NOT EXISTS (
+            SELECT 1 FROM "ArtistImage" ai
+            JOIN "Artists" a ON a."Id" = ai."ArtistsId"
+            WHERE ai."ImagesId" = i."Id" AND LOWER(a."Name") = $%d)`, strings.ToLower(strings.TrimSpace(value)))
 	}
 
-	// LIMIT and OFFSET are parameterised like everything else.
-	args = append(args, filter.PageSize)
-	limitPlaceholder := len(args)
-	args = append(args, filter.Page)
-	offsetPlaceholder := len(args)
+	// A value that is not an integer is ignored rather than rejected, matching
+	// the C# service, which only adds a clause when long.TryParse succeeds.
+	for _, value := range filter.IncludedIDs {
+		if id, err := parseInt64(value); err == nil {
+			add(`i."Id" = $%d`, id)
+		}
+	}
+	for _, value := range filter.ExcludedIDs {
+		if id, err := parseInt64(value); err == nil {
+			add(`i."Id" <> $%d`, id)
+		}
+	}
 
-	query := fmt.Sprintf(`
-        SELECT %s
-        FROM "Image" i
-        WHERE %s
-        ORDER BY %s %s NULLS LAST, i."Id" ASC
-        LIMIT $%d OFFSET $%d`,
-		imageColumns, where, sortColumn, order, limitPlaceholder, offsetPlaceholder)
+	// rangeClause returns "" for an absent or unparseable expression, and an
+	// empty fragment must not be appended: joining it would produce a statement
+	// ending in " AND ", which is a syntax error rather than a silently ignored
+	// filter. This is the single most dangerous thing in this function, because
+	// every image query without a width/height/byteSize filter hits it.
+	for _, expression := range []struct{ value, column string }{
+		{filter.Width, `i."Width"`},
+		{filter.Height, `i."Height"`},
+		{filter.ByteSize, `i."ByteSize"`},
+	} {
+		if clause := rangeClause(expression.value, expression.column); clause != "" {
+			conditions = append(conditions, clause)
+		}
+	}
 
-	return query, args
+	if filter.UploaderID != nil {
+		add(`i."UploaderId" = $%d`, *filter.UploaderID)
+	}
+
+	return strings.Join(conditions, "\n    AND "), args
 }
 
-// ListImages returns a page of images matching the filter.
+// rangeClause turns one of the range expressions into a SQL comparison.
 //
-// Returns the rows and the total count matching, so the caller can build a
-// paginated envelope.
+// A malformed expression yields no clause, which is what ApplyRangeFilter does
+// in C#: it silently ignores a value it cannot parse rather than failing the
+// request.
+func rangeClause(expression, column string) string {
+	trimmed := strings.TrimSpace(expression)
+	if trimmed == "" {
+		return ""
+	}
+
+	// The prefixes are checked longest-first so ">=" is not mistaken for ">".
+	for _, candidate := range []struct{ prefix, op string }{
+		{">=", ">="}, {"<=", "<="}, {">", ">"}, {"<", "<"},
+	} {
+		if !strings.HasPrefix(trimmed, candidate.prefix) {
+			continue
+		}
+		value, err := parseInt64(trimmed[len(candidate.prefix):])
+		if err != nil {
+			return ""
+		}
+		return fmt.Sprintf(`%s %s %d`, column, candidate.op, value)
+	}
+
+	if parts := strings.Split(trimmed, ".."); len(parts) == 2 {
+		low, lowErr := parseInt64(parts[0])
+		high, highErr := parseInt64(parts[1])
+		if lowErr == nil && highErr == nil {
+			return fmt.Sprintf(`%s >= %d AND %s <= %d`, column, low, column, high)
+		}
+		return ""
+	}
+
+	value, err := parseInt64(trimmed)
+	if err != nil {
+		return ""
+	}
+	return fmt.Sprintf(`%s = %d`, column, value)
+}
+
+// parseInt64 reads an integer filter value.
+func parseInt64(value string) (int64, error) {
+	return strconv.ParseInt(strings.TrimSpace(value), 10, 64)
+}
+
+// imageOrder renders the ORDER BY for a query.
+//
+// The ORDER BY expression is chosen from a fixed set, never from user input, so
+// it cannot be an injection vector; the values it interpolates are the literal
+// column names above and RANDOM().
+func imageOrder(filter ImageFilter) string {
+	switch filter.OrderBy {
+	case models.OrderUploadedAt:
+		return `i."UploadedAt" DESC`
+	case models.OrderFavorites:
+		return favoritesCountSQL + ` DESC`
+	case models.OrderAddedToAlbum:
+		if filter.AlbumID != nil {
+			return `ai."AddedAt" DESC`
+		}
+		return `RANDOM()`
+	default:
+		return `RANDOM()`
+	}
+}
+
+// favoritesCountSQL counts how many users have this image in their default
+// album, which is what the API reports as "favorites".
+const favoritesCountSQL = `(SELECT COUNT(*) FROM "AlbumItems" ai
+                           JOIN "Albums" a ON a."Id" = ai."AlbumId"
+                           WHERE ai."ImageId" = i."Id" AND a."IsDefault" = true)`
+
+// imageSource renders the FROM and WHERE for an image query and returns the
+// matching argument list.
+//
+// The album variant joins AlbumItem so the album membership itself is the filter.
+// The album id is appended to the argument list here, once, so the paged and
+// count statements share one correct placeholder. Doing it by string substitution
+// after the fact is what let the two statements drift apart.
+func imageSource(filter ImageFilter) (from string, args []any) {
+	where, args := imageWhere(filter)
+
+	if filter.AlbumID == nil {
+		return "FROM \"Images\" i\n    WHERE " + where, args
+	}
+
+	args = append(args, *filter.AlbumID)
+	from = fmt.Sprintf(`FROM "Images" i
+        JOIN "AlbumItems" ai ON ai."ImageId" = i."Id" AND ai."AlbumId" = $%d
+        WHERE %s`, len(args), where)
+	return from, args
+}
+
+// ListImages returns a page of images matching the filter, plus the total count
+// of matching rows so the caller can build the envelope.
+//
+// The count comes from the same FROM/WHERE as the page. Building them separately
+// is how a total drifts from the rows it describes, and the drift is invisible
+// until somebody notices the pager is wrong.
 func (r *Repo) ListImages(ctx context.Context, filter ImageFilter) ([]models.Image, int64, error) {
-	// Count first, reusing the same filter logic without LIMIT/OFFSET.
-	countQuery, countArgs := buildCountQuery(filter)
+	from, args := imageSource(filter)
 
 	var total int64
-	if err := r.db.QueryRow(ctx, countQuery, countArgs...).Scan(&total); err != nil {
+	countSQL := fmt.Sprintf("SELECT COUNT(*) %s", from)
+	if err := r.db.QueryRow(ctx, countSQL, args...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count images: %w", err)
 	}
 
-	query, args := buildImageQuery(filter)
+	pageArgs := append(append([]any{}, args...), filter.PageSize, filter.Page*filter.PageSize)
 
-	rows, err := r.db.Query(ctx, query, args...)
+	// LIMIT and OFFSET are bound parameters, not interpolated, and their
+	// placeholders are numbered after everything imageSource already bound.
+	pageSQL := fmt.Sprintf("SELECT %s %s ORDER BY %s LIMIT $%d OFFSET $%d",
+		imageColumns, from, imageOrder(filter), len(args)+1, len(args)+2)
+
+	rows, err := r.db.Query(ctx, pageSQL, pageArgs...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list images: %w", err)
 	}
@@ -274,96 +433,6 @@ func (r *Repo) ListImages(ctx context.Context, filter ImageFilter) ([]models.Ima
 	}
 
 	return images, total, nil
-}
-
-// buildCountQuery produces the COUNT variant of the image filter.
-func buildCountQuery(filter ImageFilter) (string, []any) {
-	saved := filter.PageSize
-	savedPage := filter.Page
-	// A count query must not paginate, so both are neutralised.
-	filter.PageSize = 0
-	filter.Page = 0
-
-	// Built separately rather than by editing the paged query, so the two
-	// cannot drift apart as filters are added.
-	var conditions []string
-	var buildArgs []any
-
-	conditions = append(conditions, `i."ReviewStatus" = $1`)
-	buildArgs = append(buildArgs, int(models.ReviewAccepted))
-
-	add := func(format string, value any) {
-		buildArgs = append(buildArgs, value)
-		conditions = append(conditions, fmt.Sprintf(format, len(buildArgs)))
-	}
-
-	if filter.IsNsfw != nil {
-		add(`i."IsNsfw" = $%d`, *filter.IsNsfw)
-	}
-	if filter.IsAnimated != nil {
-		add(`i."IsAnimated" = $%d`, *filter.IsAnimated)
-	}
-	if filter.MinWidth != nil {
-		add(`i."Width" >= $%d`, *filter.MinWidth)
-	}
-	if filter.MaxWidth != nil {
-		add(`i."Width" <= $%d`, *filter.MaxWidth)
-	}
-	if filter.MinHeight != nil {
-		add(`i."Height" >= $%d`, *filter.MinHeight)
-	}
-	if filter.MaxHeight != nil {
-		add(`i."Height" <= $%d`, *filter.MaxHeight)
-	}
-	if filter.MinFileSize != nil {
-		add(`i."ByteSize" >= $%d`, *filter.MinFileSize)
-	}
-	if filter.MaxFileSize != nil {
-		add(`i."ByteSize" <= $%d`, *filter.MaxFileSize)
-	}
-
-	if orientationSQL, ok := allowedOrientations[filter.Orientation]; ok {
-		conditions = append(conditions, orientationSQL)
-	}
-
-	if len(filter.TagSlugs) > 0 {
-		buildArgs = append(buildArgs, filter.TagSlugs)
-		conditions = append(conditions, fmt.Sprintf(`EXISTS (
-            SELECT 1 FROM "ImageTag" it
-            JOIN "Tag" t ON t."Id" = it."TagId"
-            WHERE it."ImageId" = i."Id" AND t."Slug" = ANY($%d))`, len(buildArgs)))
-	}
-	if len(filter.ArtistIDs) > 0 {
-		buildArgs = append(buildArgs, filter.ArtistIDs)
-		conditions = append(conditions, fmt.Sprintf(`EXISTS (
-            SELECT 1 FROM "ArtistImage" ai
-            WHERE ai."ImageId" = i."Id" AND ai."ArtistId" = ANY($%d))`, len(buildArgs)))
-	}
-	if len(filter.UploaderIDs) > 0 {
-		buildArgs = append(buildArgs, filter.UploaderIDs)
-		conditions = append(conditions, fmt.Sprintf(`i."UploaderId" = ANY($%d)`, len(buildArgs)))
-	}
-	if len(filter.ExcludedIDs) > 0 {
-		buildArgs = append(buildArgs, filter.ExcludedIDs)
-		conditions = append(conditions, fmt.Sprintf(`NOT (i."Id" = ANY($%d))`, len(buildArgs)))
-	}
-	forced := ""
-	if len(filter.ForcedIDs) > 0 {
-		buildArgs = append(buildArgs, filter.ForcedIDs)
-		forced = fmt.Sprintf(` OR i."Id" = ANY($%d)`, len(buildArgs))
-	}
-
-	where := strings.Join(conditions, "\n      AND ")
-	if forced != "" {
-		where = "(" + where + ")" + forced
-	}
-
-	countStmt := fmt.Sprintf(`SELECT COUNT(*) FROM "Image" i WHERE %s`, where)
-
-	filter.PageSize = saved
-	filter.Page = savedPage
-
-	return countStmt, buildArgs
 }
 
 // rowScanner is implemented by pgx.Rows and pgx.Row alike, so one scan helper
@@ -415,7 +484,7 @@ func scanImage(row rowScanner) (models.Image, error) {
 // moderator or the uploader retrieve content still awaiting review, matching
 // the childrenReviewStatus filter on the C# read path.
 func (r *Repo) GetImageByID(ctx context.Context, id int64, includePending bool) (models.Image, error) {
-	query := fmt.Sprintf(`SELECT %s FROM "Image" i WHERE i."Id" = $1`, imageColumns)
+	query := fmt.Sprintf(`SELECT %s FROM "Images" i WHERE i."Id" = $1`, imageColumns)
 
 	if !includePending {
 		query += ` AND i."ReviewStatus" = $2`
@@ -457,7 +526,7 @@ func (r *Repo) FindDuplicateByHash(ctx context.Context, hash uint64) (int64, err
 	// vocabulary.
 	const query = `
         SELECT "Id"
-        FROM "Image"
+        FROM "Images"
         WHERE length(replace(
                   ("PerceptualHash"::bit(64) # $1::bit(64))::text,
                   '0', ''
@@ -469,7 +538,7 @@ func (r *Repo) FindDuplicateByHash(ctx context.Context, hash uint64) (int64, err
 	err := r.db.QueryRow(ctx, query, models.PerceptualHashToBitString(hash), models.DuplicateThreshold).Scan(&id)
 	if err != nil {
 		// No rows is the normal "no duplicate" outcome.
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return 0, nil
 		}
 		return 0, fmt.Errorf("find duplicate: %w", err)
@@ -482,9 +551,33 @@ func (r *Repo) FindDuplicateByHash(ctx context.Context, hash uint64) (int64, err
 // Used by the upload rollback path, where a row exists but the object write
 // failed. Cascades remove the tag and artist links.
 func (r *Repo) DeleteImage(ctx context.Context, id int64) error {
-	_, err := r.db.Exec(ctx, `DELETE FROM "Image" WHERE "Id" = $1`, id)
+	_, err := r.db.Exec(ctx, `DELETE FROM "Images" WHERE "Id" = $1`, id)
 	if err != nil {
 		return fmt.Errorf("delete image: %w", err)
 	}
 	return nil
+}
+
+// UpdateImageMetadata writes the editable fields of an image.
+//
+// Width, height, hash and extension are deliberately not editable: the
+// perceptual hash must describe the bytes that are actually stored, and the
+// extension is part of the object key.
+//
+// The RETURNING list repeats "ReviewStatus" because imageColumns already selects
+// it under the "i" alias, which is not valid in a RETURNING clause.
+func (r *Repo) UpdateImageMetadata(ctx context.Context, id int64, source *string, isNsfw bool) (models.Image, error) {
+	image, err := scanImage(r.db.QueryRow(ctx, `
+        UPDATE "Images" SET "Source" = $1, "IsNsfw" = $2
+        WHERE "Id" = $3
+        RETURNING "Id", "UploaderId", "Width", "Height", "ByteSize", "Extension",
+                  "DominantColor", "Source", "IsNsfw", "IsAnimated", "UploadedAt",
+                  "PerceptualHash"::text, "ReviewStatus"`, source, isNsfw, id))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return models.Image{}, ErrNotFound
+		}
+		return models.Image{}, fmt.Errorf("update image: %w", err)
+	}
+	return image, nil
 }

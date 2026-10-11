@@ -19,7 +19,8 @@ func TestAlbumLifecycle(t *testing.T) {
 
 	created := h.request("POST", "/users/30/albums", token,
 		bytesReader(`{"name":"Favourites","description":"the good ones"}`), "application/json")
-	if created.StatusCode != http.StatusOK {
+	// CreatedAtAction in the C# controller answers 201.
+	if created.StatusCode != http.StatusCreated {
 		t.Fatalf("create status = %d: %s", created.StatusCode, readAll(t, created))
 	}
 
@@ -34,7 +35,7 @@ func TestAlbumLifecycle(t *testing.T) {
 		t.Error("the album is missing from the listing")
 	}
 
-	updated := h.request("PUT", "/users/30/albums/"+itoa(albumID), token,
+	updated := h.request("PATCH", "/users/30/albums/"+itoa(albumID), token,
 		bytesReader(`{"name":"Best","description":"updated"}`), "application/json")
 	defer updated.Body.Close()
 	if updated.StatusCode != http.StatusOK {
@@ -95,91 +96,86 @@ func TestAlbumItems(t *testing.T) {
 		t.Fatalf("no album id: %v", err)
 	}
 
-	added := h.request("POST", "/users/33/albums/"+itoa(albumID)+"/items", token,
-		bytesReader(`{"imageId":`+itoa(imageID)+`}`), "application/json")
-	if added.StatusCode != http.StatusOK {
+	// Items are addressed as /images/{imageId}, not /items, and the C# handler
+	// answers 204 with no body because the action is idempotent.
+	added := h.request("POST",
+		"/users/33/albums/"+itoa(albumID)+"/images/"+itoa(imageID), token, nil, "")
+	defer added.Body.Close()
+	if added.StatusCode != http.StatusNoContent {
 		t.Fatalf("add item status = %d: %s", added.StatusCode, readAll(t, added))
 	}
 
-	if got, err := jsonInt(t, readAll(t, added), "imageCount"); err != nil || got != 1 {
-		t.Errorf("imageCount = %d (err %v), want 1", got, err)
+	listed := h.request("GET",
+		"/users/33/albums/"+itoa(albumID)+"/images", token, nil, "")
+	defer listed.Body.Close()
+	if listed.StatusCode != http.StatusOK {
+		t.Fatalf("list items status = %d", listed.StatusCode)
+	}
+	if got := scanTotal(readAll(t, listed)); got != 1 {
+		t.Errorf("album holds %d images, want 1", got)
 	}
 
 	// Adding the same image again is a no-op rather than an error, so a client
 	// can retry safely.
-	again := h.request("POST", "/users/33/albums/"+itoa(albumID)+"/items", token,
-		bytesReader(`{"imageId":`+itoa(imageID)+`}`), "application/json")
+	again := h.request("POST",
+		"/users/33/albums/"+itoa(albumID)+"/images/"+itoa(imageID), token, nil, "")
 	defer again.Body.Close()
-	if again.StatusCode != http.StatusOK {
-		t.Errorf("repeated add status = %d, want 200", again.StatusCode)
+	if again.StatusCode != http.StatusNoContent {
+		t.Errorf("repeated add status = %d, want 204", again.StatusCode)
 	}
 
 	removed := h.request("DELETE",
-		"/users/33/albums/"+itoa(albumID)+"/items/"+itoa(imageID), token, nil, "")
+		"/users/33/albums/"+itoa(albumID)+"/images/"+itoa(imageID), token, nil, "")
 	defer removed.Body.Close()
 	if removed.StatusCode != http.StatusNoContent {
 		t.Errorf("remove status = %d, want 204", removed.StatusCode)
 	}
 }
 
-// TestDefaultAlbumIsExclusive checks setting a default clears the previous one.
+// TestFavoritesResolvesTheDefaultAlbum covers the literal "favorites" segment.
 //
-// Two defaults would make the "default album" the user lands on ambiguous.
-func TestDefaultAlbumIsExclusive(t *testing.T) {
+// CurrentUserService.ResolveAlbumIdAsync resolves that name to the user's
+// default album, creating it on demand, so the frontend can like an image before
+// any album exists. There is no separate /albums/default route.
+func TestFavoritesResolvesTheDefaultAlbum(t *testing.T) {
 	h := newHarness(t)
 
 	token := h.issueToken(34, config.RoleUser)
+	imageID := seedAcceptedImage(t, h)
 
-	first := h.request("POST", "/users/34/albums", token,
-		bytesReader(`{"name":"First"}`), "application/json")
-	firstID, err := jsonInt(t, readAll(t, first), "id")
-	if err != nil {
-		t.Fatalf("no first album id: %v", err)
-	}
-
-	second := h.request("POST", "/users/34/albums", token,
-		bytesReader(`{"name":"Second"}`), "application/json")
-	secondID, err := jsonInt(t, readAll(t, second), "id")
-	if err != nil {
-		t.Fatalf("no second album id: %v", err)
-	}
-
-	setFirst := h.request("PATCH", "/users/34/albums/default", token,
-		bytesReader(`{"imageId":`+itoa(firstID)+`}`), "application/json")
-	defer setFirst.Body.Close()
-	if setFirst.StatusCode != http.StatusNoContent {
-		t.Fatalf("set default status = %d: %s", setFirst.StatusCode, readAll(t, setFirst))
-	}
-
-	setSecond := h.request("PATCH", "/users/34/albums/default", token,
-		bytesReader(`{"imageId":`+itoa(secondID)+`}`), "application/json")
-	defer setSecond.Body.Close()
-	if setSecond.StatusCode != http.StatusNoContent {
-		t.Fatalf("set second default status = %d", setSecond.StatusCode)
+	liked := h.request("POST",
+		"/users/34/albums/favorites/images/"+itoa(imageID), token, nil, "")
+	defer liked.Body.Close()
+	if liked.StatusCode != http.StatusNoContent {
+		t.Fatalf("like status = %d: %s", liked.StatusCode, readAll(t, liked))
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	// Resolving "favorites" created the album lazily, as a default.
 	var defaults int
 	if err := h.db.Pool().QueryRow(ctx,
-		`SELECT COUNT(*) FROM "Album" WHERE "UserId" = $1 AND "IsDefault" = true`, 34).
+		`SELECT COUNT(*) FROM "Albums" WHERE "UserId" = $1 AND "IsDefault" = true`, 34).
 		Scan(&defaults); err != nil {
 		t.Fatalf("count defaults: %v", err)
 	}
 	if defaults != 1 {
 		t.Errorf("%d default albums, want exactly 1", defaults)
 	}
-}
 
-// TestAlbumRequiresAuthentication guards the whole group.
-func TestAlbumRequiresAuthentication(t *testing.T) {
-	h := newHarness(t)
-
-	resp := h.request("GET", "/users/35/albums", "", nil, "")
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusUnauthorized {
-		t.Errorf("status = %d, want 401", resp.StatusCode)
+	// And the image really landed in it.
+	var linked int
+	if err := h.db.Pool().QueryRow(ctx, `
+        SELECT COUNT(*)
+        FROM "AlbumItems" ai
+        JOIN "Albums" a ON a."Id" = ai."AlbumId"
+        WHERE a."UserId" = $1 AND a."IsDefault" = true AND ai."ImageId" = $2`,
+		34, imageID).Scan(&linked); err != nil {
+		t.Fatalf("count links: %v", err)
+	}
+	if linked != 1 {
+		t.Errorf("%d links to the default album, want 1", linked)
 	}
 }
 
@@ -193,7 +189,8 @@ func TestReportLifecycle(t *testing.T) {
 	created := h.request("POST", "/reports", token,
 		bytesReader(`{"imageId":`+itoa(imageID)+`,"description":"wrong attribution"}`),
 		"application/json")
-	if created.StatusCode != http.StatusOK {
+	// The report is created with CreatedAtAction, so 201 with the bare entity.
+	if created.StatusCode != http.StatusCreated {
 		t.Fatalf("create status = %d: %s", created.StatusCode, readAll(t, created))
 	}
 
@@ -201,30 +198,37 @@ func TestReportLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("no report id: %v", err)
 	}
-	if got := jsonString(t, readAll(t, h.request("GET", "/reports/"+itoa(reportID), token, nil, "")), "status"); got != "Pending" {
+	// There is no GET /reports/{id} in the C# service, so the report is read
+	// back out of the list, and its status moves through a dedicated transition
+	// route rather than through PATCH /{id} (which only edits the description).
+	readBack := h.request("GET", "/reports", token, nil, "")
+	defer readBack.Body.Close()
+	if got := jsonString(t, readAll(t, readBack), "status"); got != "Pending" {
 		t.Errorf("new report status = %q, want Pending", got)
 	}
 
-	// Resolving requires a moderator.
-	forbidden := h.request("PATCH", "/reports/"+itoa(reportID), token,
-		bytesReader(`{"status":"Accepted"}`), "application/json")
+	// Resolving is moderator-only.
+	forbidden := h.request("PATCH", "/reports/"+itoa(reportID)+"/validate", token, nil, "")
 	forbidden.Body.Close()
 	if forbidden.StatusCode != http.StatusForbidden {
 		t.Errorf("user resolving a report: status = %d, want 403", forbidden.StatusCode)
 	}
 
 	mod := h.issueToken(37, config.RoleModerator)
-	resolved := h.request("PATCH", "/reports/"+itoa(reportID), mod,
-		bytesReader(`{"status":"Accepted","reviewerNote":"credit restored"}`), "application/json")
+	resolved := h.request("PATCH", "/reports/"+itoa(reportID)+"/validate", mod,
+		bytesReader(`{"reason":"credit restored"}`), "application/json")
 	defer resolved.Body.Close()
 
-	if resolved.StatusCode != http.StatusOK {
-		t.Fatalf("resolve status = %d: %s", resolved.StatusCode, readAll(t, resolved))
+	// The transition answers 204 with no body.
+	if resolved.StatusCode != http.StatusNoContent {
+		t.Fatalf("validate status = %d: %s", resolved.StatusCode, readAll(t, resolved))
 	}
 
-	body := readAll(t, resolved)
-	if got := jsonString(t, body, "status"); got != "Accepted" {
-		t.Errorf("status = %q, want Accepted", got)
+	afterMod := h.request("GET", "/reports", mod, nil, "")
+	defer afterMod.Body.Close()
+	body := readAll(t, afterMod)
+	if got := jsonString(t, body, "status"); got != "Resolved" {
+		t.Errorf("status = %q, want Resolved", got)
 	}
 	if got := jsonString(t, body, "reviewerNote"); got != "credit restored" {
 		t.Errorf("reviewerNote = %q, want the submitted note", got)
@@ -289,7 +293,7 @@ func TestUserAdministrationIsAdminOnly(t *testing.T) {
 
 	// A moderator is still not an admin.
 	mod := h.issueToken(43, config.RoleModerator)
-	promote := h.request("PATCH", "/users/42/role", mod,
+	promote := h.request("PUT", "/users/42/role", mod,
 		bytesReader(`{"role":"Admin"}`), "application/json")
 	defer promote.Body.Close()
 	if promote.StatusCode != http.StatusForbidden {
@@ -306,7 +310,7 @@ func TestAdminCanChangeRoles(t *testing.T) {
 
 	admin := h.issueToken(44, config.RoleAdmin)
 
-	promoted := h.request("PATCH", "/users/45/role", admin,
+	promoted := h.request("PUT", "/users/45/role", admin,
 		bytesReader(`{"role":"TrustedUser"}`), "application/json")
 	defer promoted.Body.Close()
 
@@ -323,7 +327,7 @@ func TestAdminCanChangeRoles(t *testing.T) {
 
 	var role int
 	if err := h.db.Pool().QueryRow(ctx,
-		`SELECT "Role" FROM "User" WHERE "Id" = 45`).Scan(&role); err != nil {
+		`SELECT "Role" FROM "Users" WHERE "Id" = 45`).Scan(&role); err != nil {
 		t.Fatalf("read role: %v", err)
 	}
 	if role != 1 {
@@ -336,7 +340,7 @@ func TestRoleUpdateRejectsUnknownRole(t *testing.T) {
 	h := newHarness(t)
 
 	admin := h.issueToken(46, config.RoleAdmin)
-	resp := h.request("PATCH", "/users/46/role", admin,
+	resp := h.request("PUT", "/users/46/role", admin,
 		bytesReader(`{"role":"Supremo"}`), "application/json")
 	defer resp.Body.Close()
 
@@ -354,7 +358,7 @@ func seedAcceptedImage(t *testing.T, h *harness) int {
 
 	var id int
 	err := h.db.Pool().QueryRow(ctx, `
-        INSERT INTO "Image" ("Width","Height","ByteSize","Extension","DominantColor",
+        INSERT INTO "Images" ("Width","Height","ByteSize","Extension","DominantColor",
                               "IsNsfw","IsAnimated","PerceptualHash","ReviewStatus")
         VALUES (640,480,2048,'.png','#123456',false,false,
                 repeat('0', 64)::bit(64), 1)

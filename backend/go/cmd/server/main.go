@@ -24,6 +24,8 @@ import (
 	"time"
 
 	"waifuapi/internal/auth"
+	"waifuapi/internal/background"
+	"waifuapi/internal/cdncache"
 	"waifuapi/internal/config"
 	"waifuapi/internal/discord"
 	"waifuapi/internal/httpapi"
@@ -119,12 +121,46 @@ func run() error {
 		"bucket", cfg.S3.BucketName,
 		"pathStyle", cfg.S3.ForcePathStyle)
 
-	server := httpapi.NewServer(cfg, db, data, log, files, discordClient, tokens)
+	// Edge cache purging is optional. Without Cloudflare credentials the purger
+	// no-ops, which is correct for a deployment that serves images without the
+	// edge in front, so it must not stop the service from starting.
+	purger := cdncache.New(cdncache.Config{
+		ZoneID:  cfg.Cloudflare.ZoneID,
+		Token:   cfg.Cloudflare.Token,
+		BaseURL: cfg.CDN.BaseURL,
+
+		TransformEnabled: cfg.ImageTransform.Enabled,
+		TransformPath:    cfg.ImageTransform.Path,
+		WidthParam:       cfg.ImageTransform.WidthParam,
+		CardWidth:        cfg.ImageTransform.CardWidth,
+		PreviewWidth:     cfg.ImageTransform.PreviewWidth,
+	}, nil, cacheWarnLogger{log: log})
+
+	if purgerIsConfigured(cfg) {
+		log.Info("cloudflare cache purge enabled", "zone", cfg.Cloudflare.ZoneID)
+	}
+
+	server := httpapi.NewServer(cfg, db, data, log, files, discordClient, tokens, purger)
 
 	mux := http.NewServeMux()
 	server.Register(mux)
 
 	handler := server.Handler(mux, authenticator, data)
+
+	// ---- Periodic maintenance ------------------------------------------
+	// Started before Serve so a cleanup job can never delay startup, and given
+	// a background context so it stops with the process rather than with the
+	// shutdown of an in-flight request.
+	jobs := []background.Job{background.StatsCleanup(data, backgroundLogger{log})}
+
+	if job, enabled := background.ReviewTaskCleanup(
+		data, cfg.Review.TaskRetentionDays, backgroundLogger{log}); enabled {
+		jobs = append(jobs, job)
+	} else {
+		log.Info("review task pruning disabled", "retentionDays", cfg.Review.TaskRetentionDays)
+	}
+
+	background.Start(context.Background(), backgroundLogger{log}, jobs...)
 
 	httpServer := &http.Server{
 		Addr:    fmt.Sprintf(":%d", cfg.Port),
@@ -180,3 +216,27 @@ func run() error {
 		return nil
 	}
 }
+
+// purgerIsConfigured reports whether edge purging will actually do anything.
+func purgerIsConfigured(cfg *config.Config) bool {
+	return cfg.Cloudflare.ZoneID != "" && cfg.Cloudflare.Token != ""
+}
+
+// cacheWarnLogger adapts the structured logger to the narrower interface the
+// cache purger needs, so that package does not have to depend on slog.
+type cacheWarnLogger struct{ log *slog.Logger }
+
+func (l cacheWarnLogger) Warn(msg string, err error, args ...any) {
+	if err != nil {
+		l.log.Warn(msg, append([]any{"error", err.Error()}, args...)...)
+		return
+	}
+	l.log.Warn(msg, args...)
+}
+
+// backgroundLogger adapts the structured logger to the maintenance jobs' narrow
+// interface, so that package does not depend on slog.
+type backgroundLogger struct{ log *slog.Logger }
+
+func (l backgroundLogger) Info(msg string, args ...any)  { l.log.Info(msg, args...) }
+func (l backgroundLogger) Error(msg string, args ...any) { l.log.Error(msg, args...) }

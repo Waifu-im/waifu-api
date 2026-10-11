@@ -17,18 +17,6 @@ import (
 // maxSourceLength matches the C# validator's 500 character limit.
 const maxSourceLength = 500
 
-// uploadResponse is the body returned by POST /images/upload.
-type uploadResponse struct {
-	// ID is the new image ID.
-	ID int64 `json:"id"`
-
-	// ReviewStatus tells the client whether the upload is visible yet.
-	ReviewStatus string `json:"reviewStatus"`
-
-	// Message is shown to the user by the frontend notification.
-	Message string `json:"message"`
-}
-
 // registerUploadRoutes mounts the upload endpoint.
 func (s *Server) registerUploadRoutes(mux *http.ServeMux) {
 	base := s.cfg.BasePathOrRoot()
@@ -89,18 +77,36 @@ func (s *Server) handleUploadImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	contentType := header.Header.Get("Content-Type")
-
-	// Go's multipart writer, and some clients, send application/octet-stream for
-	// every part. Trusting that blindly would reject perfectly good images, so
-	// the declared type is only used when it actually names an image; otherwise
-	// the type is sniffed from the bytes.
+	// The declared content type is checked, and nothing else, matching
+	// UploadImageCommandValidator:
 	//
-	// This is a deliberate divergence from the C# validator, which checks the
-	// declared ContentType and nothing else. Being stricter there buys nothing:
-	// the format allowlist is still enforced, just against the real content.
+	//	RuleFor(x => x.ContentType)
+	//	    .NotEmpty().WithMessage("Content type is required.")
+	//	    .Must(x => x == "image/jpeg" || x == "image/png" || x == "image/gif" || x == "image/webp")
+	//	    .WithMessage("Only JPEG, PNG, GIF, and WEBP formats are supported.");
+	//
+	// An earlier version sniffed the bytes whenever the declared type was not an
+	// image, which was more forgiving: it accepted uploads the original rejects,
+	// such as a correct PNG sent as application/octet-stream. That looked like a
+	// strict improvement, and it was, but it is still a behaviour change, and a
+	// rewrite that quietly widens what an endpoint accepts is the exact failure
+	// this project exists to avoid. Clients keep the status codes they had.
+	//
+	// If the sniffing behaviour is genuinely wanted, it belongs in a change to
+	// the C# service first, so both sides can be deployed together.
+	contentType := header.Header.Get("Content-Type")
+	if contentType == "" {
+		apierror.BadRequest("Content type is required.").WithExtra("errors",
+			map[string][]string{"ContentType": {"Content type is required."}}).
+			Write(w, r.URL.Path)
+		return
+	}
 	if !imageproc.IsAllowedContentType(contentType) {
-		contentType = imageproc.SniffContentType(data)
+		apierror.BadRequest("Only JPEG, PNG, GIF, and WEBP formats are supported.").
+			WithExtra("errors", map[string][]string{
+				"ContentType": {"Only JPEG, PNG, GIF, and WEBP formats are supported."},
+			}).Write(w, r.URL.Path)
+		return
 	}
 
 	// ---- 2. Measure ----
@@ -162,16 +168,25 @@ func (s *Server) handleUploadImage(w http.ResponseWriter, r *http.Request) {
 	// ---- 5. Review decision ----
 	requiresReview := s.authz.RequiresReviewForImage(roleOf(caller))
 
+	// Source is trimmed and an empty value becomes null, matching
+	// StringExtensions.ToNullIfEmpty in the upload command. Storing "" instead of
+	// null would make the image page render an empty link.
 	source := optionalFormValue(r, "source")
-	if source != nil && len(*source) > maxSourceLength {
-		apierror.UnprocessableEntity("Source must not exceed 500 characters.").
-			WithExtra("errors", map[string][]string{"Source": {"Source must not exceed 500 characters."}}).
-			Write(w, r.URL.Path)
-		return
+	if source != nil {
+		source = optionalString(*source)
+	}
+	if source != nil {
+		switch {
+		case len([]rune(*source)) > maxSourceLength:
+			writeAPIError(w, r, validationError("Source", "Source URL must not exceed 500 characters."))
+			return
+		case !isAbsoluteURL(*source):
+			writeAPIError(w, r, validationError("Source", "Source must be a valid URL."))
+			return
+		}
 	}
 
-	isNsfw := optionalFormValue(r, "isNsfw") != nil &&
-		*optionalFormValue(r, "isNsfw") == "true"
+	isNsfw := truthy(r.FormValue("isNsfw"))
 
 	tagIDs := make([]int64, 0, len(tags))
 	for _, tag := range tags {
@@ -249,15 +264,30 @@ func (s *Server) handleUploadImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	message := "Image uploaded."
-	if requiresReview {
-		message = "Upload pending review."
+	// The response is the full ImageDto, not a status envelope. The controller
+	// returns CreatedAtAction, and the frontend types the response as ImageDto
+	// and navigates using its id; a trimmed-down body would break any client
+	// reading reviewStatus or tags from the upload response.
+	//
+	// favourites and likedAt are deliberately left at zero: a freshly uploaded
+	// image is in nobody's album, and the command that builds this response has no
+	// viewer context.
+	image.UploaderID = &caller.UserID
+
+	dtos, err := s.toImageDtos(r, []models.Image{image}, repo.ImageFilter{
+		ReviewStatus: models.FilterAll,
+	}, 0)
+	if err != nil || len(dtos) == 0 {
+		// The upload committed; failing to re-read it for the response body
+		// would misreport a successful upload as an error and invite a retry
+		// that then trips duplicate detection.
+		s.logError(r, "render uploaded image", err)
+		internalServerError(w, r)
+		return
 	}
-	writeJSON(w, http.StatusOK, uploadResponse{
-		ID:           image.ID,
-		ReviewStatus: image.ReviewStatus.String(),
-		Message:      message,
-	})
+
+	location := s.baseLocationPrefix() + "images/" + itoa64(image.ID)
+	s.writeCreated(w, r, dtos[0], location)
 }
 
 // writeImageProcessError maps an imaging failure onto an HTTP response.

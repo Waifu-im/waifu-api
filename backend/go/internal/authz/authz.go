@@ -13,6 +13,7 @@ import (
 	"fmt"
 
 	"waifuapi/internal/config"
+	"waifuapi/internal/store/models"
 )
 
 // Action names a privileged operation. It is a distinct type so a permission
@@ -97,6 +98,19 @@ func (c *Checker) Require(action Action, role config.Role) error {
 	return &ErrForbidden{Action: action, RequiredRole: c.minimumFor(action)}
 }
 
+// RequireAtLeast enforces a fixed minimum role.
+//
+// This exists for the operations the C# service guards with an authorization
+// policy rather than a setting: editing or deleting a tag or artist is
+// Moderator/Admin regardless of what Permissions__* say, because those settings
+// govern *creation*, which an ordinary user is allowed to contribute to.
+func (c *Checker) RequireAtLeast(role config.Role, minimum config.Role) error {
+	if role >= minimum {
+		return nil
+	}
+	return &ErrForbidden{Action: "perform this action", RequiredRole: minimum}
+}
+
 // minimumFor reports the configured minimum, for the error message.
 func (c *Checker) minimumFor(action Action) config.Role {
 	switch action {
@@ -134,4 +148,22 @@ func (c *Checker) RequiresReviewForTag(role config.Role) bool {
 func (c *Checker) RequiresReviewForArtist(role config.Role) bool {
 	return c.cfg.RequiresReviewForNewContent(
 		c.cfg.Review.RequireArtistReview, c.cfg.Review.ArtistBypassMinRole, role)
+}
+
+// RequiresReviewForEdit decides whether a proposed *edit* to existing content
+// needs approval.
+//
+// Edit review is a different question from creation review: it has its own
+// master switch and its own per-type bypass thresholds, configured independently.
+// Someone trusted enough to publish their own uploads is not automatically
+// trusted to rewrite someone else's.
+func (c *Checker) RequiresReviewForEdit(role config.Role, target models.ReviewableType) bool {
+	bypass := c.cfg.Review.ImageEditBypassMin
+	switch target {
+	case models.TargetTag:
+		bypass = c.cfg.Review.TagEditBypassMin
+	case models.TargetArtist:
+		bypass = c.cfg.Review.ArtistEditBypassMin
+	}
+	return c.cfg.RequiresReviewForNewContent(c.cfg.Review.RequireEditReview, bypass, role)
 }

@@ -335,3 +335,42 @@ func sortStrings(values []string) {
 		values[j+1] = value
 	}
 }
+
+// List returns every object key in the bucket.
+//
+// Paginated in batches, because a bucket with thousands of images returns a
+// truncated page rather than an error. Continuation is followed until exhausted,
+// and a mid-walk failure returns what was collected along with the error so a
+// partial reconciliation is possible rather than none.
+func (s *S3Store) List(ctx context.Context) ([]string, error) {
+	const pageSize = 1000
+
+	var keys []string
+	var token *string
+
+	for {
+		input := &s3.ListObjectsV2Input{
+			Bucket:            aws.String(s.bucket),
+			MaxKeys:           aws.Int32(pageSize),
+			ContinuationToken: token,
+		}
+
+		output, err := s.client.ListObjectsV2(ctx, input)
+		if err != nil {
+			return keys, fmt.Errorf("list objects: %w", describe(err))
+		}
+
+		for _, object := range output.Contents {
+			if object.Key != nil {
+				keys = append(keys, *object.Key)
+			}
+		}
+
+		if output.IsTruncated == nil || !*output.IsTruncated || output.NextContinuationToken == nil {
+			break
+		}
+		token = output.NextContinuationToken
+	}
+
+	return keys, nil
+}

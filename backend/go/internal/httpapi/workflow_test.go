@@ -4,6 +4,7 @@ import (
 	"context"
 	"image/color"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -56,17 +57,14 @@ func TestOrdinaryUserCanUploadUnderDefaultConfig(t *testing.T) {
 	resp := h.request("POST", "/images/upload", token, body, contentType)
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("status = %d, want 200: %s", resp.StatusCode, readAll(t, resp))
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("status = %d, want 201: %s", resp.StatusCode, readAll(t, resp))
 	}
 
 	// A plain User must be queued for review, not published immediately.
 	payload := readAll(t, resp)
 	if got := jsonString(t, payload, "reviewStatus"); got != "Pending" {
 		t.Errorf("reviewStatus = %q, want Pending for an ordinary user", got)
-	}
-	if got := jsonString(t, payload, "message"); got != "Upload pending review." {
-		t.Errorf("message = %q, want \"Upload pending review.\"", got)
 	}
 }
 
@@ -82,8 +80,8 @@ func TestTrustedUserBypassesReview(t *testing.T) {
 	resp := h.request("POST", "/images/upload", token, body, contentType)
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("status = %d, want 200: %s", resp.StatusCode, readAll(t, resp))
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("status = %d, want 201: %s", resp.StatusCode, readAll(t, resp))
 	}
 	if got := jsonString(t, readAll(t, resp), "reviewStatus"); got != "Accepted" {
 		t.Errorf("reviewStatus = %q, want Accepted for a TrustedUser", got)
@@ -100,7 +98,8 @@ func TestUploadStoresTheObject(t *testing.T) {
 
 	body, contentType := multipartImage(t, "file", "pic.png", data, nil)
 	resp := h.request("POST", "/images/upload", token, body, contentType)
-	if resp.StatusCode != http.StatusOK {
+	// CreatedAtAction answers 201 with the full ImageDto.
+	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("status = %d: %s", resp.StatusCode, readAll(t, resp))
 	}
 
@@ -143,7 +142,7 @@ func TestUploadRollsBackWhenStorageFails(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	if err := h.db.Pool().QueryRow(ctx, `SELECT COUNT(*) FROM "Image"`).Scan(&count); err != nil {
+	if err := h.db.Pool().QueryRow(ctx, `SELECT COUNT(*) FROM "Images"`).Scan(&count); err != nil {
 		t.Fatalf("count images: %v", err)
 	}
 	if count != 0 {
@@ -151,7 +150,7 @@ func TestUploadRollsBackWhenStorageFails(t *testing.T) {
 	}
 
 	// Nor may a review task.
-	if err := h.db.Pool().QueryRow(ctx, `SELECT COUNT(*) FROM "ReviewTask"`).Scan(&count); err != nil {
+	if err := h.db.Pool().QueryRow(ctx, `SELECT COUNT(*) FROM "ReviewTasks"`).Scan(&count); err != nil {
 		t.Fatalf("count tasks: %v", err)
 	}
 	if count != 0 {
@@ -177,7 +176,7 @@ func TestDuplicateUploadIsRejected(t *testing.T) {
 	body, contentType := multipartImage(t, "file", "dup.png", data, nil)
 	first := h.request("POST", "/images/upload", token, body, contentType)
 	first.Body.Close()
-	if first.StatusCode != http.StatusOK {
+	if first.StatusCode != http.StatusCreated {
 		t.Fatalf("first upload status = %d", first.StatusCode)
 	}
 
@@ -215,7 +214,7 @@ func TestUploadRejectsUnknownTag(t *testing.T) {
 	var count int
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	if err := h.db.Pool().QueryRow(ctx, `SELECT COUNT(*) FROM "Image"`).Scan(&count); err != nil {
+	if err := h.db.Pool().QueryRow(ctx, `SELECT COUNT(*) FROM "Images"`).Scan(&count); err != nil {
 		t.Fatalf("count images: %v", err)
 	}
 	if count != 0 {
@@ -232,8 +231,8 @@ func TestCreateTagQueuesForReview(t *testing.T) {
 		bytesReader(`{"name":"Hatsune Miku","description":"vocaloid"}`),
 		"application/json")
 
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("status = %d, want 200: %s", resp.StatusCode, readAll(t, resp))
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("status = %d, want 201: %s", resp.StatusCode, readAll(t, resp))
 	}
 	payload := readAll(t, resp)
 	if got := jsonString(t, payload, "slug"); got != "hatsune-miku" {
@@ -276,7 +275,7 @@ func TestApprovePublishesPendingImage(t *testing.T) {
 	body, contentType := multipartImage(t, "file", "pending.png", data, nil)
 	uploadResp := h.request("POST", "/images/upload", userToken, body, contentType)
 
-	if uploadResp.StatusCode != http.StatusOK {
+	if uploadResp.StatusCode != http.StatusCreated {
 		t.Fatalf("upload status = %d: %s", uploadResp.StatusCode, readAll(t, uploadResp))
 	}
 	imageID, err := jsonInt(t, readAll(t, uploadResp), "id")
@@ -365,7 +364,7 @@ func TestRejectDeletesTheTarget(t *testing.T) {
 	defer cancel()
 
 	var count int
-	if err := h.db.Pool().QueryRow(ctx, `SELECT COUNT(*) FROM "Image"`).Scan(&count); err != nil {
+	if err := h.db.Pool().QueryRow(ctx, `SELECT COUNT(*) FROM "Images"`).Scan(&count); err != nil {
 		t.Fatalf("count images: %v", err)
 	}
 	if count != 0 {
@@ -422,7 +421,7 @@ func seedPendingTask(t *testing.T, h *harness, submitterID int64) {
 	// Two separate statements: pgx cannot send multiple commands in one
 	// prepared statement.
 	if _, err := h.db.Pool().Exec(ctx, `
-        INSERT INTO "Image" ("Width","Height","ByteSize","Extension","DominantColor",
+        INSERT INTO "Images" ("Width","Height","ByteSize","Extension","DominantColor",
                               "IsNsfw","IsAnimated","PerceptualHash","ReviewStatus","UploaderId")
         VALUES (100,100,1,'.png','#000000',false,false,
                 B'0000000000000000000000000000000000000000000000000000000000000000', 0, $1)`,
@@ -431,8 +430,8 @@ func seedPendingTask(t *testing.T, h *harness, submitterID int64) {
 	}
 
 	if _, err := h.db.Pool().Exec(ctx, `
-        INSERT INTO "ReviewTask" ("Kind","TargetType","TargetId","SubmitterId","Status")
-        VALUES (0, 0, (SELECT MAX("Id") FROM "Image"), $1, 0)`,
+        INSERT INTO "ReviewTasks" ("Kind","TargetType","TargetId","SubmitterId","Status")
+        VALUES (0, 0, (SELECT MAX("Id") FROM "Images"), $1, 0)`,
 		submitterID); err != nil {
 		t.Fatalf("seed review task: %v", err)
 	}
@@ -440,3 +439,55 @@ func seedPendingTask(t *testing.T, h *harness, submitterID int64) {
 
 // confirm the models package is referenced so the import is meaningful.
 var _ = models.ReviewPending
+
+// TestUploadRequiresADeclaredImageContentType pins the C# validator's behaviour.
+//
+// UploadImageCommandValidator checks the declared ContentType against a
+// four-entry allowlist and does not look at the bytes. A genuine PNG sent as
+// application/octet-stream is therefore a 400, not an upload.
+//
+// This is worth a test because the opposite behaviour is defensible on its
+// merits. Sniffing the bytes is strictly more accurate and would not let a
+// non-image through, so a future reader is likely to "fix" this. The fix belongs
+// in the C# service, where it can be deployed with the clients that need it.
+func TestUploadRequiresADeclaredImageContentType(t *testing.T) {
+	h := newHarness(t)
+
+	token := h.issueToken(2, config.RoleTrustedUser)
+	data := testImage(t, 64, 64, color.RGBA{10, 20, 30, 255})
+
+	rejected := []struct{ declared, why string }{
+		{"application/octet-stream", "a generic type, which multipart.Writer sends by default"},
+		{"image/svg+xml", "a real image format that is not on the allowlist"},
+		{"text/html", "not an image at all"},
+	}
+
+	for _, c := range rejected {
+		body, contentType := multipartImageTyped(t, "file", "pic.png", data, nil, c.declared)
+		resp := h.request("POST", "/images/upload", token, body, contentType)
+		status, payload := resp.StatusCode, readAll(t, resp)
+
+		if status != http.StatusBadRequest {
+			t.Errorf("declared %s = %d, want 400 (%s)", c.declared, status, c.why)
+		}
+		if !strings.Contains(string(payload), "Only JPEG, PNG, GIF, and WEBP formats are supported.") {
+			t.Errorf("declared %s should carry the validator's message, got: %s", c.declared, payload)
+		}
+	}
+
+	// Each allowed type is accepted, which is what makes the allowlist a list
+	// rather than a sniff.
+	//
+	// The images have to be genuinely distinct: perceptual-hash duplicate
+	// detection correctly rejects a near-identical second copy, and solid-colour
+	// images that differ only slightly hash the same once downscaled.
+	for i, declared := range []string{"image/jpeg", "image/png", "image/gif", "image/webp"} {
+		distinct := testImage(t, 64+i*24, 64,
+			color.RGBA{uint8(20 + i*60), uint8(240 - i*60), uint8(40 + i*30), 255})
+		body, contentType := multipartImageTyped(t, "file", "pic.png", distinct, nil, declared)
+		resp := h.request("POST", "/images/upload", token, body, contentType)
+		if status, payload := resp.StatusCode, readAll(t, resp); status != http.StatusCreated {
+			t.Errorf("declared %s = %d, want 201: %s", declared, status, payload)
+		}
+	}
+}

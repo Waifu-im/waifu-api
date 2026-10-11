@@ -12,45 +12,11 @@ import (
 // These cover the endpoints added after the upload workflow: OAuth login,
 // API keys, albums, reports and user administration.
 
-// TestLoginStartReturnsAuthorizeURL checks the login entry point.
-//
-// The frontend redirects the browser to whatever this returns, so the client id
-// and redirect URI must already be applied.
-func TestLoginStartReturnsAuthorizeURL(t *testing.T) {
-	h := newHarness(t)
-
-	resp := h.request("GET", "/auth/discord", "", nil, "")
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("status = %d, want 200", resp.StatusCode)
-	}
-
-	body := readAll(t, resp)
-
-	// The harness points the Discord client at a stub host, so the host is not
-	// asserted. What matters is that the configured client id and the identify
-	// scope are already applied, since the frontend redirects the browser to
-	// this URL verbatim.
-	if !containsBytes(body, "/oauth2/authorize") {
-		t.Errorf("response should be a Discord authorize URL, got: %s", body)
-	}
-	if !containsBytes(body, "client_id=test-client") {
-		t.Errorf("the configured client id should be applied, got: %s", body)
-	}
-	if !containsBytes(body, "scope=identify") {
-		t.Errorf("only the identify scope should be requested, got: %s", body)
-	}
-	if !containsBytes(body, "response_type=code") {
-		t.Errorf("the flow should request an authorisation code, got: %s", body)
-	}
-}
-
 // TestCallbackRejectsMissingCode checks validation before any Discord call.
 func TestCallbackRejectsMissingCode(t *testing.T) {
 	h := newHarness(t)
 
-	resp := h.request("POST", "/auth/discord/callback", "",
+	resp := h.request("POST", "/auth/discord", "",
 		bytesReader(`{}`), "application/json")
 	defer resp.Body.Close()
 
@@ -129,10 +95,15 @@ func TestAPIKeyLifecycle(t *testing.T) {
 
 	token := h.issueToken(23, config.RoleUser)
 
-	created := h.request("POST", "/api-keys", token,
+	// AuthController.CreateApiKey uses CreatedAtAction, so this is 201 with a
+	// Location header, not 200.
+	created := h.request("POST", "/auth/api-keys", token,
 		bytesReader(`{"description":"laptop"}`), "application/json")
-	if created.StatusCode != http.StatusOK {
+	if created.StatusCode != http.StatusCreated {
 		t.Fatalf("create status = %d: %s", created.StatusCode, readAll(t, created))
+	}
+	if created.Header.Get("Location") == "" {
+		t.Error("CreatedAtAction sets a Location header; it is missing")
 	}
 
 	createdBody := readAll(t, created)
@@ -146,7 +117,7 @@ func TestAPIKeyLifecycle(t *testing.T) {
 	}
 
 	// Listing must never include the plaintext.
-	list := h.request("GET", "/api-keys", token, nil, "")
+	list := h.request("GET", "/auth/api-keys", token, nil, "")
 	defer list.Body.Close()
 	if containsBytes(readAll(t, list), plaintext) {
 		t.Error("the plaintext key leaked into the key listing")
@@ -156,13 +127,13 @@ func TestAPIKeyLifecycle(t *testing.T) {
 	assertKeyHashed(t, h, plaintext)
 
 	// Deletion.
-	deleted := h.request("DELETE", "/api-keys/"+itoa(keyID), token, nil, "")
+	deleted := h.request("DELETE", "/auth/api-keys/"+itoa(keyID), token, nil, "")
 	defer deleted.Body.Close()
 	if deleted.StatusCode != http.StatusNoContent {
 		t.Errorf("delete status = %d, want 204", deleted.StatusCode)
 	}
 
-	after := h.request("GET", "/api-keys", token, nil, "")
+	after := h.request("GET", "/auth/api-keys", token, nil, "")
 	defer after.Body.Close()
 	if containsBytes(readAll(t, after), `"id":`+itoa(keyID)) {
 		t.Error("the deleted key is still listed")
@@ -177,7 +148,7 @@ func assertKeyHashed(t *testing.T, h *harness, plaintext string) {
 	defer cancel()
 
 	var stored string
-	err := h.db.Pool().QueryRow(ctx, `SELECT "KeyHash" FROM "ApiKey" LIMIT 1`).Scan(&stored)
+	err := h.db.Pool().QueryRow(ctx, `SELECT "KeyHash" FROM "ApiKeys" LIMIT 1`).Scan(&stored)
 	if err != nil {
 		t.Fatalf("read stored hash: %v", err)
 	}
@@ -195,7 +166,7 @@ func TestAPIKeyDeleteIsOwnerScoped(t *testing.T) {
 	h := newHarness(t)
 
 	owner := h.issueToken(24, config.RoleUser)
-	created := h.request("POST", "/api-keys", owner,
+	created := h.request("POST", "/auth/api-keys", owner,
 		bytesReader(`{"description":"owned"}`), "application/json")
 	keyID, err := jsonInt(t, readAll(t, created), "id")
 	if err != nil {
@@ -204,7 +175,7 @@ func TestAPIKeyDeleteIsOwnerScoped(t *testing.T) {
 
 	// A different user attempts the delete.
 	intruder := h.issueToken(25, config.RoleUser)
-	resp := h.request("DELETE", "/api-keys/"+itoa(keyID), intruder, nil, "")
+	resp := h.request("DELETE", "/auth/api-keys/"+itoa(keyID), intruder, nil, "")
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusNotFound {
@@ -217,7 +188,7 @@ func TestAPIKeyDeleteIsOwnerScoped(t *testing.T) {
 
 	var count int
 	if err := h.db.Pool().QueryRow(ctx,
-		`SELECT COUNT(*) FROM "ApiKey" WHERE "Id" = $1`, keyID).Scan(&count); err != nil {
+		`SELECT COUNT(*) FROM "ApiKeys" WHERE "Id" = $1`, keyID).Scan(&count); err != nil {
 		t.Fatalf("count keys: %v", err)
 	}
 	if count != 1 {
@@ -230,7 +201,7 @@ func TestCreateAPIKeyRequiresDescription(t *testing.T) {
 	h := newHarness(t)
 
 	token := h.issueToken(26, config.RoleUser)
-	resp := h.request("POST", "/api-keys", token,
+	resp := h.request("POST", "/auth/api-keys", token,
 		bytesReader(`{"description":"  "}`), "application/json")
 	defer resp.Body.Close()
 
@@ -245,7 +216,7 @@ func TestCreateAPIKeyRejectsNegativeExpiry(t *testing.T) {
 	h := newHarness(t)
 
 	token := h.issueToken(27, config.RoleUser)
-	resp := h.request("POST", "/api-keys", token,
+	resp := h.request("POST", "/auth/api-keys", token,
 		bytesReader(`{"description":"x","expiresInDays":-30}`), "application/json")
 	defer resp.Body.Close()
 

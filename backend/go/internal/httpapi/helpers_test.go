@@ -90,6 +90,9 @@ func bytesReader(body string) io.Reader {
 // itoa renders an int for use in paths and comparisons.
 func itoa(v int) string { return strconv.Itoa(v) }
 
+// itoa64 renders an int64, which is what image and album ids are.
+func itoa64(v int64) string { return strconv.FormatInt(v, 10) }
+
 // containsBytes reports whether haystack contains needle.
 func containsBytes(haystack []byte, needle string) bool {
 	return bytes.Contains(haystack, []byte(needle))
@@ -117,8 +120,13 @@ func scanFirstID(body []byte, target *int) error {
 }
 
 // scanTotal extracts the `"total":N` member from a paginated response.
+// scanTotal reads the item count out of a PaginatedList envelope.
+//
+// The field is totalCount, matching PaginatedList<T> in the C# service. The
+// earlier name was part of the same invented envelope this suite used to assert
+// against, which is why these helpers existed to read it back.
 func scanTotal(body []byte) int {
-	needle := []byte(`"total":`)
+	needle := []byte(`"totalCount":`)
 	index := bytes.Index(body, needle)
 	if index < 0 {
 		return -1

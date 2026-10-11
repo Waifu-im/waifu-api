@@ -2,6 +2,7 @@ package models
 
 import (
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"strings"
 )
@@ -77,6 +78,18 @@ func PerceptualHashFromBytes(data []byte) (uint64, error) {
 		return 0, fmt.Errorf("perceptual hash must be 8 bytes or %d bit characters, got %d bytes",
 			HashBits, len(data))
 	}
+}
+
+// PerceptualHashToHex renders the hash the way the API exposes it.
+//
+// BitArrayHelper.ToHex copies the bits into a big-endian byte array and prints
+// it as lowercase hex, so the first bit of the hash is the high bit of the first
+// byte. The frontend displays this value on the image page, so the exact
+// formatting is part of the contract.
+func PerceptualHashToHex(hash uint64) string {
+	var bytes [HashBits / 8]byte
+	binary.BigEndian.PutUint64(bytes[:], hash)
+	return hex.EncodeToString(bytes[:])
 }
 
 // HammingDistance returns the number of differing bits between two hashes.

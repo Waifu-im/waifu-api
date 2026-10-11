@@ -2,8 +2,11 @@ package repo
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
+
+	"github.com/jackc/pgx/v5"
 
 	"waifuapi/internal/auth"
 	"waifuapi/internal/store/models"
@@ -17,8 +20,8 @@ import (
 func (r *Repo) GetUserByAPIKeyHash(ctx context.Context, hash string) (auth.APIKeyOwner, error) {
 	const query = `
         SELECT u."Id", u."Name", u."DiscordId", u."Role", u."IsBlacklisted"
-        FROM "ApiKey" k
-        JOIN "User" u ON u."Id" = k."UserId"
+        FROM "ApiKeys" k
+        JOIN "Users" u ON u."Id" = k."UserId"
         WHERE k."KeyHash" = $1
           AND (k."ExpirationDate" IS NULL OR k."ExpirationDate" > now())`
 
@@ -38,7 +41,7 @@ func (r *Repo) GetUserByAPIKeyHash(ctx context.Context, hash string) (auth.APIKe
 // best-effort way.
 func (r *Repo) RecordAPIKeyUse(ctx context.Context, hash string, at time.Time) error {
 	_, err := r.db.Exec(ctx, `
-        UPDATE "ApiKey" SET "LastUsedAt" = $1 WHERE "KeyHash" = $2`, at, hash)
+        UPDATE "ApiKeys" SET "LastUsedAt" = $1 WHERE "KeyHash" = $2`, at, hash)
 	if err != nil {
 		return fmt.Errorf("record api key use: %w", err)
 	}
@@ -49,7 +52,7 @@ func (r *Repo) RecordAPIKeyUse(ctx context.Context, hash string, at time.Time) e
 func (r *Repo) CreateAPIKey(ctx context.Context, userID int64, description, hash string, expiresAt *time.Time) (int64, error) {
 	var id int64
 	err := r.db.QueryRow(ctx, `
-        INSERT INTO "ApiKey" ("UserId", "Description", "KeyHash", "CreatedAt", "ExpirationDate")
+        INSERT INTO "ApiKeys" ("UserId", "Description", "KeyHash", "CreatedAt", "ExpirationDate")
         VALUES ($1, $2, $3, now(), $4)
         RETURNING "Id"`,
 		userID, description, hash, expiresAt).Scan(&id)
@@ -65,7 +68,7 @@ func (r *Repo) CreateAPIKey(ctx context.Context, userID int64, description, hash
 // other than its owner, which is the authorisation check expressed in SQL.
 func (r *Repo) DeleteAPIKey(ctx context.Context, keyID, userID int64) error {
 	tag, err := r.db.Exec(ctx, `
-        DELETE FROM "ApiKey" WHERE "Id" = $1 AND "UserId" = $2`, keyID, userID)
+        DELETE FROM "ApiKeys" WHERE "Id" = $1 AND "UserId" = $2`, keyID, userID)
 	if err != nil {
 		return fmt.Errorf("delete api key: %w", err)
 	}
@@ -83,7 +86,7 @@ func (r *Repo) CountUserOpenEdits(ctx context.Context, userID int64) (int64, err
 	var count int64
 	err := r.db.QueryRow(ctx, `
         SELECT COUNT(*)
-        FROM "ReviewTask"
+        FROM "ReviewTasks"
         WHERE "SubmitterId" = $1 AND "Kind" = $2 AND "Status" = $3`,
 		userID, int(1 /* KindEdit */), int(0 /* TaskPending */)).Scan(&count)
 	if err != nil {
@@ -104,7 +107,7 @@ type APIKeyRecord struct {
 func (r *Repo) ListAPIKeys(ctx context.Context, userID int64) ([]models.APIKey, error) {
 	rows, err := r.db.Query(ctx, `
         SELECT "Id", "UserId", "Description", "CreatedAt", "LastUsedAt", "ExpirationDate"
-        FROM "ApiKey"
+        FROM "ApiKeys"
         WHERE "UserId" = $1
         ORDER BY "CreatedAt" DESC`, userID)
 	if err != nil {
@@ -142,7 +145,7 @@ func (r *Repo) CreateAPIKeyRecord(ctx context.Context, userID int64, description
 	}
 
 	err := r.db.QueryRow(ctx, `
-        INSERT INTO "ApiKey" ("UserId", "Description", "KeyHash", "CreatedAt", "ExpirationDate")
+        INSERT INTO "ApiKeys" ("UserId", "Description", "KeyHash", "CreatedAt", "ExpirationDate")
         VALUES ($1, $2, $3, now(), $4)
         RETURNING "Id", "CreatedAt", "Description", "ExpirationDate"`,
 		userID, description, hash, parsedExpires).
@@ -151,4 +154,26 @@ func (r *Repo) CreateAPIKeyRecord(ctx context.Context, userID int64, description
 		return APIKeyRecord{}, fmt.Errorf("create api key record: %w", err)
 	}
 	return record, nil
+}
+
+// UpdateAPIKeyDescription renames a key.
+//
+// Ownership is part of the WHERE clause, so a key belonging to another account
+// reports as not found rather than as forbidden.
+func (r *Repo) UpdateAPIKeyDescription(ctx context.Context, keyID, userID int64, description string) (models.APIKey, error) {
+	var key models.APIKey
+	err := r.db.QueryRow(ctx, `
+        UPDATE "ApiKeys" SET "Description" = $1
+        WHERE "Id" = $2 AND "UserId" = $3
+        RETURNING "Id", "UserId", "Description", "CreatedAt", "LastUsedAt", "ExpirationDate"`,
+		description, keyID, userID).
+		Scan(&key.ID, &key.UserID, &key.Description,
+			&key.CreatedAt, &key.LastUsedAt, &key.ExpiresAt)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return models.APIKey{}, ErrNotFound
+		}
+		return models.APIKey{}, fmt.Errorf("update api key: %w", err)
+	}
+	return key, nil
 }

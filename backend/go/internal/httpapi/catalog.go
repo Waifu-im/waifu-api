@@ -1,74 +1,198 @@
 package httpapi
 
 import (
-	"context"
 	"net/http"
-	"strconv"
-	"time"
-
-	"github.com/jackc/pgx/v5"
+	"net/url"
+	"strings"
 
 	"waifuapi/internal/apierror"
+	"waifuapi/internal/authz"
+	"waifuapi/internal/config"
 	"waifuapi/internal/repo"
 	"waifuapi/internal/store/models"
 )
 
-// TagDto is the public representation of a tag.
+// TagDto is the wire form of a tag.
+//
+// It is TagDto.cs. ReviewStatus and CreatorId are nullable and imageCount is
+// present because the filter sidebar renders a tag's usage count and the
+// metadata editor shows whether a tag is still pending.
 type TagDto struct {
-	ID          int64  `json:"id"`
-	Name        string `json:"name"`
-	Slug        string `json:"slug"`
-	Description string `json:"description"`
+	ID           int64   `json:"id"`
+	Name         string  `json:"name"`
+	Slug         string  `json:"slug"`
+	Description  string  `json:"description"`
+	ReviewStatus *string `json:"reviewStatus"`
+	CreatorID    *int64  `json:"creatorId"`
+	ImageCount   int64   `json:"imageCount"`
 }
 
-// ArtistDto is the public representation of an artist.
+// ArtistDto is the wire form of an artist.
+//
+// ArtistDto.ReviewStatus is not nullable in C#, so it is a plain string here.
 type ArtistDto struct {
-	ID         int64   `json:"id"`
-	Name       string  `json:"name"`
-	DeviantArt *string `json:"deviantArt,omitempty"`
-	Twitter    *string `json:"twitter,omitempty"`
-	Patreon    *string `json:"patreon,omitempty"`
-	Pixiv      *string `json:"pixiv,omitempty"`
+	ID           int64   `json:"id"`
+	Name         string  `json:"name"`
+	Patreon      *string `json:"patreon"`
+	Pixiv        *string `json:"pixiv"`
+	Twitter      *string `json:"twitter"`
+	DeviantArt   *string `json:"deviantArt"`
+	ReviewStatus string  `json:"reviewStatus"`
+	CreatorID    *int64  `json:"creatorId"`
+	ImageCount   int64   `json:"imageCount"`
 }
 
-// registerCatalogRoutes mounts the tag and artist endpoints.
+// toTagDto converts a catalogue entry.
+//
+// creatorID is passed through only when exposeCreator is true, which the
+// repository has already decided; passing nil here means "hidden".
+func toTagDto(entry repo.TagEntry, exposeCreator bool) TagDto {
+	status := entry.ReviewStatus.String()
+	dto := TagDto{
+		ID:           entry.ID,
+		Name:         entry.Name,
+		Slug:         entry.Slug,
+		Description:  entry.Description,
+		ReviewStatus: &status,
+		ImageCount:   entry.ImageCount,
+	}
+	if exposeCreator {
+		dto.CreatorID = entry.CreatorID
+	}
+	return dto
+}
+
+// toArtistDto converts an artist row.
+func toArtistDto(artist models.Artist) ArtistDto {
+	return ArtistDto{
+		ID:           artist.ID,
+		Name:         artist.Name,
+		Patreon:      artist.Patreon,
+		Pixiv:        artist.Pixiv,
+		Twitter:      artist.Twitter,
+		DeviantArt:   artist.DeviantArt,
+		ReviewStatus: artist.ReviewStatus.String(),
+		CreatorID:    artist.CreatorID,
+	}
+}
+
+func toArtistEntryDto(entry repo.ArtistEntry, exposeCreator bool) ArtistDto {
+	dto := toArtistDto(entry.Artist)
+	dto.ImageCount = entry.ImageCount
+	if !exposeCreator {
+		dto.CreatorID = nil
+	}
+	return dto
+}
+
+// registerCatalogRoutes mounts the tag and artist read endpoints.
+//
+// The mutations are registered separately, in catalog_write.go, because their
+// permission rules differ per verb.
 func (s *Server) registerCatalogRoutes(mux *http.ServeMux) {
 	base := s.cfg.BasePathOrRoot()
 
 	mux.HandleFunc("GET "+base+"tags", s.handleListTags)
+	mux.HandleFunc("GET "+base+"tags/by-slug/{slug}", s.handleGetTagBySlug)
 	mux.HandleFunc("GET "+base+"tags/{id}", s.handleGetTag)
+
 	mux.HandleFunc("GET "+base+"artists", s.handleListArtists)
+	mux.HandleFunc("GET "+base+"artists/by-name/{name}", s.handleGetArtistByName)
 	mux.HandleFunc("GET "+base+"artists/{id}", s.handleGetArtist)
+}
+
+// catalogFilterFromRequest reads the shared GET /tags and GET /artists filters.
+//
+// The review-status filter is moderator-only: an ordinary caller asking for
+// pending or all content is refused with 403 rather than silently given the
+// accepted-only list, because the C# service refuses rather than downgrading.
+func (s *Server) catalogFilterFromRequest(r *http.Request) (repo.CatalogFilter, error) {
+	query := r.URL.Query()
+	var filter repo.CatalogFilter
+
+	filter.Name = query.Get("name")
+	filter.IncludedIDs = parseIntList(r, "includedIds")
+	if slugs := stringListParam(query, "includedSlugs"); len(slugs) > 0 {
+		filter.IncludedSlugs = slugs
+	}
+	filter.IncludeMine = truthy(query.Get("includeMyPending"))
+
+	if caller := s.principal(r); caller != nil {
+		filter.ViewerID = caller.UserID
+	}
+
+	filter.ReviewStatus = models.FilterAccepted
+	if raw := query.Get("reviewStatus"); raw != "" {
+		status, err := models.ParseReviewStatusFilter(raw)
+		if err != nil {
+			return filter, apierror.BadRequest(err.Error())
+		}
+		filter.ReviewStatus = status
+	}
+
+	if filter.ReviewStatus != models.FilterAccepted && !s.canModerate(r) {
+		return filter, &authz.ErrForbidden{
+			Action:       authz.Action("filter by review status"),
+			RequiredRole: config.RoleModerator,
+		}
+	}
+
+	return filter, nil
 }
 
 // handleListTags serves GET /tags.
 func (s *Server) handleListTags(w http.ResponseWriter, r *http.Request) {
-	page, err := parsePagination(r)
+	page, err := parsePagination(r, s.cfg.Pages.Tag)
 	if err != nil {
 		writeAPIError(w, r, err)
 		return
 	}
 
-	search := r.URL.Query().Get("name")
+	filter, err := s.catalogFilterFromRequest(r)
+	if err != nil {
+		writeAPIError(w, r, err)
+		return
+	}
+	filter.Page = page.Page
+	filter.PageSize = page.PageSize
 
-	tags, total, err := s.repo.ListTags(r.Context(), search, page.offset(), page.PageSize)
+	exposeCreator := s.canModerate(r)
+	entries, total, err := s.repo.ListTags(r.Context(), filter, exposeCreator)
 	if err != nil {
 		s.logError(r, "list tags", err)
 		internalServerError(w, r)
 		return
 	}
 
-	dtos := make([]TagDto, 0, len(tags))
-	for _, tag := range tags {
-		dtos = append(dtos, TagDto{
-			ID: tag.ID, Name: tag.Name, Slug: tag.Slug, Description: tag.Description,
-		})
+	dtos := make([]TagDto, 0, len(entries))
+	for _, entry := range entries {
+		dtos = append(dtos, toTagDto(entry, exposeCreator))
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{
-		"result":     dtos,
-		"pagination": buildPagination(page, int(total)),
-	})
+	// An exact-lookup request is not paginated in the C# service: it returns one
+	// page holding everything that matched and reports pageNumber 1.
+	if exactLookup(filter) {
+		page = exactLookupPage(page, len(dtos))
+		total = int64(len(dtos))
+	}
+
+	writeJSON(w, http.StatusOK, buildPaginatedList(page, dtos, int(total)))
+}
+
+// exactLookup reports whether the request asked for specific tags or artists.
+func exactLookup(filter repo.CatalogFilter) bool {
+	return len(filter.IncludedIDs) > 0 || len(filter.IncludedSlugs) > 0
+}
+
+// exactLookupPage reshapes the envelope for an unpaginated lookup.
+func exactLookupPage(page pageParams, count int) pageParams {
+	size := count
+	if size == 0 {
+		size = 1
+	}
+	page.Page = 0
+	page.PageSize = size
+	return page
 }
 
 // handleGetTag serves GET /tags/{id}.
@@ -81,19 +205,26 @@ func (s *Server) handleGetTag(w http.ResponseWriter, r *http.Request) {
 
 	tag, err := s.repo.GetTagByID(r.Context(), id)
 	if err != nil {
-		if err == pgx.ErrNoRows {
-			apierror.NotFound("Tag with ID "+itoa64(id)+" not found.").Write(w, r.URL.Path)
-			return
-		}
-		s.logError(r, "get tag", err)
-		internalServerError(w, r)
+		writeRepoError(w, r, "get tag", err, "Tag with ID "+itoa64(id)+" not found.")
 		return
 	}
 
-	// Pending tags are visible only to moderators, matching the accepted-only
-	// default filter on the list endpoint.
-	if tag.ReviewStatus == models.ReviewPending && !s.canModerate(r) {
-		apierror.NotFound("Tag with ID "+itoa64(id)+" not found.").Write(w, r.URL.Path)
+	writeJSON(w, http.StatusOK, TagDto{
+		ID: tag.ID, Name: tag.Name, Slug: tag.Slug, Description: tag.Description,
+	})
+}
+
+// handleGetTagBySlug serves GET /tags/by-slug/{slug}.
+func (s *Server) handleGetTagBySlug(w http.ResponseWriter, r *http.Request) {
+	slug, err := url.PathUnescape(r.PathValue("slug"))
+	if err != nil {
+		writeAPIError(w, r, apierror.BadRequest("'slug' is not valid."))
+		return
+	}
+
+	tag, err := s.repo.GetTagBySlug(r.Context(), slug)
+	if err != nil {
+		writeRepoError(w, r, "get tag by slug", err, "Tag with slug '"+slug+"' not found.")
 		return
 	}
 
@@ -104,30 +235,39 @@ func (s *Server) handleGetTag(w http.ResponseWriter, r *http.Request) {
 
 // handleListArtists serves GET /artists.
 func (s *Server) handleListArtists(w http.ResponseWriter, r *http.Request) {
-	page, err := parsePagination(r)
+	page, err := parsePagination(r, s.cfg.Pages.Artist)
 	if err != nil {
 		writeAPIError(w, r, err)
 		return
 	}
 
-	search := r.URL.Query().Get("name")
+	filter, err := s.catalogFilterFromRequest(r)
+	if err != nil {
+		writeAPIError(w, r, err)
+		return
+	}
+	filter.Page = page.Page
+	filter.PageSize = page.PageSize
 
-	artists, total, err := s.repo.ListArtists(r.Context(), search, page.offset(), page.PageSize)
+	exposeCreator := s.canModerate(r)
+	entries, total, err := s.repo.ListArtists(r.Context(), filter, exposeCreator)
 	if err != nil {
 		s.logError(r, "list artists", err)
 		internalServerError(w, r)
 		return
 	}
 
-	dtos := make([]ArtistDto, 0, len(artists))
-	for _, artist := range artists {
-		dtos = append(dtos, toArtistDto(artist))
+	dtos := make([]ArtistDto, 0, len(entries))
+	for _, entry := range entries {
+		dtos = append(dtos, toArtistEntryDto(entry, exposeCreator))
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{
-		"result":     dtos,
-		"pagination": buildPagination(page, int(total)),
-	})
+	if exactLookup(filter) {
+		page = exactLookupPage(page, len(dtos))
+		total = int64(len(dtos))
+	}
+
+	writeJSON(w, http.StatusOK, buildPaginatedList(page, dtos, int(total)))
 }
 
 // handleGetArtist serves GET /artists/{id}.
@@ -140,179 +280,27 @@ func (s *Server) handleGetArtist(w http.ResponseWriter, r *http.Request) {
 
 	artist, err := s.repo.GetArtistByID(r.Context(), id)
 	if err != nil {
-		if err == pgx.ErrNoRows {
-			apierror.NotFound("Artist with ID "+itoa64(id)+" not found.").Write(w, r.URL.Path)
-			return
-		}
-		s.logError(r, "get artist", err)
-		internalServerError(w, r)
-		return
-	}
-
-	if artist.ReviewStatus == models.ReviewPending && !s.canModerate(r) {
-		apierror.NotFound("Artist with ID "+itoa64(id)+" not found.").Write(w, r.URL.Path)
+		writeRepoError(w, r, "get artist", err, "Artist with ID "+itoa64(id)+" not found.")
 		return
 	}
 
 	writeJSON(w, http.StatusOK, toArtistDto(artist))
 }
 
-func toArtistDto(artist models.Artist) ArtistDto {
-	return ArtistDto{
-		ID: artist.ID, Name: artist.Name,
-		DeviantArt: artist.DeviantArt, Twitter: artist.Twitter,
-		Patreon: artist.Patreon, Pixiv: artist.Pixiv,
-	}
-}
-
-// registerBannerRoutes mounts the banner endpoints.
-func (s *Server) registerBannerRoutes(mux *http.ServeMux) {
-	base := s.cfg.BasePathOrRoot()
-
-	mux.HandleFunc("GET "+base+"banner", s.handleGetBanner)
-	mux.HandleFunc("GET "+base+"banner/settings", s.handleGetBannerSettings)
-	mux.HandleFunc("PUT "+base+"banner/settings", s.handlePutBannerSettings)
-}
-
-// BannerDto is the banner shown to visitors.
-type BannerDto struct {
-	Message   string    `json:"message"`
-	Variant   string    `json:"variant"`
-	UpdatedAt time.Time `json:"updatedAt"`
-}
-
-// handleGetBanner serves GET /banner.
-//
-// It answers 204 with no body when there is no active banner. That exact status
-// is part of the contract: the frontend hook checks for it, and returning 200
-// with an empty object instead would show an empty banner box.
-func (s *Server) handleGetBanner(w http.ResponseWriter, r *http.Request) {
-	banner, err := s.repo.GetActiveBanner(r.Context())
+// handleGetArtistByName serves GET /artists/by-name/{name}.
+func (s *Server) handleGetArtistByName(w http.ResponseWriter, r *http.Request) {
+	name, err := url.PathUnescape(r.PathValue("name"))
 	if err != nil {
-		s.logError(r, "get banner", err)
-		internalServerError(w, r)
+		writeAPIError(w, r, apierror.BadRequest("'name' is not valid."))
 		return
 	}
 
-	if banner == nil {
-		w.WriteHeader(http.StatusNoContent)
-		return
-	}
-
-	writeJSON(w, http.StatusOK, BannerDto{
-		Message:   banner.Message,
-		Variant:   banner.Variant.String(),
-		UpdatedAt: banner.UpdatedAt,
-	})
-}
-
-// BannerSettingsDto is the editable banner configuration.
-type BannerSettingsDto struct {
-	Message   string              `json:"message"`
-	Variant   string              `json:"variant"`
-	IsEnabled bool                `json:"isEnabled"`
-	UpdatedAt *time.Time          `json:"updatedAt,omitempty"`
-	UpdatedBy *models.UserMinimal `json:"updatedBy,omitempty"`
-}
-
-// handleGetBannerSettings serves GET /banner/settings.
-func (s *Server) handleGetBannerSettings(w http.ResponseWriter, r *http.Request) {
-	if !s.canModerate(r) {
-		apierror.Forbidden("This action requires the Moderator role or higher.").Write(w, r.URL.Path)
-		return
-	}
-
-	banner, err := s.repo.GetBannerSettings(r.Context())
+	artist, err := s.repo.GetArtistByName(r.Context(), strings.TrimSpace(name))
 	if err != nil {
-		s.logError(r, "get banner settings", err)
-		internalServerError(w, r)
+		writeRepoError(w, r, "get artist by name", err,
+			"Artist with name '"+name+"' not found.")
 		return
 	}
 
-	if banner == nil {
-		writeJSON(w, http.StatusOK, BannerSettingsDto{
-			Variant: models.VariantInfo.String(),
-		})
-		return
-	}
-
-	updatedAt := banner.UpdatedAt
-	writeJSON(w, http.StatusOK, BannerSettingsDto{
-		Message:   banner.Message,
-		Variant:   banner.Variant.String(),
-		IsEnabled: banner.IsEnabled,
-		UpdatedAt: &updatedAt,
-	})
+	writeJSON(w, http.StatusOK, toArtistDto(artist))
 }
-
-// updateBannerRequest is the PUT /banner/settings body.
-type updateBannerRequest struct {
-	Message   string `json:"message"`
-	Variant   string `json:"variant"`
-	IsEnabled bool   `json:"isEnabled"`
-}
-
-// maxBannerMessageLength matches the C# validator.
-const maxBannerMessageLength = 500
-
-// handlePutBannerSettings serves PUT /banner/settings.
-func (s *Server) handlePutBannerSettings(w http.ResponseWriter, r *http.Request) {
-	if !s.canModerate(r) {
-		apierror.Forbidden("This action requires the Moderator role or higher.").Write(w, r.URL.Path)
-		return
-	}
-
-	var body updateBannerRequest
-	if err := decodeJSONBody(r, &body); err != nil {
-		writeAPIError(w, r, err)
-		return
-	}
-
-	if len(body.Message) > maxBannerMessageLength {
-		writeAPIError(w, r, apierror.BadRequest(
-			"Message must not exceed "+strconv.Itoa(maxBannerMessageLength)+" characters."))
-		return
-	}
-
-	var editorID *int64
-	if p := s.principal(r); p != nil {
-		editorID = &p.UserID
-	}
-
-	banner, err := s.repo.SaveBanner(r.Context(), body.Message,
-		models.ParseBannerVariant(body.Variant), body.IsEnabled, editorID)
-	if err != nil {
-		s.logError(r, "save banner", err)
-		internalServerError(w, r)
-		return
-	}
-
-	updatedAt := banner.UpdatedAt
-	writeJSON(w, http.StatusOK, BannerSettingsDto{
-		Message:   banner.Message,
-		Variant:   banner.Variant.String(),
-		IsEnabled: banner.IsEnabled,
-		UpdatedAt: &updatedAt,
-	})
-}
-
-// registerStatsRoutes mounts the public statistics endpoint.
-func (s *Server) registerStatsRoutes(mux *http.ServeMux) {
-	base := s.cfg.BasePathOrRoot()
-	mux.HandleFunc("GET "+base+"stats/public", s.handlePublicStats)
-}
-
-// handlePublicStats serves GET /stats/public.
-func (s *Server) handlePublicStats(w http.ResponseWriter, r *http.Request) {
-	stats, err := s.repo.GetPublicStats(r.Context())
-	if err != nil {
-		s.logError(r, "public stats", err)
-		internalServerError(w, r)
-		return
-	}
-	writeJSON(w, http.StatusOK, stats)
-}
-
-// ensure the context import is used.
-var _ = context.Background
-var _ = repo.ImageFilter{}

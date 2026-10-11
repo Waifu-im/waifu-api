@@ -35,7 +35,7 @@ defaults:
 jobs:
   # Gates the build: nothing downstream runs if this fails.
   verify:
-    name: Vet, format and test
+    name: Vet and format
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -65,20 +65,18 @@ jobs:
             exit 1
           fi
 
-      - name: Upload coverage
-        uses: actions/upload-artifact@v4
-        with:
-          name: go-coverage
-          path: backend/go/coverage.out
-          if-no-files-found: ignore
-
-  # Integration tests against a real Postgres with the frozen schema applied.
+  # The whole test suite, against a real Postgres with the frozen schema.
   #
-  # These cover the upload, review and rollback paths, which unit tests cannot
-  # reach: the ordering of the duplicate check, the transactional insert of an
-  # image plus its review task, and the compensating delete when storage fails.
+  # This runs ./... rather than only ./internal/httpapi/ on purpose. Every package
+  # with a test needs to be exercised somewhere, and splitting the suite across
+  # jobs is how packages quietly stop being tested at all.
+  #
+  # The HTTP integration tests refuse to run without WAIFU_TEST_DATABASE_URL
+  # rather than skipping, so this job is the only place they can execute — which
+  # is the point. A silently skipped suite reported green while the service could
+  # not start at all; see the comment in integration_test.go.
   integration:
-    name: Upload and review workflow
+    name: Full test suite
     runs-on: ubuntu-latest
 
     services:
@@ -121,11 +119,21 @@ jobs:
           done
           docker exec -i "${{ job.services.postgres.id }}" psql -U postgres -d waifuapi             < backend/go/internal/store/schema.sql
 
-      - name: Run workflow tests
+      # -race is on everywhere, not just the HTTP tests: the request counter runs
+      # on a detached goroutine after the response, which is exactly the kind of
+      # thing a race detector is for.
+      - name: Run full test suite
         working-directory: backend/go
-        run: go test -race -v ./internal/httpapi/
+        run: go test -race -timeout 10m ./...
         env:
           WAIFU_TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/waifuapi
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: go-coverage
+          path: backend/go/coverage.out
+          if-no-files-found: ignore
 
   # Builds the container and runs the full image, proving the Dockerfile and the
   # distroless base actually work rather than only compiling.

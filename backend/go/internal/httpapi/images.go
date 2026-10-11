@@ -1,7 +1,6 @@
 package httpapi
 
 import (
-	"context"
 	"net/http"
 	"strings"
 	"time"
@@ -9,40 +8,52 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"waifuapi/internal/apierror"
+	"waifuapi/internal/authz"
+	"waifuapi/internal/config"
 	"waifuapi/internal/repo"
 	"waifuapi/internal/store/models"
 )
 
-// ImageDto is the public representation of an image.
+// ImageDto is the wire form of an image.
 //
-// Field names and casing match the C# ImageDto, because the frontend reads them
-// directly. url in particular is derived from Cdn.BaseUrl, which points at a
-// Cloudflare Worker rather than at storage.
+// The field set and order are ImageDto.cs exactly. Several of these are not
+// optional decoration: perceptualHash is what the frontend shows on the image
+// page, reviewStatus drives the pending badge in the moderation queue,
+// uploaderId is what the reports screen uses to attribute a report, and
+// favorites/likedAt/albums are what the like button and the album menu render
+// from. Omitting any of them breaks a screen.
 type ImageDto struct {
-	ID            int64                  `json:"id"`
-	URL           string                 `json:"url"`
-	Width         int64                  `json:"width"`
-	Height        int64                  `json:"height"`
-	Extension     string                 `json:"extension"`
-	ByteSize      int64                  `json:"byteSize"`
-	DominantColor string                 `json:"dominantColor"`
-	Source        *string                `json:"source,omitempty"`
-	IsNsfw        bool                   `json:"isNsfw"`
-	IsAnimated    bool                   `json:"isAnimated"`
-	UploadedAt    time.Time              `json:"uploadedAt"`
-	Tags          []models.TagMinimal    `json:"tags"`
-	Artists       []models.ArtistMinimal `json:"artists"`
-	Uploader      *models.UserMinimal    `json:"uploader,omitempty"`
+	ID             int64          `json:"id"`
+	PerceptualHash string         `json:"perceptualHash"`
+	Extension      string         `json:"extension"`
+	DominantColor  string         `json:"dominantColor"`
+	Source         *string        `json:"source"`
+	Artists        []ArtistDto    `json:"artists"`
+	UploaderID     *int64         `json:"uploaderId"`
+	UploadedAt     time.Time      `json:"uploadedAt"`
+	IsNsfw         bool           `json:"isNsfw"`
+	IsAnimated     bool           `json:"isAnimated"`
+	Width          int64          `json:"width"`
+	Height         int64          `json:"height"`
+	ByteSize       int64          `json:"byteSize"`
+	URL            string         `json:"url"`
+	Tags           []TagDto       `json:"tags"`
+	ReviewStatus   string         `json:"reviewStatus"`
+	Favorites      int64          `json:"favorites"`
+	LikedAt        *time.Time     `json:"likedAt"`
+	AddedToAlbumAt *time.Time     `json:"addedToAlbumAt"`
+	Albums         []albumDtoWire `json:"albums"`
 }
 
-// imageListResponse is the paginated envelope.
+// albumDtoWire is the embedded album shape on an image.
 //
-// The pagination member is written explicitly rather than through an embedded
-// struct, because an embedded pointer does not reliably flatten during JSON
-// encoding when it is nil.
-type imageListResponse struct {
-	Result     []ImageDto `json:"result"`
-	Pagination Pagination `json:"pagination"`
+// It carries no description or image count, because the album query on the image
+// path projects only what the album menu needs. See GetViewerAlbums.
+type albumDtoWire struct {
+	ID        int64  `json:"id"`
+	Name      string `json:"name"`
+	UserID    int64  `json:"userId"`
+	IsDefault bool   `json:"isDefault"`
 }
 
 // registerImageRoutes mounts the image endpoints.
@@ -54,65 +65,138 @@ func (s *Server) registerImageRoutes(mux *http.ServeMux) {
 }
 
 // handleListImages serves GET /images.
-//
-// This is the highest-traffic endpoint. Every filter is optional and every one
-// is parameterised; the ORDER BY column comes from a fixed whitelist because it
-// cannot be bound as a parameter.
 func (s *Server) handleListImages(w http.ResponseWriter, r *http.Request) {
-	page, err := parsePagination(r)
+	page, err := parsePagination(r, s.cfg.Pages.Image)
 	if err != nil {
 		writeAPIError(w, r, err)
 		return
 	}
 
+	filter, err := s.imageFilterFromRequest(r, nil)
+	if err != nil {
+		writeAPIError(w, r, err)
+		return
+	}
+	filter.Page = page.Page
+	filter.PageSize = page.PageSize
+
+	s.writeImagePage(w, r, filter, page, 0)
+}
+
+// imageFilterFromRequest reads the shared GET /images filter set.
+//
+// albumID is nil on /images and set on the album endpoint, which is the only
+// difference between the two routes' query handling.
+//
+// The moderator-only parameters are gated here rather than in each handler, so
+// no route can accidentally expose them.
+func (s *Server) imageFilterFromRequest(r *http.Request, albumID *int64) (repo.ImageFilter, error) {
 	query := r.URL.Query()
+	var filter repo.ImageFilter
+	var err error
 
-	filter := repo.ImageFilter{
-		Orientation: query.Get("orientation"),
-		SortBy:      query.Get("sortBy"),
-		SortOrder:   query.Get("sortOrder"),
-		Page:        page.Page,
-		PageSize:    page.PageSize,
-		ExcludedIDs: parseIntList(r, "excluded"),
-		ForcedIDs:   parseIntList(r, "forced"),
-		TagSlugs:    parseStringList(r, "tags"),
-		ArtistIDs:   parseIntList(r, "artists"),
-		UploaderIDs: parseIntList(r, "uploaders"),
-	}
+	filter.AlbumID = albumID
 
-	if filter.IsNsfw, err = parseOptionalBool(r, "isNsfw"); err != nil {
-		writeAPIError(w, r, err)
-		return
+	if filter.Nsfw, err = models.ParseNsfwMode(query.Get("isNsfw")); err != nil {
+		return filter, apierror.BadRequest(err.Error())
 	}
-	if filter.IsAnimated, err = parseOptionalBool(r, "isAnimated"); err != nil {
-		writeAPIError(w, r, err)
-		return
+	if filter.Animated, err = models.ParseAnimatedMode(query.Get("isAnimated")); err != nil {
+		return filter, apierror.BadRequest(err.Error())
 	}
-	if filter.MinWidth, err = parseOptionalInt(r, "widthMin"); err != nil {
-		writeAPIError(w, r, err)
-		return
+	if filter.Orientation, err = models.ParseOrientation(query.Get("orientation")); err != nil {
+		return filter, apierror.BadRequest(err.Error())
 	}
-	if filter.MaxWidth, err = parseOptionalInt(r, "widthMax"); err != nil {
-		writeAPIError(w, r, err)
-		return
-	}
-	if filter.MinHeight, err = parseOptionalInt(r, "heightMin"); err != nil {
-		writeAPIError(w, r, err)
-		return
-	}
-	if filter.MaxHeight, err = parseOptionalInt(r, "heightMax"); err != nil {
-		writeAPIError(w, r, err)
-		return
-	}
-	if filter.MinFileSize, err = parseOptionalInt64(r, "fileSizeMin"); err != nil {
-		writeAPIError(w, r, err)
-		return
-	}
-	if filter.MaxFileSize, err = parseOptionalInt64(r, "fileSizeMax"); err != nil {
-		writeAPIError(w, r, err)
-		return
+	if filter.OrderBy, err = models.ParseImageOrderBy(query.Get("orderBy")); err != nil {
+		return filter, apierror.BadRequest(err.Error())
 	}
 
+	filter.IncludedTags = stringListParam(query, "includedTags")
+	filter.ExcludedTags = stringListParam(query, "excludedTags")
+	filter.IncludedArtists = stringListParam(query, "includedArtists")
+	filter.ExcludedArtists = stringListParam(query, "excludedArtists")
+	filter.IncludedIDs = stringListParam(query, "includedIds")
+	filter.ExcludedIDs = stringListParam(query, "excludedIds")
+
+	filter.Width = query.Get("width")
+	filter.Height = query.Get("height")
+	filter.ByteSize = query.Get("byteSize")
+
+	// The caller identity is taken from the token, never from the query string.
+	// The album endpoint additionally knows which user the album belongs to, and
+	// passes it so a moderator browsing someone else's album still gets the
+	// per-viewer liked/albums fields for themselves.
+	caller := s.principal(r)
+	if caller != nil {
+		id := caller.UserID
+		filter.UserID = &id
+	}
+	if viewerID := s.viewerIDForAlbum(r, albumID); viewerID != 0 {
+		id := viewerID
+		filter.UserID = &id
+	}
+
+	filter.IncludeMyPending = truthy(query.Get("includeMyPending"))
+	filter.ChildrenReviewStatus = models.FilterAccepted
+	if raw := query.Get("childrenReviewStatus"); raw != "" {
+		if filter.ChildrenReviewStatus, err = models.ParseReviewStatusFilter(raw); err != nil {
+			return filter, apierror.BadRequest(err.Error())
+		}
+	}
+	filter.IncludeMyPendingChildren = truthy(query.Get("includeMyPendingChildren"))
+
+	// Filtering by uploader or by a non-accepted review status exposes
+	// unreviewed content, so it is moderator-only. A non-moderator asking for it
+	// gets 403 rather than silently having the filter dropped.
+	if raw := query.Get("uploaderId"); raw != "" {
+		if !s.canModerate(r) {
+			return filter, &authz.ErrForbidden{
+				Action:       authz.Action("filter images by uploader"),
+				RequiredRole: config.RoleModerator,
+			}
+		}
+		id, parseErr := parsePositiveInt64(raw)
+		if parseErr != nil {
+			return filter, apierror.BadRequest("'uploaderId' must be a number.")
+		}
+		filter.UploaderID = &id
+	}
+
+	if raw := query.Get("reviewStatus"); raw != "" {
+		if filter.ReviewStatus, err = models.ParseReviewStatusFilter(raw); err != nil {
+			return filter, apierror.BadRequest(err.Error())
+		}
+		if filter.ReviewStatus != models.FilterAccepted && !s.canModerate(r) {
+			return filter, &authz.ErrForbidden{
+				Action:       authz.Action("filter images by review status"),
+				RequiredRole: config.RoleModerator,
+			}
+		}
+	}
+
+	if filter.ChildrenReviewStatus != models.FilterAccepted && !s.canModerate(r) {
+		return filter, &authz.ErrForbidden{
+			Action:       authz.Action("filter image tags and artists by review status"),
+			RequiredRole: config.RoleModerator,
+		}
+	}
+
+	// AddedToAlbum is meaningless without an album to sort within.
+	if filter.OrderBy == models.OrderAddedToAlbum && albumID == nil {
+		return filter, apierror.BadRequest(
+			"AddedToAlbum ordering is only available when viewing an album.").
+			WithExtra("errors", map[string][]string{
+				"orderBy": {"AddedToAlbum ordering is only available when viewing an album."},
+			})
+	}
+
+	return filter, nil
+}
+
+// writeImagePage runs the query and renders the paginated response.
+//
+// albumID is non-zero on the album endpoint and supplies the addedToAlbumAt
+// field.
+func (s *Server) writeImagePage(w http.ResponseWriter, r *http.Request, filter repo.ImageFilter, page pageParams, albumID int64) {
 	images, total, err := s.repo.ListImages(r.Context(), filter)
 	if err != nil {
 		s.logError(r, "list images", err)
@@ -120,15 +204,24 @@ func (s *Server) handleListImages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	dtos := s.toImageDtos(r.Context(), images)
+	dtos, err := s.toImageDtos(r, images, filter, albumID)
+	if err != nil {
+		s.logError(r, "resolve image relations", err)
+		internalServerError(w, r)
+		return
+	}
 
-	writeJSON(w, http.StatusOK, imageListResponse{
-		Result:     dtos,
-		Pagination: buildPagination(page, int(total)),
-	})
+	writeJSON(w, http.StatusOK, buildPaginatedList(page, dtos, int(total)))
 }
 
 // handleGetImage serves GET /images/{id}.
+//
+// The two query parameters are not decoration. ImagePage.tsx sends
+// childrenReviewStatus=All when a moderator opens a pending image and
+// includeMyPendingChildren=true when an ordinary user views their own upload,
+// and both are load-bearing: without them the page renders with empty tag and
+// artist lists exactly when somebody is trying to see why a submission looks
+// wrong.
 func (s *Server) handleGetImage(w http.ResponseWriter, r *http.Request) {
 	id, err := parsePathInt64(r, "id")
 	if err != nil {
@@ -136,8 +229,28 @@ func (s *Server) handleGetImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Pending content is only visible to moderators and to the uploader, which
-	// is what the C# childrenReviewStatus filter does on the read path.
+	query := r.URL.Query()
+
+	childrenStatus := models.FilterAccepted
+	if raw := query.Get("childrenReviewStatus"); raw != "" {
+		if childrenStatus, err = models.ParseReviewStatusFilter(raw); err != nil {
+			writeAPIError(w, r, validationError("ChildrenReviewStatus", err.Error()))
+			return
+		}
+		// Seeing unreviewed tags and artists is moderator-only here, exactly as
+		// on the gallery endpoint.
+		if childrenStatus != models.FilterAccepted && !s.canModerate(r) {
+			writeAPIError(w, r, &authz.ErrForbidden{
+				Action:       authz.Action("filter image tags and artists by review status"),
+				RequiredRole: config.RoleModerator,
+			})
+			return
+		}
+	}
+	includeMyPendingChildren := truthy(query.Get("includeMyPendingChildren"))
+
+	// Pending content is visible to moderators and to the uploader, which is what
+	// the C# childrenReviewStatus filter does on the read path.
 	principal := s.principal(r)
 	includePending := principal != nil && principal.CanModerate()
 
@@ -159,54 +272,139 @@ func (s *Server) handleGetImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, s.toImageDto(r.Context(), image))
-}
-
-// toImageDto converts a single row, used by GET /images/{id}.
-func (s *Server) toImageDto(ctx context.Context, image models.Image) ImageDto {
-	dtos := s.toImageDtos(ctx, []models.Image{image})
-	if len(dtos) > 0 {
-		return dtos[0]
+	filter := repo.ImageFilter{
+		ChildrenReviewStatus:     childrenStatus,
+		ReviewStatus:             models.FilterAll,
+		IncludeMyPendingChildren: includeMyPendingChildren,
 	}
-	return ImageDto{URL: s.imageURL(image)}
+	if principal != nil {
+		viewer := principal.UserID
+		filter.UserID = &viewer
+	}
+
+	dtos, err := s.toImageDtos(r, []models.Image{image}, filter, 0)
+	if err != nil || len(dtos) == 0 {
+		s.logError(r, "resolve image relations", err)
+		internalServerError(w, r)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, dtos[0])
 }
 
-// toImageDtos converts rows into wire form, resolving relations.
+// toImageDtos converts a page of rows into wire form, resolving relations in
+// one batch per relation rather than per image.
 //
-// Tags and artists are fetched per image rather than in one batch. That is
-// deliberately simple and correct; batching is an optimisation worth doing only
-// once the query cost is actually measured, and on a 30-item page it is not the
-// bottleneck.
-func (s *Server) toImageDtos(ctx context.Context, images []models.Image) []ImageDto {
+// A default page is 30 images; resolving tags, artists, favorites, likes and
+// albums per image would be 150 round trips, which on a 0.1-CPU instance is the
+// difference between a responsive gallery and a timeout.
+func (s *Server) toImageDtos(r *http.Request, images []models.Image, filter repo.ImageFilter, albumID int64) ([]ImageDto, error) {
 	out := make([]ImageDto, 0, len(images))
+	if len(images) == 0 {
+		return out, nil
+	}
+	ctx := r.Context()
+
+	ids := make([]int64, 0, len(images))
+	for _, image := range images {
+		ids = append(ids, image.ID)
+	}
+
+	viewerID := int64(0)
+	if filter.UserID != nil {
+		viewerID = *filter.UserID
+	}
+
+	visibility := repo.ChildVisibility{
+		Filter:      filter.ChildrenReviewStatus,
+		ViewerID:    viewerID,
+		IncludeMine: filter.IncludeMyPendingChildren,
+	}
+
+	tagsByImage, err := s.repo.GetTagsForImages(ctx, ids, visibility)
+	if err != nil {
+		return nil, err
+	}
+	artistsByImage, err := s.repo.GetArtistsForImages(ctx, ids, visibility)
+	if err != nil {
+		return nil, err
+	}
+	favorites, err := s.repo.GetFavorites(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	likedAt, err := s.repo.GetViewerLikes(ctx, ids, viewerID)
+	if err != nil {
+		return nil, err
+	}
+	viewerAlbums, err := s.repo.GetViewerAlbums(ctx, ids, viewerID)
+	if err != nil {
+		return nil, err
+	}
+	addedToAlbum, err := s.repo.GetAddedToAlbumAt(ctx, ids, albumID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Uploader ids are only exposed to moderators, matching the includeUploaderId
+	// flag on ToDto. Doing it here rather than per image keeps it to one check.
+	includeUploader := s.canModerate(r)
 
 	for _, image := range images {
-		dtos := ImageDto{
-			ID:            image.ID,
-			URL:           s.imageURL(image),
-			Width:         image.Width,
-			Height:        image.Height,
-			Extension:     image.Extension,
-			ByteSize:      image.ByteSize,
-			DominantColor: image.DominantColor,
-			Source:        image.Source,
-			IsNsfw:        image.IsNsfw,
-			IsAnimated:    image.IsAnimated,
-			UploadedAt:    image.UploadedAt,
-			Tags:          []models.TagMinimal{},
-			Artists:       []models.ArtistMinimal{},
+		dto := ImageDto{
+			ID:             image.ID,
+			PerceptualHash: models.PerceptualHashToHex(image.PerceptualHash),
+			Extension:      image.Extension,
+			DominantColor:  image.DominantColor,
+			Source:         image.Source,
+			UploadedAt:     image.UploadedAt,
+			IsNsfw:         image.IsNsfw,
+			IsAnimated:     image.IsAnimated,
+			Width:          image.Width,
+			Height:         image.Height,
+			ByteSize:       image.ByteSize,
+			URL:            s.imageURL(image),
+			ReviewStatus:   image.ReviewStatus.String(),
+			Favorites:      favorites[image.ID],
+			Tags:           []TagDto{},
+			Artists:        []ArtistDto{},
+			Albums:         []albumDtoWire{},
 		}
 
-		if tags, err := s.repo.GetTagsForImage(ctx, image.ID); err == nil {
-			dtos.Tags = tags
-		}
-		if artists, err := s.repo.GetArtistsForImage(ctx, image.ID); err == nil {
-			dtos.Artists = artists
+		if includeUploader {
+			dto.UploaderID = image.UploaderID
 		}
 
-		out = append(out, dtos)
+		for _, tag := range tagsByImage[image.ID] {
+			dto.Tags = append(dto.Tags, TagDto{
+				ID: tag.ID, Name: tag.Name, Slug: tag.Slug,
+				Description:  tag.Description,
+				ReviewStatus: strPtr(tag.ReviewStatus.String()),
+				CreatorID:    tag.CreatorID,
+			})
+		}
+		for _, artist := range artistsByImage[image.ID] {
+			dto.Artists = append(dto.Artists, toArtistDto(artist))
+		}
+		for _, album := range viewerAlbums[image.ID] {
+			dto.Albums = append(dto.Albums, albumDtoWire{
+				ID: album.ID, Name: album.Name, UserID: album.UserID, IsDefault: album.IsDefault,
+			})
+		}
+
+		if at, ok := likedAt[image.ID]; ok {
+			value := at
+			dto.LikedAt = &value
+		}
+		if at, ok := addedToAlbum[image.ID]; ok {
+			value := at
+			dto.AddedToAlbumAt = &value
+		}
+
+		out = append(out, dto)
 	}
-	return out
+
+	return out, nil
 }
 
 // imageURL builds the public URL for an image.
@@ -221,9 +419,12 @@ func (s *Server) imageURL(image models.Image) string {
 // rather than an empty 500.
 func writeAPIError(w http.ResponseWriter, r *http.Request, err error) {
 	var apiErr *apierror.Error
-	if e, ok := err.(*apierror.Error); ok {
+	switch e := err.(type) {
+	case *apierror.Error:
 		apiErr = e
-	} else {
+	case *authz.ErrForbidden:
+		apiErr = apierror.Forbidden(e.Error())
+	default:
 		apiErr = apierror.Internal("An unexpected error occurred.")
 	}
 	apiErr.Write(w, r.URL.Path)

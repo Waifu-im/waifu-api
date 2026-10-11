@@ -56,6 +56,26 @@ func validEnv() map[string]string {
 		"Discord__ClientId":     "client",
 		"Discord__ClientSecret": "secret",
 		"Discord__RedirectUri":  "http://localhost/auth/callback",
+
+		// Production runs with MaxPageSize = -1, meaning "do not clamp". The
+		// gallery defaults to a single image per request because it is an
+		// infinite scroll over a randomised result set.
+		"Image__DefaultPageSize":       "1",
+		"Image__MaxPageSize":           "-1",
+		"Tag__DefaultPageSize":         "30",
+		"Tag__MaxPageSize":             "-1",
+		"Artist__DefaultPageSize":      "30",
+		"Artist__MaxPageSize":          "-1",
+		"Album__DefaultPageSize":       "30",
+		"Album__MaxPageSize":           "-1",
+		"User__DefaultPageSize":        "30",
+		"User__MaxPageSize":            "-1",
+		"Report__DefaultPageSize":      "30",
+		"Report__MaxPageSize":          "-1",
+		"Review__DefaultPageSize":      "30",
+		"Review__MaxPageSize":          "-1",
+		"StorageDiff__DefaultPageSize": "30",
+		"StorageDiff__MaxPageSize":     "-1",
 	}
 }
 

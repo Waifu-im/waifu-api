@@ -34,6 +34,14 @@ type Store interface {
 
 	// Exists reports whether an object is present.
 	Exists(ctx context.Context, key string) (bool, error)
+
+	// List returns every object key in the bucket.
+	//
+	// It exists for the storage reconciliation tool, which compares the bucket
+	// contents against the catalogue. Implementations that cannot enumerate a
+	// bucket cheaply may return an empty slice and a nil error, which the caller
+	// treats as "nothing to report" rather than as a failure.
+	List(ctx context.Context) ([]string, error)
 }
 
 // ObjectKey builds the storage key for an image.

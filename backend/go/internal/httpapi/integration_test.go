@@ -13,6 +13,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/textproto"
 	"os"
 	"testing"
 	"time"
@@ -72,6 +73,14 @@ func (f *fakeStore) Exists(_ context.Context, key string) (bool, error) {
 	return ok, nil
 }
 
+func (f *fakeStore) List(_ context.Context) ([]string, error) {
+	keys := make([]string, 0, len(f.objects))
+	for key := range f.objects {
+		keys = append(keys, key)
+	}
+	return keys, nil
+}
+
 // compile-time check that the fake satisfies the interface.
 var _ storage.Store = (*fakeStore)(nil)
 
@@ -81,6 +90,9 @@ type harness struct {
 	server *httptest.Server
 	store  *fakeStore
 	db     *store.DB
+	// mux is kept so route-contract tests can ask which pattern a probe request
+	// resolves to, rather than inferring the route table from the handlers.
+	mux *http.ServeMux
 }
 
 // newHarness builds an API server backed by the test database.
@@ -93,7 +105,25 @@ func newHarness(t *testing.T) *harness {
 
 	databaseURL := os.Getenv("WAIFU_TEST_DATABASE_URL")
 	if databaseURL == "" {
-		t.Skip("set WAIFU_TEST_DATABASE_URL to run integration tests")
+		// This is a hard failure, not a skip.
+		//
+		// The suite used to skip here, and "go test ./..." reported green while
+		// none of it had ever run. That is the worst possible failure mode for a
+		// rewrite whose entire purpose is behavioural parity: the tests that were
+		// supposed to catch drift were themselves the stale spec, and nothing
+		// exercised the SQL at all. A rewrite with no executed tests cannot
+		// distinguish a working port from a plausible one.
+		//
+		// Bring one up with:
+		//
+		//	docker run -d --name waifu-testdb -p 55432:5432 \
+		//	  -e POSTGRES_PASSWORD=test -e POSTGRES_DB=waifutest pgvector/pgvector:pg18
+		//	docker exec -i waifu-testdb psql -U postgres -d waifutest \
+		//	  < internal/store/schema.sql
+		//	export WAIFU_TEST_DATABASE_URL='postgres://postgres:test@localhost:55432/waifutest'
+		t.Fatal("set WAIFU_TEST_DATABASE_URL to run the integration suite; " +
+			"see the comment in integration_test.go for how to start a database. " +
+			"Skipping here is not allowed: a silently skipped suite hides real breakage.")
 	}
 
 	cfg := testConfig(databaseURL)
@@ -132,7 +162,7 @@ func newHarness(t *testing.T) *harness {
 		RedirectURI:  "http://localhost/auth/callback",
 	}, "http://127.0.0.1:1")
 
-	api := httpapi.NewServer(cfg, db, data, log, files, discordClient, tokens)
+	api := httpapi.NewServer(cfg, db, data, log, files, discordClient, tokens, nil)
 
 	mux := http.NewServeMux()
 	api.Register(mux)
@@ -141,7 +171,7 @@ func newHarness(t *testing.T) *harness {
 	httpServer := httptest.NewServer(handler)
 	t.Cleanup(httpServer.Close)
 
-	return &harness{t: t, server: httpServer, store: files, db: db}
+	return &harness{t: t, server: httpServer, store: files, db: db, mux: mux}
 }
 
 // testConfig returns a configuration with permissive but explicit review rules,
@@ -179,6 +209,21 @@ func testConfig(databaseURL string) *config.Config {
 		},
 		S3:  config.S3Config{BucketName: "waifu-images"},
 		CDN: config.CDNConfig{BaseURL: "https://cdn.example.com"},
+
+		// Page sizes must be set here for the same reason production sets them:
+		// a zero default produces LIMIT 0, which returns an empty page with a
+		// non-zero totalCount. That failure looks like "no results" rather than
+		// "misconfigured", which is why the values are explicit.
+		Pages: config.PaginationConfig{
+			Image:       config.PageSize{Default: 30, Max: -1},
+			Tag:         config.PageSize{Default: 30, Max: -1},
+			Artist:      config.PageSize{Default: 30, Max: -1},
+			Album:       config.PageSize{Default: 30, Max: -1},
+			User:        config.PageSize{Default: 30, Max: -1},
+			Report:      config.PageSize{Default: 30, Max: -1},
+			Review:      config.PageSize{Default: 30, Max: -1},
+			StorageDiff: config.PageSize{Default: 30, Max: -1},
+		},
 		Image: config.ImageConfig{
 			MinWidth: 1, MinHeight: 1, MaxWidth: 9000, MaxHeight: 9000,
 			AnimatedMinWidth: 1, AnimatedMinHeight: 1,
@@ -192,9 +237,9 @@ func truncateAll(t *testing.T, db *store.DB) {
 	t.Helper()
 
 	const statement = `
-        TRUNCATE "Image", "Tag", "Artist", "ImageTag", "ArtistImage", "User",
-                 "ReviewTask", "SiteBanner", "ApiKey", "Album", "AlbumItem",
-                 "Report", "DailyStat", "GlobalStat"
+        TRUNCATE "Images", "Tags", "Artists", "ImageTag", "ArtistImage", "Users",
+                 "ReviewTasks", "SiteBanners", "ApiKeys", "Albums", "AlbumItems",
+                 "Reports", "DailyStats", "GlobalStats"
         RESTART IDENTITY CASCADE`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -216,7 +261,7 @@ func seedReviewBypass(t *testing.T, db *store.DB, count int) {
 
 	for i := 1; i <= count; i++ {
 		_, err := db.Pool().Exec(ctx, `
-            INSERT INTO "User" ("Id", "DiscordId", "Name", "Role")
+            INSERT INTO "Users" ("Id", "DiscordId", "Name", "Role")
             VALUES ($1, $2, $3, 0)
             ON CONFLICT ("Id") DO NOTHING`,
 			i, fmt.Sprintf("discord-%d", i), fmt.Sprintf("user-%d", i))
@@ -261,13 +306,34 @@ func (h *harness) request(method, path, token string, body io.Reader, contentTyp
 }
 
 // multipartImage builds a multipart upload body.
+// multipartImage builds an upload body that declares image/png, which is what a
+// browser form sends.
+//
+// The declared type matters: the C# validator checks ContentType and nothing
+// else. multipart.Writer's CreateFormFile labels every part application/octet-
+// stream, so a helper built on it silently depended on the server sniffing the
+// bytes instead. That made the tests pass against behaviour the original service
+// does not have, which is worse than having no test at all.
 func multipartImage(t *testing.T, field, filename string, data []byte, extra map[string]string) (io.Reader, string) {
+	t.Helper()
+	return multipartImageTyped(t, field, filename, data, extra, "image/png")
+}
+
+// multipartImageTyped builds an upload body with an explicit part Content-Type,
+// for the cases where the declaration itself is the thing under test.
+func multipartImageTyped(t *testing.T, field, filename string, data []byte,
+	extra map[string]string, contentType string) (io.Reader, string) {
 	t.Helper()
 
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
 
-	part, err := writer.CreateFormFile(field, filename)
+	header := textproto.MIMEHeader{}
+	header.Set("Content-Disposition",
+		fmt.Sprintf(`form-data; name="%s"; filename="%s"`, field, filename))
+	header.Set("Content-Type", contentType)
+
+	part, err := writer.CreatePart(header)
 	if err != nil {
 		t.Fatalf("create form file: %v", err)
 	}

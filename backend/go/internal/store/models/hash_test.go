@@ -155,18 +155,37 @@ func TestParseReviewableType(t *testing.T) {
 	}
 }
 
-// TestParseBannerVariantDefaultsSafely checks the cosmetic fallback.
-func TestParseBannerVariantDefaultsSafely(t *testing.T) {
+// TestParseBannerVariant pins the wire names and the rejection of unknown ones.
+func TestParseBannerVariant(t *testing.T) {
+	// JsonStringEnumConverter resolves enum names case-insensitively, so the
+	// lower-case spellings the frontend uses must parse to the same member.
 	for input, want := range map[string]BannerVariant{
 		"Info":     VariantInfo,
 		"Success":  VariantSuccess,
 		"Warning":  VariantWarning,
 		"Danger":   Danger,
-		"Nonsense": VariantInfo,
-		"":         VariantInfo,
+		"info":     VariantInfo,
+		"success":  VariantSuccess,
+		"warning":  VariantWarning,
+		"danger":   Danger,
+		"WARNING":  VariantWarning,
+		" Warning": VariantWarning,
 	} {
-		if got := ParseBannerVariant(input); got != want {
+		got, ok := ParseBannerVariant(input)
+		if !ok {
+			t.Errorf("ParseBannerVariant(%q) rejected a known variant", input)
+			continue
+		}
+		if got != want {
 			t.Errorf("ParseBannerVariant(%q) = %v, want %v", input, got, want)
+		}
+	}
+
+	// The C# validator marks this field IsInEnum, so an unknown style is a
+	// 400 rather than a silent fall back to Info.
+	for _, input := range []string{"Nonsense", "", "0", "infoo"} {
+		if got, ok := ParseBannerVariant(input); ok {
+			t.Errorf("ParseBannerVariant(%q) = %v, want it rejected", input, got)
 		}
 	}
 }

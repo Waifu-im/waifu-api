@@ -150,8 +150,49 @@ type Config struct {
 	CDN   CDNConfig
 	Image ImageConfig
 
+	// Cloudflare is optional. With no credentials the edge cache is simply never
+	// purged, which is correct for a self-hosted instance that does not use the
+	// edge at all, so it must not be a startup failure.
+	Cloudflare CloudflareConfig
+
+	// ImageTransform describes how the frontend requests resized variants. It is
+	// needed to build the exact URLs a cache purge must target: purging a
+	// differently-spelled variant misses the cache entry and the stale image
+	// stays visible.
+	ImageTransform ImageTransformConfig
+
 	// Discord configures OAuth login.
 	Discord DiscordConfig
+
+	// Page sizes are configured per resource, exactly as the C# service does with
+	// the {Feature}__DefaultPageSize / {Feature}__MaxPageSize pairs. They are
+	// separate settings rather than one global pair because the values in use
+	// differ wildly: images default to a single row per request (the gallery is
+	// an infinite scroll over a randomised result set) while tags, artists,
+	// albums, users, reports and the review queue default to 30.
+	Pages PaginationConfig
+}
+
+// PaginationConfig is the per-resource default and maximum page size.
+type PaginationConfig struct {
+	Image       PageSize
+	Tag         PageSize
+	Artist      PageSize
+	Album       PageSize
+	User        PageSize
+	Report      PageSize
+	Review      PageSize
+	StorageDiff PageSize
+}
+
+// PageSize is one resource's pagination limits.
+//
+// Max of 0 or less means "no ceiling", matching PaginationUtils.Normalize in the
+// C# service, which only clamps when maxPageSize > 0. Production sets MaxPageSize
+// to -1 everywhere, so this is the normal case rather than an edge one.
+type PageSize struct {
+	Default int
+	Max     int
 }
 
 // ReviewConfig mirrors the Review__* settings.
@@ -232,6 +273,30 @@ type DiscordConfig struct {
 	ClientID     string
 	ClientSecret string
 	RedirectURI  string
+}
+
+// CloudflareConfig configures edge cache purging.
+//
+// Both fields are optional and deliberately so. The C# service reads them
+// through the string indexer and no-ops when they are absent; requiring them
+// here would make the service unstartable on any deployment that serves images
+// without the edge in front.
+type CloudflareConfig struct {
+	ZoneID string
+	Token  string
+}
+
+// ImageTransformConfig mirrors the IMG_TRANSFORM_* settings the frontend also
+// reads. The two implementations must agree on the variant URL format, because
+// a purge is keyed on the cached URL.
+type ImageTransformConfig struct {
+	Enabled bool
+	Path    string
+	// WidthParam is the query parameter carrying the requested width.
+	WidthParam string
+	CardWidth  int
+	// PreviewWidth is the width used by the image page's larger preview.
+	PreviewWidth int
 }
 
 // Loader reads values from the environment, or from an explicit map for tests.
@@ -461,6 +526,26 @@ func Load(l *Loader) (*Config, error) {
 
 	cfg.CDN.BaseURL = l.require("Cdn__BaseUrl", &missing)
 
+	// Edge cache purging. Optional: absent credentials mean the cache is simply
+	// never purged, which is correct for a deployment not using the edge.
+	cfg.Cloudflare.ZoneID = l.get("Cloudflare__ZoneId")
+	cfg.Cloudflare.Token = l.get("Cloudflare__ApiToken")
+
+	transformEnabled, err := l.optionalBool("IMG_TRANSFORM_ENABLED", false)
+	if err != nil {
+		missing = append(missing, err.Error())
+	}
+	cfg.ImageTransform.Enabled = transformEnabled
+	cfg.ImageTransform.Path = l.get("IMG_TRANSFORM_PATH")
+
+	widthParam := l.get("IMG_WIDTH_PARAM")
+	if widthParam == "" {
+		widthParam = "width"
+	}
+	cfg.ImageTransform.WidthParam = widthParam
+	cfg.ImageTransform.CardWidth = l.optionalIntOrAccumulate("IMG_CARD_WIDTH", 640, &missing)
+	cfg.ImageTransform.PreviewWidth = l.optionalIntOrAccumulate("IMG_PREVIEW_WIDTH", 1280, &missing)
+
 	cfg.Image.MinWidth = l.requireInt("Image__MinWidth", &missing)
 	cfg.Image.MinHeight = l.requireInt("Image__MinHeight", &missing)
 	cfg.Image.MaxWidth = l.requireInt("Image__MaxWidth", &missing)
@@ -473,6 +558,19 @@ func Load(l *Loader) (*Config, error) {
 	cfg.Discord.ClientID = l.require("Discord__ClientId", &missing)
 	cfg.Discord.ClientSecret = l.require("Discord__ClientSecret", &missing)
 	cfg.Discord.RedirectURI = l.require("Discord__RedirectUri", &missing)
+
+	// Page sizes. These are required in the C# service too: every query handler
+	// does int.Parse(configuration[key] ?? throw), so an unset value stops the
+	// process from booting. Keeping them required means the two services agree on
+	// what a complete configuration is.
+	cfg.Pages.Image = l.requirePageSize("Image", &missing)
+	cfg.Pages.Tag = l.requirePageSize("Tag", &missing)
+	cfg.Pages.Artist = l.requirePageSize("Artist", &missing)
+	cfg.Pages.Album = l.requirePageSize("Album", &missing)
+	cfg.Pages.User = l.requirePageSize("User", &missing)
+	cfg.Pages.Report = l.requirePageSize("Report", &missing)
+	cfg.Pages.Review = l.requirePageSize("Review", &missing)
+	cfg.Pages.StorageDiff = l.requirePageSize("StorageDiff", &missing)
 
 	if len(missing) > 0 {
 		sort.Strings(missing)
@@ -488,6 +586,17 @@ func Load(l *Loader) (*Config, error) {
 	}
 
 	return cfg, nil
+}
+
+// requirePageSize reads the Default/Max pair for one resource.
+//
+// Max is deliberately allowed to be zero or negative, because -1 is what
+// production uses and it means "do not clamp".
+func (l *Loader) requirePageSize(prefix string, missing *[]string) PageSize {
+	return PageSize{
+		Default: l.requireInt(prefix+"__DefaultPageSize", missing),
+		Max:     l.requireInt(prefix+"__MaxPageSize", missing),
+	}
 }
 
 // optionalIntOrAccumulate reads an integer with a fallback, recording an error

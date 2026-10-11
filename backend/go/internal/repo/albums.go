@@ -2,11 +2,10 @@ package repo
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
-
-	"waifuapi/internal/store/models"
 )
 
 // Album is a row of the Album table plus its item count.
@@ -23,14 +22,14 @@ type Album struct {
 func (r *Repo) ListAlbums(ctx context.Context, userID int64, offset, limit int) ([]Album, int64, error) {
 	var total int64
 	if err := r.db.QueryRow(ctx,
-		`SELECT COUNT(*) FROM "Album" WHERE "UserId" = $1`, userID).Scan(&total); err != nil {
+		`SELECT COUNT(*) FROM "Albums" WHERE "UserId" = $1`, userID).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count albums: %w", err)
 	}
 
 	rows, err := r.db.Query(ctx, `
         SELECT a."Id", a."UserId", a."Name", a."Description", a."IsDefault",
-               (SELECT COUNT(*) FROM "AlbumItem" ai WHERE ai."AlbumId" = a."Id")
-        FROM "Album" a
+               (SELECT COUNT(*) FROM "AlbumItems" ai WHERE ai."AlbumId" = a."Id")
+        FROM "Albums" a
         WHERE a."UserId" = $1
         ORDER BY a."IsDefault" DESC, a."Name" ASC
         LIMIT $2 OFFSET $3`, userID, limit, offset)
@@ -67,32 +66,32 @@ func scanAlbum(row rowScanner) (Album, error) {
 func (r *Repo) GetAlbum(ctx context.Context, albumID, userID int64) (Album, error) {
 	return scanAlbum(r.db.QueryRow(ctx, `
         SELECT a."Id", a."UserId", a."Name", a."Description", a."IsDefault",
-               (SELECT COUNT(*) FROM "AlbumItem" ai WHERE ai."AlbumId" = a."Id")
-        FROM "Album" a
+               (SELECT COUNT(*) FROM "AlbumItems" ai WHERE ai."AlbumId" = a."Id")
+        FROM "Albums" a
         WHERE a."Id" = $1 AND a."UserId" = $2`, albumID, userID))
 }
 
 // CreateAlbum inserts a new album.
 func (r *Repo) CreateAlbum(ctx context.Context, userID int64, name, description string) (Album, error) {
 	return scanAlbum(r.db.QueryRow(ctx, `
-        INSERT INTO "Album" ("UserId", "Name", "Description", "IsDefault")
+        INSERT INTO "Albums" ("UserId", "Name", "Description", "IsDefault")
         VALUES ($1, $2, $3, false)
         RETURNING "Id", "UserId", "Name", "Description", "IsDefault",
-                  (SELECT COUNT(*) FROM "AlbumItem" ai WHERE ai."AlbumId" = "Album"."Id")`,
+                  (SELECT COUNT(*) FROM "AlbumItems" ai WHERE ai."AlbumId" = "Albums"."Id")`,
 		userID, name, description))
 }
 
 // UpdateAlbum renames an album.
 func (r *Repo) UpdateAlbum(ctx context.Context, albumID, userID int64, name, description string) (Album, error) {
 	album, err := scanAlbum(r.db.QueryRow(ctx, `
-        UPDATE "Album"
+        UPDATE "Albums"
         SET "Name" = $1, "Description" = $2
         WHERE "Id" = $3 AND "UserId" = $4
         RETURNING "Id", "UserId", "Name", "Description", "IsDefault",
-                  (SELECT COUNT(*) FROM "AlbumItem" ai WHERE ai."AlbumId" = "Album"."Id")`,
+                  (SELECT COUNT(*) FROM "AlbumItems" ai WHERE ai."AlbumId" = "Albums"."Id")`,
 		name, description, albumID, userID))
 	if err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return Album{}, ErrNotFound
 		}
 		return Album{}, fmt.Errorf("update album: %w", err)
@@ -103,7 +102,7 @@ func (r *Repo) UpdateAlbum(ctx context.Context, albumID, userID int64, name, des
 // DeleteAlbum removes an album.
 func (r *Repo) DeleteAlbum(ctx context.Context, albumID, userID int64) error {
 	tag, err := r.db.Exec(ctx,
-		`DELETE FROM "Album" WHERE "Id" = $1 AND "UserId" = $2`, albumID, userID)
+		`DELETE FROM "Albums" WHERE "Id" = $1 AND "UserId" = $2`, albumID, userID)
 	if err != nil {
 		return fmt.Errorf("delete album: %w", err)
 	}
@@ -126,7 +125,7 @@ func (r *Repo) AddAlbumItem(ctx context.Context, albumID, userID, imageID int64)
 	}
 
 	_, err := r.db.Exec(ctx, `
-        INSERT INTO "AlbumItem" ("AlbumId", "ImageId", "AddedAt")
+        INSERT INTO "AlbumItems" ("AlbumId", "ImageId", "AddedAt")
         VALUES ($1, $2, now())
         ON CONFLICT DO NOTHING`, albumID, imageID)
 	if err != nil {
@@ -142,7 +141,7 @@ func (r *Repo) RemoveAlbumItem(ctx context.Context, albumID, userID, imageID int
 	}
 
 	tag, err := r.db.Exec(ctx,
-		`DELETE FROM "AlbumItem" WHERE "AlbumId" = $1 AND "ImageId" = $2`, albumID, imageID)
+		`DELETE FROM "AlbumItems" WHERE "AlbumId" = $1 AND "ImageId" = $2`, albumID, imageID)
 	if err != nil {
 		return fmt.Errorf("remove album item: %w", err)
 	}
@@ -152,61 +151,56 @@ func (r *Repo) RemoveAlbumItem(ctx context.Context, albumID, userID, imageID int
 	return nil
 }
 
-// SetDefaultAlbum marks one album as the default and clears the rest.
-//
-// Both writes share the caller's transaction so two concurrent requests cannot
-// leave two defaults behind.
-func (r *Repo) SetDefaultAlbum(ctx context.Context, tx pgx.Tx, albumID, userID int64) error {
-	if _, err := GetAlbumTx(ctx, tx, albumID, userID); err != nil {
-		return err
-	}
-
-	if _, err := tx.Exec(ctx,
-		`UPDATE "Album" SET "IsDefault" = false WHERE "UserId" = $1`, userID); err != nil {
-		return fmt.Errorf("clear default album: %w", err)
-	}
-
-	if _, err := tx.Exec(ctx,
-		`UPDATE "Album" SET "IsDefault" = true WHERE "Id" = $1 AND "UserId" = $2`,
-		albumID, userID); err != nil {
-		return fmt.Errorf("set default album: %w", err)
-	}
-	return nil
-}
-
 // GetAlbumTx fetches an album within a transaction.
-func GetAlbumTx(ctx context.Context, tx pgx.Tx, albumID, userID int64) (Album, error) {
+func GetAlbumTx(ctx context.Context, tx Tx, albumID, userID int64) (Album, error) {
 	return scanAlbum(tx.QueryRow(ctx, `
         SELECT a."Id", a."UserId", a."Name", a."Description", a."IsDefault",
-               (SELECT COUNT(*) FROM "AlbumItem" ai WHERE ai."AlbumId" = a."Id")
-        FROM "Album" a
+               (SELECT COUNT(*) FROM "AlbumItems" ai WHERE ai."AlbumId" = a."Id")
+        FROM "Albums" a
         WHERE a."Id" = $1 AND a."UserId" = $2`, albumID, userID))
 }
 
-// GetAlbumImages returns the images in an album.
+// EnsureDefaultAlbum returns the user's default album, creating it if absent.
 //
-// Ordering follows when each image was added, which is what makes an album read
-// in the order the user arranged it.
-func (r *Repo) GetAlbumImages(ctx context.Context, albumID, userID int64) ([]models.Image, error) {
-	rows, err := r.db.Query(ctx, `
-        SELECT `+imageColumns+`
-        FROM "AlbumItem" ai
-        JOIN "Image" i ON i."Id" = ai."ImageId"
-        JOIN "Album" a ON a."Id" = ai."AlbumId"
-        WHERE ai."AlbumId" = $1 AND a."UserId" = $2
-        ORDER BY ai."AddedAt" ASC`, albumID, userID)
-	if err != nil {
-		return nil, fmt.Errorf("get album images: %w", err)
+// The frontend treats "save to favorites" as an action that should always
+// succeed, so the album is created on demand rather than requiring the user to
+// make one first.
+func (r *Repo) EnsureDefaultAlbum(ctx context.Context, userID int64, name string) (int64, error) {
+	id, err := r.GetDefaultAlbumID(ctx, userID)
+	if err == nil {
+		return id, nil
 	}
-	defer rows.Close()
+	if err != ErrNotFound {
+		return 0, err
+	}
 
-	images := make([]models.Image, 0, 16)
-	for rows.Next() {
-		image, err := scanImage(rows)
-		if err != nil {
-			return nil, err
-		}
-		images = append(images, image)
+	// The insert clears any existing default first, so a concurrent create
+	// cannot leave two albums marked default.
+	var newID int64
+	err = r.db.QueryRow(ctx, `
+        WITH cleared AS (
+            UPDATE "Albums" SET "IsDefault" = false WHERE "UserId" = $1 RETURNING 1
+        )
+        INSERT INTO "Albums" ("UserId", "Name", "Description", "IsDefault")
+        VALUES ($1, $2, '', true)
+        RETURNING "Id"`, userID, name).Scan(&newID)
+	if err != nil {
+		return 0, fmt.Errorf("ensure default album: %w", err)
 	}
-	return images, rows.Err()
+	return newID, nil
+}
+
+// GetDefaultAlbumID returns the id of the user's default album.
+func (r *Repo) GetDefaultAlbumID(ctx context.Context, userID int64) (int64, error) {
+	var id int64
+	err := r.db.QueryRow(ctx,
+		`SELECT "Id" FROM "Albums" WHERE "UserId" = $1 AND "IsDefault" = true LIMIT 1`,
+		userID).Scan(&id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return 0, ErrNotFound
+		}
+		return 0, fmt.Errorf("get default album: %w", err)
+	}
+	return id, nil
 }

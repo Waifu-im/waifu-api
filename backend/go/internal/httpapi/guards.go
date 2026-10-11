@@ -4,6 +4,9 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"unicode"
+
+	"golang.org/x/text/unicode/norm"
 
 	"github.com/jackc/pgx/v5"
 
@@ -54,6 +57,31 @@ func (s *Server) requirePermission(w http.ResponseWriter, r *http.Request, actio
 	return true
 }
 
+// requireRole enforces a fixed minimum role.
+//
+// This is used where the C# service applies an authorization *policy* rather
+// than a configured setting: approving review tasks and editing or deleting
+// catalogue entries are moderator- and admin-only regardless of configuration,
+// so no environment value can lower them.
+//
+// It returns false and has already written the response when refused.
+func (s *Server) requireRole(w http.ResponseWriter, r *http.Request, minimum config.Role, action string) bool {
+	p := s.requireAuth(w, r)
+	if p == nil {
+		return false
+	}
+	if err := s.authz.RequireAtLeast(roleOf(p), minimum); err != nil {
+		writeForbidden(w, r, err)
+		return false
+	}
+	return true
+}
+
+// isNoRows reports whether an error is the driver's "no such row" sentinel.
+func isNoRows(err error) bool {
+	return errors.Is(err, pgx.ErrNoRows)
+}
+
 // writeRepoError maps a repository error onto an HTTP response.
 //
 // This keeps handlers from repeating the pgx.ErrNoRows check and stops internal
@@ -71,30 +99,86 @@ func writeRepoError(w http.ResponseWriter, r *http.Request, operation string, er
 	}
 }
 
-// slugify converts a tag name into a URL slug.
+// slugify mirrors StringExtensions.ToSlug in the C# application layer.
 //
-// The C# frontend calls this before sending an upload, so the server must apply
-// the same rule or a tag would be looked up under a different key than the
-// client expects.
-func slugify(name string) string {
-	var builder strings.Builder
-	lastDash := false
-
-	for _, char := range strings.ToLower(strings.TrimSpace(name)) {
-		switch {
-		case char >= 'a' && char <= 'z', char >= '0' && char <= '9':
-			builder.WriteRune(char)
-			lastDash = false
-		default:
-			// Collapse every run of non-alphanumeric characters into one dash.
-			if !lastDash && builder.Len() > 0 {
-				builder.WriteByte('-')
-				lastDash = true
-			}
-		}
+// The order of operations matters, and the intermediate steps are not
+// interchangeable with the obvious "replace every run of junk with a dash"
+// shortcut:
+//
+//  1. Decompose to NFD, drop combining marks, recompose to NFC. This strips
+//     accents, so "Éclair" slugs to "eclair" instead of losing its first letter.
+//  2. Lowercase.
+//  3. Delete every character that is not a letter, digit, whitespace or hyphen.
+//     Punctuation is DELETED, not turned into a separator, so "waifu!!!girl"
+//     slugs to "waifugirl" and not "waifu-girl".
+//  4. Collapse each whitespace run to a single hyphen. Runs of hyphens that were
+//     already in the input are left alone, so "wi--fi" stays "wi--fi".
+//  5. Trim hyphens from both ends.
+//
+// Slugs are public API surface: /tags/by-slug/{slug} and ?includedTags= both
+// key off them, and stored image tags were written using this rule. A server
+// that computed a different slug would make those rows unaddressable, so this
+// has to match the C# byte for byte rather than merely producing "a nice slug".
+func slugify(text string) string {
+	if strings.TrimSpace(text) == "" {
+		return ""
 	}
 
-	return strings.Trim(builder.String(), "-")
+	var builder strings.Builder
+	for _, r := range strings.ToLower(norm.NFC.String(stripCombiningMarks(text))) {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9', r == '-':
+			builder.WriteRune(r)
+		case isDotNetSpace(r):
+			builder.WriteRune(r)
+		}
+		// Everything else, punctuation and symbols alike, is dropped.
+	}
+
+	// Collapse whitespace runs to one hyphen, leaving hyphens untouched.
+	var slug strings.Builder
+	inSpace := false
+	for _, r := range builder.String() {
+		if isDotNetSpace(r) {
+			if !inSpace {
+				slug.WriteByte('-')
+				inSpace = true
+			}
+			continue
+		}
+		slug.WriteRune(r)
+		inSpace = false
+	}
+
+	return strings.Trim(slug.String(), "-")
+}
+
+// stripCombiningMarks decomposes text and removes the accents that NFD split
+// off, which is how "é" becomes "e" rather than "e" plus a mark that the
+// character filter would delete.
+func stripCombiningMarks(text string) string {
+	var builder strings.Builder
+	for _, r := range norm.NFD.String(text) {
+		if unicode.Is(unicode.Mn, r) {
+			continue
+		}
+		builder.WriteRune(r)
+	}
+	return builder.String()
+}
+
+// isDotNetSpace reports whether r belongs to .NET's \s class, [\f\n\r\t\v\x85\p{Z}].
+//
+// Go's regexp \s is ASCII-only, so it is not usable for the filter and
+// replacement above: .NET keeps a non-breaking space in "waifu girl"
+// and then turns it into a hyphen, where the ASCII class would have deleted it
+// outright and produced "waifugirl".
+func isDotNetSpace(r rune) bool {
+	switch r {
+	case '\f', '\n', '\r', '\t', '\v', '\u0085':
+		return true
+	}
+	return unicode.In(r, unicode.Zs, unicode.Zl, unicode.Zp)
 }
 
 // reviewStatusFor maps a review decision onto the stored status.

@@ -17,38 +17,14 @@ import (
 func (s *Server) registerAuthRoutes(mux *http.ServeMux) {
 	base := s.cfg.BasePathOrRoot()
 
-	mux.HandleFunc("GET "+base+"auth/discord", s.handleDiscordLoginStart)
-	mux.HandleFunc("POST "+base+"auth/discord/callback", s.handleDiscordCallback)
+	mux.HandleFunc("POST "+base+"auth/discord", s.handleDiscordCallback)
 
 	mux.HandleFunc("GET "+base+"users/me", s.handleGetMe)
 	mux.HandleFunc("GET "+base+"users/me/permissions", s.handleGetMyPermissions)
 
-	mux.HandleFunc("GET "+base+"api-keys", s.handleListAPIKeys)
-	mux.HandleFunc("POST "+base+"api-keys", s.handleCreateAPIKey)
-	mux.HandleFunc("DELETE "+base+"api-keys/{id}", s.handleDeleteAPIKey)
-}
-
-// discordLoginResponse tells the frontend where to send the browser.
-type discordLoginResponse struct {
-	// AuthorizeURL is the Discord authorisation endpoint with the configured
-	// client id and redirect URI already applied.
-	AuthorizeURL string `json:"authorizeUrl"`
-}
-
-// handleDiscordLoginStart serves GET /auth/discord.
-//
-// It returns a URL rather than redirecting, so the frontend controls the
-// navigation and can carry its own state.
-func (s *Server) handleDiscordLoginStart(w http.ResponseWriter, r *http.Request) {
-	if err := s.discord.Validate(); err != nil {
-		s.logError(r, "discord login start", err)
-		apierror.Internal("Discord login is not configured.").Write(w, r.URL.Path)
-		return
-	}
-
-	writeJSON(w, http.StatusOK, discordLoginResponse{
-		AuthorizeURL: s.discord.AuthorizeURL(r.URL.Query().Get("state")),
-	})
+	mux.HandleFunc("GET "+base+"auth/api-keys", s.handleListAPIKeys)
+	mux.HandleFunc("POST "+base+"auth/api-keys", s.handleCreateAPIKey)
+	mux.HandleFunc("DELETE "+base+"auth/api-keys/{id}", s.handleDeleteAPIKey)
 }
 
 // discordCallbackRequest is the POST body from the frontend.
@@ -73,7 +49,11 @@ type authResponse struct {
 	User      *models.UserMinimal `json:"user"`
 }
 
-// handleDiscordCallback serves POST /auth/discord/callback.
+// handleDiscordCallback serves POST /auth/discord.
+//
+// The path is /auth/discord rather than a /callback suffix because that is what
+// the frontend posts to from Callback.tsx; the browser never hits this route
+// directly, the SPA forwards the code to it.
 //
 // It exchanges the code, fetches the profile, upserts the user and issues a JWT.
 // The upsert deliberately does not touch the stored role: promotion is an
@@ -112,11 +92,22 @@ func (s *Server) handleDiscordCallback(w http.ResponseWriter, r *http.Request) {
 
 	avatarURL := profile.AvatarURL(256)
 
-	user, err := s.repo.UpsertUserByDiscordID(ctx, profile.ID, profile.Username, &avatarURL)
+	user, isNew, err := s.repo.UpsertUserByDiscordID(ctx, profile.ID, profile.Username, &avatarURL)
 	if err != nil {
 		s.logError(r, "upsert user", err)
 		internalServerError(w, r)
 		return
+	}
+
+	// A first login also creates the user's default "Favorites" album. Without
+	// it the like button would 404 until the user happened to create an album,
+	// because the frontend addresses the default album by name.
+	if isNew {
+		if _, err := s.repo.EnsureDefaultAlbum(ctx, user.ID, "Favorites"); err != nil {
+			s.logError(r, "create default album", err)
+			internalServerError(w, r)
+			return
+		}
 	}
 
 	// A blacklisted account must not receive a token, even though the
@@ -250,7 +241,10 @@ type createAPIKeyResponse struct {
 	Key string `json:"key"`
 }
 
-// handleListAPIKeys serves GET /api-keys.
+// handleListAPIKeys serves GET /auth/api-keys.
+//
+// The /auth prefix is not decoration: the frontend addresses these as
+// /auth/api-keys, so serving them at /api-keys would 404 every key screen.
 func (s *Server) handleListAPIKeys(w http.ResponseWriter, r *http.Request) {
 	caller := s.requireAuth(w, r)
 	if caller == nil {
@@ -331,7 +325,12 @@ func (s *Server) handleCreateAPIKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, createAPIKeyResponse{
+	// AuthController.CreateApiKey answers CreatedAtAction, which is 201 with a
+	// Location header. It pointed at GetApiKeys with a null route value, so the
+	// header addresses the collection rather than the new key; this matches that
+	// rather than inventing the resource URL the C# never emitted.
+	w.Header().Set("Location", r.URL.Path)
+	writeJSON(w, http.StatusCreated, createAPIKeyResponse{
 		apiKeyDto: toAPIKeyRecordDto(created),
 		Key:       plaintext,
 	})
