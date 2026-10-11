@@ -227,11 +227,18 @@ func (s *Server) handleGetMyPermissions(w http.ResponseWriter, r *http.Request) 
 // The plaintext is never returned. It is present exactly once, in the response
 // to the create call, because only its hash is stored.
 type apiKeyDto struct {
-	ID             int64   `json:"id"`
-	Description    string  `json:"description"`
-	CreatedAt      string  `json:"createdAt"`
-	LastUsedAt     *string `json:"lastUsedAt,omitempty"`
-	ExpirationDate *string `json:"expirationDate,omitempty"`
+	ID          int64  `json:"id"`
+	Description string `json:"description"`
+	CreatedAt   string `json:"createdAt"`
+	// LastUsedAt and ExpirationDate carry no omitempty on purpose. ASP.NET Core
+	// is configured without a DefaultIgnoreCondition, so the C# service emits an
+	// explicit null for an unset DateTime?; dropping the key instead is a
+	// different shape for a client that checks for its presence.
+	LastUsedAt     *string `json:"lastUsedAt"`
+	ExpirationDate *string `json:"expirationDate"`
+	// UserID is the owner. It was missing here while the C# ApiKeyDto carries
+	// it, which made the field read as undefined for every client.
+	UserID int64 `json:"userId"`
 }
 
 // createAPIKeyResponse includes the one-time plaintext.
@@ -331,7 +338,7 @@ func (s *Server) handleCreateAPIKey(w http.ResponseWriter, r *http.Request) {
 	// rather than inventing the resource URL the C# never emitted.
 	w.Header().Set("Location", r.URL.Path)
 	writeJSON(w, http.StatusCreated, createAPIKeyResponse{
-		apiKeyDto: toAPIKeyRecordDto(created),
+		apiKeyDto: toAPIKeyRecordDto(created, caller.UserID),
 		Key:       plaintext,
 	})
 }
@@ -365,6 +372,7 @@ func (s *Server) handleDeleteAPIKey(w http.ResponseWriter, r *http.Request) {
 func toAPIKeyDto(key models.APIKey) apiKeyDto {
 	dto := apiKeyDto{
 		ID:          key.ID,
+		UserID:      key.UserID,
 		Description: key.Description,
 		CreatedAt:   key.CreatedAt.Format("2006-01-02T15:04:05.000Z07:00"),
 	}
@@ -395,9 +403,10 @@ var _ = auth.TokenTTL
 // The record returned by creation carries a *time.Time, while the stored form
 // uses formatted strings, so this bridges the two without changing either
 // representation.
-func toAPIKeyRecordDto(record repo.APIKeyRecord) apiKeyDto {
+func toAPIKeyRecordDto(record repo.APIKeyRecord, userID int64) apiKeyDto {
 	dto := apiKeyDto{
 		ID:          record.ID,
+		UserID:      userID,
 		Description: record.Description,
 		CreatedAt:   record.CreatedAt.Format("2006-01-02T15:04:05.000Z07:00"),
 	}
