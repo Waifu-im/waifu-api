@@ -194,6 +194,14 @@ type JWTConfig struct {
 
 // S3Config describes object storage.
 type S3Config struct {
+	// Provider selects provider-specific defaults: generic, aws, r2, idrive or
+	// minio. See internal/storage for what each one implies.
+	//
+	// Default is "generic", which applies nothing and relies entirely on the
+	// other fields. Defaulting to a specific provider would be wrong for a
+	// self-hosted deployment that happens to speak the same API.
+	Provider string
+
 	AccessKey      string
 	SecretKey      string
 	ServiceURL     string
@@ -436,6 +444,10 @@ func Load(l *Loader) (*Config, error) {
 	cfg.JWT.Issuer = l.require("Jwt__Issuer", &missing)
 	cfg.JWT.Audience = l.require("Jwt__Audience", &missing)
 
+	cfg.S3.Provider = l.get("S3__Provider")
+	if cfg.S3.Provider == "" {
+		cfg.S3.Provider = "generic"
+	}
 	cfg.S3.AccessKey = l.require("S3__AccessKey", &missing)
 	cfg.S3.SecretKey = l.require("S3__SecretKey", &missing)
 	cfg.S3.ServiceURL = l.require("S3__ServiceUrl", &missing)

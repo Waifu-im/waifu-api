@@ -282,3 +282,30 @@ func roundHalfAway(v float64) float64 {
 	}
 	return float64(int(v + 0.5))
 }
+
+// SniffContentType determines the image type from its bytes.
+//
+// It is used when a client declares a generic content type such as
+// application/octet-stream, which Go's multipart writer does by default and
+// which some HTTP clients do for every part. Returning an empty string means the
+// bytes were not a recognised image, and the caller's allowlist check produces
+// the rejection.
+func SniffContentType(data []byte) string {
+	_, format, err := image.Decode(bytes.NewReader(data))
+	if err != nil {
+		return ""
+	}
+
+	switch format {
+	case "jpeg":
+		return "image/jpeg"
+	case "png":
+		return "image/png"
+	case "gif":
+		return "image/gif"
+	case "webp":
+		return "image/webp"
+	default:
+		return ""
+	}
+}

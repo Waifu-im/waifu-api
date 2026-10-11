@@ -441,16 +441,27 @@ func (r *Repo) FindDuplicateByHash(ctx context.Context, hash uint64) (int64, err
 	// The comparison is done in SQL on the bit string. Casting both sides to
 	// bit(64) keeps the operator available.
 	//
-	// NOTE: this compares only bit-exact hashes in the stored column. Once the
-	// PLAN.md section 6.1 backfill has run, every row uses this service's
-	// algorithm, and the threshold below is meaningful.
+	// The Hamming distance is computed in SQL because doing it in Go would mean
+	// loading every stored hash on every upload.
+	//
+	// Postgres has no hamming-distance function for bit(n). The XOR operator
+	// "#" on bit types produces the differing bits, and counting the ones in the
+	// result is the distance. replace() strips the zeros, so length() counts the
+	// ones. Both parameters are explicitly cast, because pgx cannot infer a type
+	// for a parameter used only inside a bit expression and would otherwise fail
+	// to encode the threshold.
+	//
+	// NOTE: this only produces meaningful results once the PLAN.md section 6.1
+	// backfill has run. Until then the stored hashes come from an algorithm that
+	// does not reproduce itself, so the comparison is against a mixed
+	// vocabulary.
 	const query = `
         SELECT "Id"
         FROM "Image"
-        WHERE length("PerceptualHash"::text) = 64
-          AND (
-            ("PerceptualHash"::bit(64) # $1::bit(64))
-          ) <= $2
+        WHERE length(replace(
+                  ("PerceptualHash"::bit(64) # $1::bit(64))::text,
+                  '0', ''
+              ))::int <= $2::int
         ORDER BY "Id"
         LIMIT 1`
 
@@ -464,4 +475,16 @@ func (r *Repo) FindDuplicateByHash(ctx context.Context, hash uint64) (int64, err
 		return 0, fmt.Errorf("find duplicate: %w", err)
 	}
 	return id, nil
+}
+
+// DeleteImage removes an image row.
+//
+// Used by the upload rollback path, where a row exists but the object write
+// failed. Cascades remove the tag and artist links.
+func (r *Repo) DeleteImage(ctx context.Context, id int64) error {
+	_, err := r.db.Exec(ctx, `DELETE FROM "Image" WHERE "Id" = $1`, id)
+	if err != nil {
+		return fmt.Errorf("delete image: %w", err)
+	}
+	return nil
 }

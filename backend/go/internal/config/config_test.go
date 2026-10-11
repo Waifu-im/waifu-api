@@ -35,6 +35,7 @@ func validEnv() map[string]string {
 		"Jwt__Issuer":   "waifu-api",
 		"Jwt__Audience": "waifu-api-users",
 
+		"S3__Provider":   "generic",
 		"S3__AccessKey":  "access",
 		"S3__SecretKey":  "secret",
 		"S3__ServiceUrl": "https://s3.example.com",
@@ -271,5 +272,36 @@ func TestNormalizeBasePath(t *testing.T) {
 		if got := normalizeBasePath(input); got != want {
 			t.Errorf("normalizeBasePath(%q) = %q, want %q", input, got, want)
 		}
+	}
+}
+
+// TestS3ProviderDefaultsToGeneric guards the choice.
+//
+// Defaulting to a specific provider would silently change addressing or
+// checksum behaviour for a self-hosted deployment that speaks the same API.
+func TestS3ProviderDefaultsToGeneric(t *testing.T) {
+	env := validEnv()
+	delete(env, "S3__Provider")
+
+	cfg, err := Load(NewLoaderFromMap(env))
+	if err != nil {
+		t.Fatalf("config rejected: %v", err)
+	}
+	if cfg.S3.Provider != "generic" {
+		t.Errorf("provider = %q, want generic", cfg.S3.Provider)
+	}
+}
+
+// TestS3ProviderIsConfigurable checks the name is carried through.
+func TestS3ProviderIsConfigurable(t *testing.T) {
+	env := validEnv()
+	env["S3__Provider"] = "r2"
+
+	cfg, err := Load(NewLoaderFromMap(env))
+	if err != nil {
+		t.Fatalf("config rejected: %v", err)
+	}
+	if cfg.S3.Provider != "r2" {
+		t.Errorf("provider = %q, want r2", cfg.S3.Provider)
 	}
 }

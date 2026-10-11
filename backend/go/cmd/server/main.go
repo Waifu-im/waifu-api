@@ -28,6 +28,7 @@ import (
 	"waifuapi/internal/httpapi"
 	"waifuapi/internal/logging"
 	"waifuapi/internal/repo"
+	"waifuapi/internal/storage"
 	"waifuapi/internal/store"
 )
 
@@ -85,7 +86,27 @@ func run() error {
 	tokens := auth.NewTokenIssuer(cfg.JWT)
 	authenticator := auth.NewAuthenticator(tokens)
 
-	server := httpapi.NewServer(cfg, db, data, log)
+	// Object storage is required for uploads. It is constructed eagerly so a
+	// misconfigured bucket fails at startup rather than on the first upload,
+	// matching the behaviour of the C# service.
+	files, err := storage.NewS3Store(storage.Config{
+		Provider:       storage.Provider(cfg.S3.Provider),
+		AccessKey:      cfg.S3.AccessKey,
+		SecretKey:      cfg.S3.SecretKey,
+		ServiceURL:     cfg.S3.ServiceURL,
+		Region:         cfg.S3.Region,
+		BucketName:     cfg.S3.BucketName,
+		ForcePathStyle: cfg.S3.ForcePathStyle,
+	})
+	if err != nil {
+		return err
+	}
+	log.Info("object storage configured",
+		"provider", cfg.S3.Provider,
+		"bucket", cfg.S3.BucketName,
+		"pathStyle", cfg.S3.ForcePathStyle)
+
+	server := httpapi.NewServer(cfg, db, data, log, files)
 
 	mux := http.NewServeMux()
 	server.Register(mux)

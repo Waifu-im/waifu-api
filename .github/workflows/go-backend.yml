@@ -65,20 +65,67 @@ jobs:
             exit 1
           fi
 
-      # Unit tests. The corpus-backed perceptual hash tests skip themselves when
-      # PHASH_CORPUS_DIR is unset, so the deterministic ones are what run here.
-      # The spike job below covers the rest.
-      - name: Test
-        run: go test -race -coverprofile=coverage.out ./...
-        env:
-          PHASH_CORPUS_DIR: ''
-
       - name: Upload coverage
         uses: actions/upload-artifact@v4
         with:
           name: go-coverage
           path: backend/go/coverage.out
           if-no-files-found: ignore
+
+  # Integration tests against a real Postgres with the frozen schema applied.
+  #
+  # These cover the upload, review and rollback paths, which unit tests cannot
+  # reach: the ordering of the duplicate check, the transactional insert of an
+  # image plus its review task, and the compensating delete when storage fails.
+  integration:
+    name: Upload and review workflow
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: waifuapi
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d waifuapi"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27'
+          cache-dependency-path: backend/go/go.sum
+
+      - name: Download modules
+        working-directory: backend/go
+        run: go mod download
+
+      # The schema is documented in-repo and matches the frozen EF model
+      # snapshot. Applying it here keeps the test database honest rather than
+      # relying on whatever a developer happens to have locally.
+      - name: Apply frozen schema
+        run: |
+          for i in $(seq 1 30); do
+            if docker exec "${{ job.services.postgres.id }}"                  pg_isready -U postgres -d waifuapi >/dev/null 2>&1; then
+              break
+            fi
+            sleep 1
+          done
+          docker exec -i "${{ job.services.postgres.id }}" psql -U postgres -d waifuapi             < backend/go/internal/store/schema.sql
+
+      - name: Run workflow tests
+        working-directory: backend/go
+        run: go test -race -v ./internal/httpapi/
+        env:
+          WAIFU_TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/waifuapi
 
   # Builds the container and runs the full image, proving the Dockerfile and the
   # distroless base actually work rather than only compiling.

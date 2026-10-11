@@ -18,8 +18,10 @@ import (
 
 	"waifuapi/internal/apierror"
 	"waifuapi/internal/auth"
+	"waifuapi/internal/authz"
 	"waifuapi/internal/config"
 	"waifuapi/internal/repo"
+	"waifuapi/internal/storage"
 	"waifuapi/internal/store"
 )
 
@@ -29,15 +31,24 @@ import (
 // size a plain struct is simpler than any DI framework, and it makes the set of
 // dependencies obvious at a glance.
 type Server struct {
-	cfg  *config.Config
-	db   *store.DB
-	repo *repo.Repo
-	log  Logger
+	cfg     *config.Config
+	db      *store.DB
+	repo    *repo.Repo
+	log     Logger
+	authz   *authz.Checker
+	storage storage.Store
 }
 
 // NewServer builds a Server.
-func NewServer(cfg *config.Config, db *store.DB, data *repo.Repo, log Logger) *Server {
-	return &Server{cfg: cfg, db: db, repo: data, log: log}
+func NewServer(cfg *config.Config, db *store.DB, data *repo.Repo, log Logger, files storage.Store) *Server {
+	return &Server{
+		cfg:     cfg,
+		db:      db,
+		repo:    data,
+		log:     log,
+		authz:   authz.New(cfg),
+		storage: files,
+	}
 }
 
 // Register mounts every route onto the mux.
@@ -58,6 +69,9 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST "+base+"ping", s.handlePing)
 
 	s.registerImageRoutes(mux)
+	s.registerUploadRoutes(mux)
+	s.registerReviewRoutes(mux)
+	s.registerCatalogWriteRoutes(mux)
 	s.registerCatalogRoutes(mux)
 	s.registerBannerRoutes(mux)
 	s.registerStatsRoutes(mux)

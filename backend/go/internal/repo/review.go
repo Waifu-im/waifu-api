@@ -381,3 +381,22 @@ func joinConditions(conditions []string) string {
 	}
 	return result
 }
+
+// CancelReviewTaskAsModerator cancels any pending task, regardless of owner.
+//
+// Moderators can withdraw a submission they did not make, which the
+// submitter-scoped variant deliberately does not allow.
+func (r *Repo) CancelReviewTaskAsModerator(ctx context.Context, taskID, moderatorID int64) error {
+	tag, err := r.db.Exec(ctx, `
+        UPDATE "ReviewTask"
+        SET "Status" = $1, "ReviewerId" = $2, "ResolvedAt" = now()
+        WHERE "Id" = $3 AND "Status" = $4`,
+		int(models.TaskCancelled), moderatorID, taskID, int(models.TaskPending))
+	if err != nil {
+		return fmt.Errorf("cancel review task as moderator: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrConflict
+	}
+	return nil
+}
