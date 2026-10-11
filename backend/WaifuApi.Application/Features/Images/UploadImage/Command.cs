@@ -37,6 +37,7 @@ public class UploadImageCommandHandler : ICommandHandler<UploadImageCommand, Ima
     private readonly IWaifuDbContext _context;
     private readonly IStorageService _storageService;
     private readonly IImageProcessingService _imageProcessingService;
+    private readonly IImageConverter _imageConverter;
     private readonly IReviewPolicy _reviewPolicy;
     private readonly string _cdnBaseUrl;
     private const int HammingDistanceThreshold = 4;
@@ -45,12 +46,14 @@ public class UploadImageCommandHandler : ICommandHandler<UploadImageCommand, Ima
         IWaifuDbContext context,
         IStorageService storageService,
         IImageProcessingService imageProcessingService,
+        IImageConverter imageConverter,
         IReviewPolicy reviewPolicy,
         IConfiguration configuration)
     {
         _context = context;
         _storageService = storageService;
         _imageProcessingService = imageProcessingService;
+        _imageConverter = imageConverter;
         _reviewPolicy = reviewPolicy;
         _cdnBaseUrl = configuration["Cdn:BaseUrl"] ?? throw new InvalidOperationException("Cdn:BaseUrl is required.");
     }
@@ -58,6 +61,16 @@ public class UploadImageCommandHandler : ICommandHandler<UploadImageCommand, Ima
     public async ValueTask<ImageDto> Handle(UploadImageCommand request, CancellationToken cancellationToken)
     {
         var metadata = await _imageProcessingService.ProcessAsync(request.FileStream, request.FileName);
+
+        // Metadata above is read from the original bytes on purpose: the
+        // perceptual hash drives duplicate detection, and hashing an
+        // already-lossy re-encode would make that comparison unstable.
+        using var conversion = await _imageConverter.TryConvertAsync(
+            request.FileStream, metadata.Extension, metadata.IsAnimated, cancellationToken);
+
+        var storedExtension = conversion?.Extension ?? metadata.Extension;
+        var storedContentType = conversion?.ContentType ?? request.ContentType;
+        var storedByteSize = conversion?.ByteSize ?? metadata.ByteSize;
 
         var targetHash = BitArrayHelper.FromHex(metadata.PerceptualHash);
 
@@ -109,7 +122,7 @@ public class UploadImageCommandHandler : ICommandHandler<UploadImageCommand, Ima
         var image = new Image
         {
             PerceptualHash = targetHash,
-            Extension = metadata.Extension,
+            Extension = storedExtension,
             DominantColor = metadata.DominantColor,
             Source = request.Source.ToNullIfEmpty()?.Trim(),
             Artists = artists,
@@ -119,7 +132,7 @@ public class UploadImageCommandHandler : ICommandHandler<UploadImageCommand, Ima
             IsAnimated = metadata.IsAnimated,
             Width = metadata.Width,
             Height = metadata.Height,
-            ByteSize = metadata.ByteSize,
+            ByteSize = storedByteSize,
             ReviewStatus = requireImageReview ? ReviewStatus.Pending : ReviewStatus.Accepted,
             Tags = tags
         };
@@ -137,9 +150,12 @@ public class UploadImageCommandHandler : ICommandHandler<UploadImageCommand, Ima
 
         try
         {
-            request.FileStream.Position = 0;
-            var s3FileName = $"{image.Id}{metadata.Extension}";
-            await _storageService.UploadAsync(request.FileStream, s3FileName, request.ContentType);
+            // Extension was settled before SaveChangesAsync above, so this key
+            // and the Image row always agree on the same suffix.
+            var uploadStream = conversion?.Content ?? request.FileStream;
+            uploadStream.Position = 0;
+            var s3FileName = $"{image.Id}{storedExtension}";
+            await _storageService.UploadAsync(uploadStream, s3FileName, storedContentType);
         }
         catch
         {

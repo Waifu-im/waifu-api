@@ -95,9 +95,17 @@ export default {
       return new Response("Method Not Allowed", { status: 405 });
     }
 
-    // Only plain GETs belong on this host; anything else goes to the API.
-    if (url.search) {
-      return Response.redirect(`https://${env.API_ORIGIN}${url.pathname}${url.search}`, 302);
+    // Query strings on non-image paths (/images?limit=...) belong to the API.
+    //
+    // An image path with a query string is still an image request, though, so a
+    // "?fresh=1" style cache-buster reaches the image logic below instead of
+    // being bounced to the API. Keying on the extension is what makes that
+    // distinction safe.
+    const looksLikeImage = /\.(png|jpe?g|gif|webp)$/i.test(url.pathname);
+    if (url.search && !looksLikeImage) {
+      // API_ORIGIN already carries its scheme; prefixing one produced a
+      // "https://https://" URL that the browser mangled into https//.
+      return Response.redirect(`${env.API_ORIGIN}${url.pathname}${url.search}`, 302);
     }
 
     // Reject traversal before it reaches the origin.
@@ -106,17 +114,6 @@ export default {
       return new Response("Not Found", { status: 404 });
     }
 
-    const host = new URL(env.S3_ENDPOINT).host;
-    const path = `/${env.S3_BUCKET}/${key}`;
-
-    const headers = await signGet(
-      host,
-      path,
-      env.S3_REGION,
-      env.S3_ACCESS_KEY_ID,
-      env.S3_SECRET_ACCESS_KEY
-    );
-
     // Serve from edge cache when warm; otherwise fetch and cache.
     const cache = caches.default;
     const cached = await cache.match(request);
@@ -124,10 +121,60 @@ export default {
       return cached;
     }
 
-    const origin = await fetch(`https://${host}${path}`, { headers });
+    const host = new URL(env.S3_ENDPOINT).host;
 
-    if (!origin.ok) {
-      return new Response("Not Found", { status: origin.status === 404 ? 404 : 502 });
+    /**
+     * Signed GET for one object key. Returns null on a miss so the caller can
+     * fall through to the next candidate rather than having to inspect the
+     * response itself.
+     */
+    const getObject = async (objectKey) => {
+      const path = `/${env.S3_BUCKET}/${objectKey}`;
+      const headers = await signGet(
+        host,
+        path,
+        env.S3_REGION,
+        env.S3_ACCESS_KEY_ID,
+        env.S3_SECRET_ACCESS_KEY
+      );
+      const res = await fetch(`https://${host}${path}`, { headers });
+      return res.ok ? res : null;
+    };
+
+    // The API's Image.Extension column still says ".png" for every image that
+    // was originally uploaded as one, and clients cache those URLs hard. Rather
+    // than rewriting the API and invalidating every stored link, a .png request
+    // is served from the converted .webp object.
+    //
+    // content-type is taken from the origin below, so the response honestly
+    // reports image/webp - it is not pretending to be a PNG. A client that
+    // sniffs (browsers, Discord, sharp, Pillow) is unaffected; only a client
+    // that asserts content-type against the .png extension would object.
+    //
+    // WEBP_FALLBACK is a kill switch: set it to "false" and this whole path is
+    // skipped, restoring plain .png -> .png in one deploy.
+    const useWebp = env.WEBP_FALLBACK === "true";
+    const wantsPng = key.toLowerCase().endsWith(".png");
+    const webpKey = wantsPng ? key.slice(0, -4) + ".webp" : null;
+
+    let origin = null;
+    let servedKey = key;
+
+    if (useWebp && webpKey) {
+      origin = await getObject(webpKey);
+      if (origin) servedKey = webpKey;
+    }
+
+    // Either the request was not a .png, or there is no converted object yet
+    // (an un-migrated image, or a newer upload). Falling back keeps this a pure
+    // optimisation: it can never turn a working image into a 404.
+    if (!origin) {
+      origin = await getObject(key);
+      servedKey = key;
+    }
+
+    if (!origin) {
+      return new Response("Not Found", { status: 404 });
     }
 
     const body = origin.body;
@@ -144,6 +191,9 @@ export default {
       },
     });
 
+    // Cached under the URL that was requested, not the object that was served,
+    // so /8616.png and /8616.webp do not fight over one entry and the mapping
+    // never has to be consulted twice.
     ctx.waitUntil(cache.put(request, response.clone()));
     return response;
   },

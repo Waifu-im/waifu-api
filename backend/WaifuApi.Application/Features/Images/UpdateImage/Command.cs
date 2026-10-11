@@ -37,6 +37,7 @@ public class UpdateImageCommandHandler : ICommandHandler<UpdateImageCommand, Ima
     private readonly IWaifuDbContext _context;
     private readonly IStorageService _storageService;
     private readonly IImageProcessingService _imageProcessingService;
+    private readonly IImageConverter _imageConverter;
     private readonly ICdnCacheService _cdnCache;
     private readonly string _cdnBaseUrl;
     private const int HammingDistanceThreshold = 4;
@@ -45,12 +46,14 @@ public class UpdateImageCommandHandler : ICommandHandler<UpdateImageCommand, Ima
         IWaifuDbContext context,
         IStorageService storageService,
         IImageProcessingService imageProcessingService,
+        IImageConverter imageConverter,
         ICdnCacheService cdnCache,
         IConfiguration configuration)
     {
         _context = context;
         _storageService = storageService;
         _imageProcessingService = imageProcessingService;
+        _imageConverter = imageConverter;
         _cdnCache = cdnCache;
         _cdnBaseUrl = configuration["Cdn:BaseUrl"] ?? throw new InvalidOperationException("Cdn:BaseUrl is required.");
     }
@@ -77,6 +80,7 @@ public class UpdateImageCommandHandler : ICommandHandler<UpdateImageCommand, Ima
         var oldByteSize = image.ByteSize;
         var fileWasReplaced = false;
         string? newContentType = null;
+        ImageConversionResult? conversion = null;
 
         // Process new file if provided
         if (request.FileStream != null)
@@ -95,16 +99,23 @@ public class UpdateImageCommandHandler : ICommandHandler<UpdateImageCommand, Ima
                 throw new ConflictException($"Duplicate image found. ID: {duplicate.Id}");
             }
 
+            // Metadata above is read from the original bytes on purpose: the
+            // perceptual hash drives duplicate detection and must stay
+            // comparable. Conversion happens afterwards and only changes what we
+            // store and serve.
+            conversion = await _imageConverter.TryConvertAsync(
+                request.FileStream, metadata.Extension, metadata.IsAnimated, cancellationToken);
+
             // Update image metadata from new file
             image.PerceptualHash = targetHash;
-            image.Extension = metadata.Extension;
+            image.Extension = conversion?.Extension ?? metadata.Extension;
             image.DominantColor = metadata.DominantColor;
             image.IsAnimated = metadata.IsAnimated;
             image.Width = metadata.Width;
             image.Height = metadata.Height;
-            image.ByteSize = metadata.ByteSize;
+            image.ByteSize = conversion?.ByteSize ?? metadata.ByteSize;
             fileWasReplaced = true;
-            newContentType = request.ContentType;
+            newContentType = conversion?.ContentType ?? request.ContentType;
         }
 
         image.Source = request.Source.ToNullIfEmpty()?.Trim();
@@ -198,9 +209,10 @@ public class UpdateImageCommandHandler : ICommandHandler<UpdateImageCommand, Ima
         {
             try
             {
-                request.FileStream.Position = 0;
+                var uploadStream = conversion?.Content ?? request.FileStream;
+                uploadStream.Position = 0;
                 var newS3FileName = $"{image.Id}{image.Extension}";
-                await _storageService.UploadAsync(request.FileStream, newS3FileName, newContentType!);
+                await _storageService.UploadAsync(uploadStream, newS3FileName, newContentType!);
 
                 // If extension changed, delete the old file from S3
                 if (oldExtension != image.Extension)
@@ -228,9 +240,12 @@ public class UpdateImageCommandHandler : ICommandHandler<UpdateImageCommand, Ima
                 image.Height = oldHeight;
                 image.ByteSize = oldByteSize;
                 await _context.SaveChangesAsync(cancellationToken);
+                conversion?.Dispose();
                 throw;
             }
         }
+
+        conversion?.Dispose();
 
         // Only the bytes at {id}{ext} changed, so purge just this image (covers a same-URL replacement
         // and, if the extension changed, the old file too). Metadata-only edits need no purge.

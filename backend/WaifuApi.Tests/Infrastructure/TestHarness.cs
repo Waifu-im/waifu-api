@@ -45,13 +45,28 @@ public sealed class TestHarness : IDisposable
             .UseInMemoryDatabase(dbName)
             .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning)));
         services.AddScoped<IWaifuDbContext>(sp => sp.GetRequiredService<TestDbContext>());
-        services.AddScoped<IStorageService, FakeStorageService>();
-        services.AddScoped<IImageProcessingService, FakeImageProcessingService>();
-        services.AddScoped<ICdnCacheService, FakeCdnCacheService>();
+
+        // Registered as singletons so a test can configure a fake and then send a
+        // command through SendAsync, which resolves from its own scope. Each
+        // harness owns its own fakes, so state never leaks between tests.
+        services.AddSingleton<IStorageService, FakeStorageService>();
+        services.AddSingleton<IImageProcessingService, FakeImageProcessingService>();
+        services.AddSingleton<IImageConverter, FakeImageConverter>();
+        services.AddSingleton<ICdnCacheService, FakeCdnCacheService>();
         services.AddApplication();
 
         _services = services.BuildServiceProvider();
     }
+
+    /// <summary>Configure the storage fake before sending a command that writes files.</summary>
+    public FakeStorageService Storage => (FakeStorageService)_services.GetRequiredService<IStorageService>();
+
+    /// <summary>Configure the image-processing fake before sending an upload/update command.</summary>
+    public FakeImageProcessingService ImageProcessing =>
+        (FakeImageProcessingService)_services.GetRequiredService<IImageProcessingService>();
+
+    /// <summary>Configure the converter fake before sending an upload/update command.</summary>
+    public FakeImageConverter Converter => (FakeImageConverter)_services.GetRequiredService<IImageConverter>();
 
     public IServiceScope CreateScope() => _services.CreateScope();
 
