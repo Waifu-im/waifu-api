@@ -33,9 +33,22 @@ var callPattern = regexp.MustCompile(
 // interpolation matches ${...} inside a template literal.
 var interpolation = regexp.MustCompile(`\$\{[^}]*\}`)
 
-// dynamicPrefix matches a path segment built from a variable, such as
-// `${apiUserPath}/albums`.
-var dynamicPrefix = regexp.MustCompile(`^\$\{[^}]+\}`)
+// dynamicPrefix matches the leading ${apiUserPath} segment specifically.
+//
+// This deliberately names the variable rather than matching any ${...}. A
+// generic hook such as useResource interpolates its own ${endpoint} parameter,
+// and treating that as apiUserPath invented routes against /users that no page
+// ever calls — reported as missing, which was worse than not checking.
+var dynamicPrefix = regexp.MustCompile(`^\$\{apiUserPath\}`)
+
+// unresolvedPrefix marks a leading interpolation that is neither a known
+// constant nor a path segment the tool can resolve, such as the ${endpoint}
+// parameter of a generic resource hook.
+//
+// These are not missing routes. Whether the hook's update or delete is ever
+// invoked is a call-graph question this tool cannot answer from text alone, so
+// they are reported separately instead of failing the run.
+var unresolvedPrefix = regexp.MustCompile(`^\$\{[^}]+\}`)
 
 // route is one discovered endpoint.
 type route struct {
@@ -54,6 +67,10 @@ func normalise(raw string) string {
 	// A leading ${apiUserPath} is one of /users/me or /users/{id}. Both are
 	// served by the same wildcard, so it is rewritten to /users/{userId}.
 	raw = dynamicPrefix.ReplaceAllString(raw, "/users/{userId}")
+
+	// Any other leading interpolation is a value supplied by a caller, so the
+	// concrete path is not knowable here. It is tagged rather than guessed at.
+	raw = unresolvedPrefix.ReplaceAllString(raw, "{unresolved}")
 
 	// Both sides of the comparison use different wildcard syntax: the frontend
 	// interpolates ${...} while this codebase registers {name} segments. Both are
@@ -304,6 +321,17 @@ func patternMatches(registeredPattern, calledPath string) bool {
 			// that the frontend uses in place of a numeric user id.
 			continue
 		}
+
+		// The called path may itself be a wildcard, because the frontend builds
+		// it from a variable. Reports.tsx dispatches
+		// PATCH /reports/${id}/${action} where action is one of a fixed set, and
+		// the service registers the expanded forms. The question this tool asks
+		// is whether some registered route could serve the call, so a literal is
+		// accepted here: if the caller passes "validate", that route serves it.
+		if strings.HasPrefix(calledSegments[i], "{") && strings.HasSuffix(calledSegments[i], "}") {
+			continue
+		}
+
 		if segment != calledSegments[i] {
 			return false
 		}
@@ -344,6 +372,7 @@ func main() {
 	sort.Strings(keys)
 
 	var missing []string
+	var unresolved []string
 	covered := 0
 
 	for _, key := range keys {
@@ -364,6 +393,15 @@ func main() {
 			}
 		}
 
+		if strings.Contains(path, "{unresolved}") {
+			// Not a proven gap. The path is assembled from a value supplied by
+			// the caller, so whether it resolves to something the service serves
+			// cannot be decided from the text, and the helper holding it may never
+			// be invoked at all.
+			unresolved = append(unresolved, key)
+			continue
+		}
+
 		if found {
 			covered++
 		} else {
@@ -371,8 +409,8 @@ func main() {
 		}
 	}
 
-	fmt.Printf("frontend calls %d distinct routes; %d are served, %d are missing\n\n",
-		len(keys), covered, len(missing))
+	fmt.Printf("frontend calls %d distinct routes; %d are served, %d are missing, %d unresolved\n\n",
+		len(keys), covered, len(missing), len(unresolved))
 
 	if len(missing) > 0 {
 		fmt.Println("MISSING (the frontend calls these and would receive 404):")
@@ -384,5 +422,17 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Println("every route the frontend calls is served")
+	if len(unresolved) > 0 {
+		fmt.Println("UNRESOLVED (path built from a caller-supplied value; check by hand):")
+		for _, key := range unresolved {
+			fmt.Printf("  %-8s %s   [%s]\n",
+				strings.SplitN(key, " ", 2)[0], strings.SplitN(key, " ", 2)[1],
+				unique[key].Source)
+		}
+		fmt.Println()
+	}
+
+	if len(missing) == 0 {
+		fmt.Println("every route the frontend can be shown to call is served")
+	}
 }
