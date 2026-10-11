@@ -22,6 +22,8 @@
   <ItemGroup>
     <ProjectReference Include="..\WaifuApi.Application\WaifuApi.Application.csproj" />
     <ProjectReference Include="..\WaifuApi.Domain\WaifuApi.Domain.csproj" />
+    <!-- Referenced so ImageConverter can be unit-tested directly; it brings ImageSharp in transitively. -->
+    <ProjectReference Include="..\WaifuApi.Infrastructure\WaifuApi.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
