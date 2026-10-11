@@ -425,24 +425,6 @@ func (r *Repo) CancelReviewTask(ctx context.Context, tx Tx, taskID, submitterID 
 	return task, nil
 }
 
-// SetImageEditableFields writes the two fields a metadata edit may change.
-//
-// Tag and artist membership is deliberately not here: changing what an image
-// depicts goes through the review queue as an edit request, and the C# service
-// keeps the two concerns in separate commands.
-func (r *Repo) SetImageEditableFields(ctx context.Context, id int64, source *string, isNsfw bool) error {
-	tag, err := r.db.Exec(ctx,
-		`UPDATE "Images" SET "Source" = $1, "IsNsfw" = $2 WHERE "Id" = $3`,
-		source, isNsfw, id)
-	if err != nil {
-		return fmt.Errorf("update image: %w", err)
-	}
-	if tag.RowsAffected() == 0 {
-		return ErrNotFound
-	}
-	return nil
-}
-
 // ResolvePendingTask approves an open NewContent task directly.
 //
 // This is what a moderator accepting from the catalogue rather than the queue

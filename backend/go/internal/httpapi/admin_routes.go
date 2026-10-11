@@ -9,15 +9,6 @@ import (
 	"waifuapi/internal/store/models"
 )
 
-// applyImageEdit writes the editable metadata of an image.
-//
-// Tag and artist membership is left alone: changing what an image depicts is a
-// reviewed edit, not a metadata correction, and the two are separate routes in
-// the C# service.
-func (s *Server) applyImageEdit(r *http.Request, image models.Image, source *string, isNsfw bool) error {
-	return s.repo.SetImageEditableFields(r.Context(), image.ID, source, isNsfw)
-}
-
 // This file holds the endpoints that are neither CRUD on a single resource nor
 // part of the review queue: the moderation dashboard, API key maintenance and
 // the image metadata edit.
