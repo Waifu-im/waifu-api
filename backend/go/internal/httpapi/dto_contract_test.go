@@ -44,6 +44,10 @@ import (
 //   - Generic envelopes such as PaginatedList<T> are checked structurally where
 //     they have a Go counterpart, and skipped where they do not.
 
+// controllersDir holds the C# controllers, reached from
+// backend/go/internal/httpapi -> backend/WaifuApi.Web/Controllers.
+const controllersDir = "../../../WaifuApi.Web/Controllers"
+
 // modelsDir holds the C# DTOs, reached from
 // backend/go/internal/httpapi -> backend/WaifuApi.Application/Common/Models.
 const modelsDir = "../../../WaifuApi.Application/Common/Models"
@@ -88,8 +92,13 @@ func toLower(r rune) rune        { return r + ('a' - 'A') }
 // file.
 func csDtoFields(t *testing.T, file, base string) map[string]struct{} {
 	t.Helper()
+	return csFieldsFromFile(t, filepath.Join(modelsDir, file), base)
+}
 
-	path := filepath.Join(modelsDir, file)
+// csFieldsFromFile parses a C# class body out of an arbitrary path.
+func csFieldsFromFile(t *testing.T, path, base string) map[string]struct{} {
+	t.Helper()
+
 	source, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("read %s: %v", path, err)
@@ -347,5 +356,50 @@ func TestUnsetTimestampsSerialiseAsNullNotAbsent(t *testing.T) {
 
 	if got := decoded["userId"]; string(got) != "42" {
 		t.Errorf("userId = %s, want 42", got)
+	}
+}
+
+// TestRequestPayloadShapesMatch is the inbound half of the contract.
+//
+// A renamed request field fails differently from a renamed response field: the
+// response field is undefined in the client, while the request field is silently
+// dropped by the deserialiser and the endpoint applies a default. That produces
+// a successful-looking PATCH that changed nothing, which is considerably worse
+// than an error.
+//
+// The request types live beside the controllers rather than in the models
+// directory, so they are parsed from there.
+func TestRequestPayloadShapesMatch(t *testing.T) {
+	cases := []struct {
+		name  string
+		file  string
+		class string
+		goVal any
+	}{
+		{"SubmitEditRequest", "ReviewController.cs", "SubmitEditRequest", submitEditRequest{}},
+		{"EditReviewTaskRequest", "ReviewController.cs", "EditReviewTaskRequest", editReviewTaskRequest{}},
+		{"UpdateTagRequest", "TagsController.cs", "UpdateTagRequest", updateTagRequest{}},
+		{"UpdateArtistRequest", "ArtistsController.cs", "UpdateArtistRequest", updateArtistRequest{}},
+		{"UpdateBannerRequest", "BannerController.cs", "UpdateBannerRequest", updateBannerRequest{}},
+		{"CreateReportRequest", "ReportsController.cs", "CreateReportRequest", createReportRequest{}},
+		{"UpdateReportRequest", "ReportsController.cs", "UpdateReportRequest", updateReportRequest{}},
+		{"UpdateRoleRequest", "UsersController.cs", "UpdateRoleRequest", updateUserRoleRequest{}},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			want := csFieldsFromFile(t, filepath.Join(controllersDir, tc.file), tc.class)
+			got := goJsonFields(t, tc.goVal)
+
+			for _, field := range difference(want, got) {
+				t.Errorf("%s.%s is accepted by C# but not read by Go; the field is dropped silently",
+					tc.name, field)
+			}
+			for _, field := range difference(got, want) {
+				t.Errorf("%s.%s is read by Go but not declared in %s", tc.name, field, tc.file)
+			}
+
+			t.Logf("checked %d fields: C#=%v Go=%v", len(want), sortedKeys(want), sortedKeys(got))
+		})
 	}
 }
