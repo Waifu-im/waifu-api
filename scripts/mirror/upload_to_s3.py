@@ -242,6 +242,36 @@ def main():
     ap.add_argument(
         "--prefix", default="", help="optional key prefix, e.g. images/"
     )
+    ap.add_argument(
+        "--ext",
+        default="",
+        help=(
+            "upload a converted format instead of the extension recorded in the "
+            "dump, e.g. --ext .webp after converting PNGs to WebP. The dump's "
+            "Extension column still selects WHICH ids to upload; this only "
+            "changes the key suffix, so --images must point at the converted "
+            "files."
+        ),
+    )
+    ap.add_argument(
+        "--skip-ext",
+        default="",
+        help=(
+            "comma-separated dump extensions to leave alone, e.g. "
+            "--skip-ext .png when the PNGs are being uploaded as WebP via "
+            "--ext instead. Avoids storing both formats."
+        ),
+    )
+    ap.add_argument(
+        "--from-ext",
+        default=".png",
+        help=(
+            "which dump extension --ext replaces. Only rows carrying this "
+            "extension are selected, so --ext .webp uploads converted PNGs and "
+            "leaves the JPEGs and GIFs alone. Animated GIFs have no still "
+            "equivalent and are excluded by default."
+        ),
+    )
     args = ap.parse_args()
 
     global uploaded, skipped, bytes_sent, START
@@ -268,6 +298,12 @@ def main():
         die(f"Image directory not found: {args.images}\n  Run download.py first.")
 
     images = list(parse_images(args.sql))
+    if args.skip_ext:
+        skip = {e.strip().lower() for e in args.skip_ext.split(",") if e.strip()}
+        images = [(i, e) for i, e in images if e.lower() not in skip]
+    if args.ext:
+        want = args.from_ext.lower()
+        images = [(i, args.ext) for i, e in images if e.lower() == want]
     if args.limit:
         images = images[: args.limit]
     if not images:
