@@ -161,6 +161,71 @@ This matters if you self-host. IDrive (among others) no longer allows public
 buckets to be created, so the Worker exists to fetch from a private one. AWS S3
 or MinIO can be made public directly and don't need it.
 
+#### Storage backend
+
+The Worker is pointed at **Tigris** (`https://t3.storage.dev`, region `auto`,
+bucket `waifu-api`, private). This replaced IDrive, whose free tier caps egress
+at 1:1 with stored data — a public image site exhausts that within a month and
+then fails every cache miss. Tigris includes free egress. Credentials are set as
+Worker secrets, never in `wrangler.toml`:
+
+```bash
+cd scripts/mirror/worker
+grep '^S3_ACCESS_KEY_ID='     ../.env | cut -d= -f2- | npx wrangler secret put S3_ACCESS_KEY_ID
+grep '^S3_SECRET_ACCESS_KEY=' ../.env | cut -d= -f2- | npx wrangler secret put S3_SECRET_ACCESS_KEY
+npx wrangler deploy
+```
+
+#### WebP
+
+Two mechanisms produce WebP, and they are deliberately independent:
+
+- **Existing images** were converted offline with `cwebp` and uploaded under
+  `.webp` keys. The Worker maps a `.png` URL to the `.webp` object and reports
+  the origin's real `content-type`, so the legacy 1,162 PNG rows keep working
+  without a database change. Controlled by `WEBP_FALLBACK` in `wrangler.toml`;
+  set it to `"false"` and redeploy to revert to plain `.png` → `.png`.
+- **New uploads** are converted by the API at ingest. Off by default, PNG only,
+  animated images always skipped, and any conversion failure stores the
+  original bytes rather than failing the upload:
+
+  ```bash
+  Image__WebpConversionEnabled=true
+  Image__WebpQuality=90              # 1-100
+  Image__WebpSourceExtensions=.png   # comma-separated
+  ```
+
+  Metadata — including the perceptual hash behind duplicate detection — is still
+  read from the *original* bytes, so re-encoding never weakens dedupe.
+
+JPEG is excluded by default: it is already lossy-compressed, so re-encoding is
+lossy-to-lossy. At q90 the encoder produces output ~3% smaller than `libwebp`
+across this project's own PNGs.
+
+### ⚠️ Build in Release, not just Debug
+
+**Render publishes in Release. Always verify with the exact command it runs:**
+
+```bash
+dotnet publish WaifuApi.Web/WaifuApi.Web.csproj -c Release -o /app/publish \
+  /p:UseAppHost=false /p:Version=0.0.0-local /p:OpenApiGenerateDocumentsOnBuild=false
+```
+
+Debug builds and `dotnet test` pass while Release fails. This is not
+hypothetical — `SixLabors.ImageSharp` 4.x requires a commercial license key that
+is only enforced in Release, so an upgrade that looked fine locally took down
+the deploy. Note also that 3.1.12 already ships `WebpEncoder`, so there is no
+reason to move off it.
+
+To check a dependency change the way production sees it, build in the SDK
+container:
+
+```bash
+cd backend
+docker run --rm -v "$PWD":/src -w /src mcr.microsoft.com/dotnet/sdk:10.0 \
+  dotnet test
+```
+
 ### 👑 Setting up an Admin User
 
 To access administrative features (moderation, tag management, etc.), you need to promote your user account.
