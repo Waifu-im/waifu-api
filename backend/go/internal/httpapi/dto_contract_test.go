@@ -227,6 +227,7 @@ func TestDtoShapesMatch(t *testing.T) {
 		{"BannerDto", "BannerDto.cs", "BannerDto", bannerDto{}},
 		{"ReportDto", "ReportDto.cs", "ReportDto", reportDto{}},
 		{"UserDto", "UserDto.cs", "UserDto", userDto{}},
+		{"UserMinimalDto", "UserDto.cs", "UserMinimalDto", userMinimalDto{}},
 	}
 
 	for _, tc := range cases {
