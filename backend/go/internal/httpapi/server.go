@@ -20,6 +20,7 @@ import (
 	"waifuapi/internal/auth"
 	"waifuapi/internal/authz"
 	"waifuapi/internal/config"
+	"waifuapi/internal/discord"
 	"waifuapi/internal/repo"
 	"waifuapi/internal/storage"
 	"waifuapi/internal/store"
@@ -37,10 +38,13 @@ type Server struct {
 	log     Logger
 	authz   *authz.Checker
 	storage storage.Store
+	discord *discord.Client
+	tokens  *auth.TokenIssuer
 }
 
 // NewServer builds a Server.
-func NewServer(cfg *config.Config, db *store.DB, data *repo.Repo, log Logger, files storage.Store) *Server {
+func NewServer(cfg *config.Config, db *store.DB, data *repo.Repo, log Logger, files storage.Store,
+	discordClient *discord.Client, tokens *auth.TokenIssuer) *Server {
 	return &Server{
 		cfg:     cfg,
 		db:      db,
@@ -48,6 +52,8 @@ func NewServer(cfg *config.Config, db *store.DB, data *repo.Repo, log Logger, fi
 		log:     log,
 		authz:   authz.New(cfg),
 		storage: files,
+		discord: discordClient,
+		tokens:  tokens,
 	}
 }
 
@@ -72,6 +78,10 @@ func (s *Server) Register(mux *http.ServeMux) {
 	s.registerUploadRoutes(mux)
 	s.registerReviewRoutes(mux)
 	s.registerCatalogWriteRoutes(mux)
+	s.registerAuthRoutes(mux)
+	s.registerAlbumRoutes(mux)
+	s.registerReportRoutes(mux)
+	s.registerUserRoutes(mux)
 	s.registerCatalogRoutes(mux)
 	s.registerBannerRoutes(mux)
 	s.registerStatsRoutes(mux)

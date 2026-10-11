@@ -19,6 +19,7 @@ import (
 
 	"waifuapi/internal/auth"
 	"waifuapi/internal/config"
+	"waifuapi/internal/discord"
 	"waifuapi/internal/httpapi"
 	"waifuapi/internal/repo"
 	"waifuapi/internal/storage"
@@ -120,10 +121,18 @@ func newHarness(t *testing.T) *harness {
 		logSink = os.Stderr
 	}
 	log := slog.New(slog.NewTextHandler(logSink, nil))
-	api := httpapi.NewServer(cfg, db, data, log, files)
-
 	tokens := auth.NewTokenIssuer(cfg.JWT)
 	authenticator := auth.NewAuthenticator(tokens)
+
+	// A Discord client pointed at an unreachable host. No test in this file
+	// exercises OAuth, so it only needs to exist and satisfy the constructor.
+	discordClient := discord.NewClient(discord.Config{
+		ClientID:     "test-client",
+		ClientSecret: "test-secret",
+		RedirectURI:  "http://localhost/auth/callback",
+	}, "http://127.0.0.1:1")
+
+	api := httpapi.NewServer(cfg, db, data, log, files, discordClient, tokens)
 
 	mux := http.NewServeMux()
 	api.Register(mux)

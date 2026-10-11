@@ -46,6 +46,23 @@ func jsonString(t *testing.T, body []byte, field string) string {
 	return string(rest[:end])
 }
 
+// jsonBool extracts a boolean field from an already-read JSON body.
+func jsonBool(t *testing.T, body []byte, field string) bool {
+	t.Helper()
+
+	needle := []byte(`"` + field + `":`)
+	index := bytes.Index(body, needle)
+	if index < 0 {
+		t.Fatalf("field %q not found in %s", field, string(body))
+	}
+
+	rest := body[index+len(needle):]
+	if len(rest) > 0 && rest[0] == 't' {
+		return true
+	}
+	return false
+}
+
 // jsonInt extracts an integer field from an already-read JSON body.
 //
 // It reports an error when the field is absent, because a missing field usually

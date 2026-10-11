@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"waifuapi/internal/auth"
+	"waifuapi/internal/store/models"
 )
 
 // GetUserByAPIKeyHash resolves a hashed API key to its owner.
@@ -89,4 +90,65 @@ func (r *Repo) CountUserOpenEdits(ctx context.Context, userID int64) (int64, err
 		return 0, fmt.Errorf("count open edits: %w", err)
 	}
 	return count, nil
+}
+
+// APIKeyRecord describes a key being created.
+type APIKeyRecord struct {
+	ID          int64
+	CreatedAt   time.Time
+	Description string
+	ExpiresAt   *time.Time
+}
+
+// ListAPIKeys returns a user's keys, newest first.
+func (r *Repo) ListAPIKeys(ctx context.Context, userID int64) ([]models.APIKey, error) {
+	rows, err := r.db.Query(ctx, `
+        SELECT "Id", "UserId", "Description", "CreatedAt", "LastUsedAt", "ExpirationDate"
+        FROM "ApiKey"
+        WHERE "UserId" = $1
+        ORDER BY "CreatedAt" DESC`, userID)
+	if err != nil {
+		return nil, fmt.Errorf("list api keys: %w", err)
+	}
+	defer rows.Close()
+
+	keys := make([]models.APIKey, 0, 4)
+	for rows.Next() {
+		var key models.APIKey
+		if err := rows.Scan(&key.ID, &key.UserID, &key.Description,
+			&key.CreatedAt, &key.LastUsedAt, &key.ExpiresAt); err != nil {
+			return nil, fmt.Errorf("scan api key: %w", err)
+		}
+		keys = append(keys, key)
+	}
+	return keys, rows.Err()
+}
+
+// CreateAPIKeyRecord stores a new key and returns it.
+//
+// expiresAt is a formatted timestamp string rather than a time.Time so the
+// caller can control the exact instant; it is parsed back here so the column
+// receives a real timestamp.
+func (r *Repo) CreateAPIKeyRecord(ctx context.Context, userID int64, description, hash string, expiresAt *string) (APIKeyRecord, error) {
+	var record APIKeyRecord
+
+	var parsedExpires *time.Time
+	if expiresAt != nil {
+		when, err := time.Parse("2006-01-02T15:04:05Z", *expiresAt)
+		if err != nil {
+			return APIKeyRecord{}, fmt.Errorf("parse expiration: %w", err)
+		}
+		parsedExpires = &when
+	}
+
+	err := r.db.QueryRow(ctx, `
+        INSERT INTO "ApiKey" ("UserId", "Description", "KeyHash", "CreatedAt", "ExpirationDate")
+        VALUES ($1, $2, $3, now(), $4)
+        RETURNING "Id", "CreatedAt", "Description", "ExpirationDate"`,
+		userID, description, hash, parsedExpires).
+		Scan(&record.ID, &record.CreatedAt, &record.Description, &record.ExpiresAt)
+	if err != nil {
+		return APIKeyRecord{}, fmt.Errorf("create api key record: %w", err)
+	}
+	return record, nil
 }

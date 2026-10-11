@@ -25,6 +25,7 @@ import (
 
 	"waifuapi/internal/auth"
 	"waifuapi/internal/config"
+	"waifuapi/internal/discord"
 	"waifuapi/internal/httpapi"
 	"waifuapi/internal/logging"
 	"waifuapi/internal/repo"
@@ -86,6 +87,18 @@ func run() error {
 	tokens := auth.NewTokenIssuer(cfg.JWT)
 	authenticator := auth.NewAuthenticator(tokens)
 
+	discordClient := discord.NewClient(discord.Config{
+		ClientID:     cfg.Discord.ClientID,
+		ClientSecret: cfg.Discord.ClientSecret,
+		RedirectURI:  cfg.Discord.RedirectURI,
+	}, os.Getenv("DISCORD_API_BASE_URL"))
+	if err := discordClient.Validate(); err != nil {
+		// Not fatal: Discord login is one feature, and refusing to start would
+		// take the whole API down for a configuration problem that only affects
+		// it. The endpoints report the misconfiguration when called.
+		log.Warn("discord oauth is not fully configured", "error", err.Error())
+	}
+
 	// Object storage is required for uploads. It is constructed eagerly so a
 	// misconfigured bucket fails at startup rather than on the first upload,
 	// matching the behaviour of the C# service.
@@ -106,7 +119,7 @@ func run() error {
 		"bucket", cfg.S3.BucketName,
 		"pathStyle", cfg.S3.ForcePathStyle)
 
-	server := httpapi.NewServer(cfg, db, data, log, files)
+	server := httpapi.NewServer(cfg, db, data, log, files, discordClient, tokens)
 
 	mux := http.NewServeMux()
 	server.Register(mux)

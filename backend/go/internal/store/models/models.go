@@ -286,3 +286,55 @@ type PublicStats struct {
 	TotalArtists  int64 `json:"totalArtists"`
 	TotalRequests int64 `json:"totalRequests"`
 }
+
+// APIKey is a row of the ApiKey table.
+//
+// Only the hash of the key is stored. The plaintext is returned once at
+// creation and cannot be recovered afterwards, which is what allows a leaked
+// database to be disclosed without also leaking every key.
+type APIKey struct {
+	ID          int64
+	UserID      int64
+	Description string
+	CreatedAt   time.Time
+	LastUsedAt  *time.Time
+	ExpiresAt   *time.Time
+}
+
+// ReportStatus is the state of a user report.
+type ReportStatus int
+
+// Report status values.
+const (
+	// ReportPending means the report has not been reviewed.
+	ReportPending ReportStatus = 0
+	// ReportAccepted means the report was upheld.
+	ReportAccepted ReportStatus = 1
+	// ReportRejected means the report was dismissed.
+	ReportRejected ReportStatus = 2
+)
+
+// String renders the status for the API response.
+func (r ReportStatus) String() string {
+	switch r {
+	case ReportPending:
+		return "Pending"
+	case ReportAccepted:
+		return "Accepted"
+	case ReportRejected:
+		return "Rejected"
+	default:
+		return "Pending"
+	}
+}
+
+// Report is a row of the Report table.
+type Report struct {
+	ID           int64
+	UserID       int64
+	ImageID      *int64
+	Description  string
+	Status       ReportStatus
+	ReviewerNote *string
+	CreatedAt    time.Time
+}
