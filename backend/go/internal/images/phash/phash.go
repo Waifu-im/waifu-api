@@ -167,6 +167,10 @@ var nearestKernel = Kernel{
 // reproducible against itself, so this package does not attempt to reproduce a
 // particular SIMD path. It aims to be deterministic and self-consistent, which
 // is the property a corpus backfill depends on.
+//
+// MIGRATION.md in this directory records what that means for the ~4,285 stored
+// hashes, what was measured about it, and the two-column plan for making
+// duplicate detection work after the cutover.
 var DefaultKernel = cubicBSpline("catmullrom", 0, 0.5)
 
 // CandidateKernels lists every resampler that was evaluated against the C#
