@@ -8,6 +8,29 @@ for 60 seconds, which keeps commands fast and means a sleeping Render free-tier
 instance cannot return a 502 mid-command. Set `WAIFU_API` to the API host to
 bypass the cache.
 
+That default is safe *because this bot is anonymous*. If you adapt it to send
+credentials, point `WAIFU_API` at the API host instead — see
+[Which host to use](#which-host-to-use) below.
+
+## Which host to use
+
+| What your bot does | Point it at |
+|---|---|
+| Fetches images (`GET /images`, `/images/sfw`, ...) | `https://waifu-cdn.waifu-api.workers.dev` — edge-cached, and image bytes never touch Render |
+| Anything authenticated | `https://waifu-api-031n.onrender.com` — read below first |
+
+Anonymous reads are faster through the Worker, and an image URL is served
+straight from the edge without a database round trip at all.
+
+But the Worker forwards only `Authorization`, `Accept` and `Accept-Language`
+(`worker.js:332`). It **drops `X-Api-Key`**, which is one of the two ways this
+API authenticates — an API-key client pointed at the Worker gets a silent
+`401`, with no error explaining why. Bearer tokens are forwarded correctly,
+they just aren't cached; `/users`, `/albums`, `/reports` and friends are never
+cached even anonymously.
+
+Use the API host whenever your bot carries any credential.
+
 ## Commands
 
 | Command | What it does |
@@ -61,5 +84,5 @@ uv run python bot.py
 | --- | --- | --- |
 | `DISCORD_TOKEN` | required | Bot token |
 | `PREFIX` | `!` | Command prefix |
-| `WAIFU_API` | the public Render instance | Point at your own deployment if you run one |
+| `WAIFU_API` | the Cloudflare Worker | Use the API host instead if your bot sends credentials |
 | `NSFW_CHANNELS` | empty | Extra channel IDs allowed to get NSFW results (adds to Discord's own age-restricted channels) |
