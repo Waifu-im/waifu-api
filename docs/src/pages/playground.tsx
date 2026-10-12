@@ -156,9 +156,11 @@ export default function Playground(): JSX.Element {
             fetches them directly — they never pass through this page.
           </li>
           <li>
-            Anonymous <code>GET</code>s are cached for 60 seconds at the edge.
-            Repeat a query inside that window and you'll get the cached copy
-            rather than a fresh database read.
+            Anonymous <code>GET</code>s are cached for 60 seconds at the edge. That
+            cache is what makes the CDN worth using from your own bot, where
+            repeating a query inside the window returns the cached copy
+            rather than a fresh database read. This page opts out of it so
+            every click gives you something new.
           </li>
           <li>
             Credentials belong on the API host, not the CDN — the CDN drops{" "}
