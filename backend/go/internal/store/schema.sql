@@ -47,9 +47,9 @@ CREATE TABLE IF NOT EXISTS "Images" (
     "UploadedAt"    timestamptz NOT NULL DEFAULT now(),
 
     -- Duplicate detection compares this against incoming uploads at Hamming
-    -- distance <= 4. See PLAN.md section 6.1: existing values were produced by
-    -- an algorithm that does not reproduce itself, so a backfill is required
-    -- before this column can be trusted to be consistent.
+    -- distance <= 4. The existing values were produced by an algorithm that does
+    -- not reproduce itself, so a backfill is required before this column can be
+    -- trusted to be internally consistent. See internal/images/phash.
     "PerceptualHash" bit(64)     NOT NULL,
 
     -- 0 Pending, 1 Accepted. There is no Rejected value: a rejected image row

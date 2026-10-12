@@ -228,7 +228,7 @@ func TestReferenceIsSelfInconsistent(t *testing.T) {
 	// becomes worth revisiting and this decision should be re-examined.
 	if differing == 0 && shared > 100 {
 		t.Log("NOTE: the C# reference is now self-consistent. The backfill " +
-			"rationale in PLAN.md 6.1 no longer holds and should be revisited.")
+			"rationale no longer holds and should be revisited.")
 	}
 }
 

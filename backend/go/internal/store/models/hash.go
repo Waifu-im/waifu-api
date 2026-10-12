@@ -97,9 +97,10 @@ func PerceptualHashToHex(hash uint64) string {
 // This is the metric duplicate detection uses: an upload is rejected when its
 // distance to any stored image is <= 4. See UploadImage/Command.cs.
 //
-// The threshold of 4 was chosen when the hash was assumed stable. PLAN.md
-// section 6.1 establishes it is not, so the threshold needs re-validating once
-// the corpus backfill has run.
+// The threshold of 4 was chosen when the hash was assumed stable. It is not:
+// stored values come from an algorithm that does not reproduce itself (see
+// internal/images/phash), so the threshold needs re-validating once the corpus
+// backfill has run.
 func HammingDistance(a, b uint64) int {
 	diff := a ^ b
 	count := 0

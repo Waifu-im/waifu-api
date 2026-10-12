@@ -2,8 +2,8 @@
 //
 // Column names are PascalCase with quoted identifiers, exactly as the C# service
 // stores them. They are quoted in every query rather than folded to snake_case,
-// because the schema is FROZEN (PLAN.md section 2) and renaming a column would
-// be a breaking change to production data.
+// because the schema is frozen: it holds production data, so renaming a column
+// is a breaking change rather than a refactor.
 //
 // Enums are mirrored as plain integers with named constants, because that is
 // how they are persisted. The C# service compares roles with >= and review

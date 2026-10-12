@@ -9,8 +9,8 @@
 // # Supabase connection mode
 //
 // Supabase caps direct connections (about 15 on the free tier) and its
-// transaction-mode pooler does not support prepared statements. See PLAN.md
-// section 6.8. pgx uses prepared statements by default, so the two supported
+// transaction-mode pooler does not support prepared statements. pgx uses
+// prepared statements by default, so the two supported
 // modes are handled explicitly here:
 //
 //   - direct or session pooler: default query execution mode, prepared

@@ -5,9 +5,9 @@
 // The C# service uses Entity Framework Core. The closest idiomatic Go
 // equivalent is sqlc, which generates type-safe Go from SQL checked against the
 // schema. sqlc is deliberately not wired up yet: it needs a live database to
-// introspect, and PLAN.md makes the Supabase connection-mode decision a Phase 0
-// prerequisite. Until that is settled, these queries are written by hand so the
-// work is not blocked, and they are plain enough that sqlc can adopt them later
+// introspect, and which Supabase connection mode is in use has not been
+// decided. Until that is settled, these queries are written by hand so the work
+// is not blocked, and they are plain enough that sqlc can adopt them later
 // without rewriting the SQL.
 //
 // Every statement below is parameterised. No value is ever interpolated into
@@ -520,10 +520,9 @@ func (r *Repo) FindDuplicateByHash(ctx context.Context, hash uint64) (int64, err
 	// for a parameter used only inside a bit expression and would otherwise fail
 	// to encode the threshold.
 	//
-	// NOTE: this only produces meaningful results once the PLAN.md section 6.1
-	// backfill has run. Until then the stored hashes come from an algorithm that
-	// does not reproduce itself, so the comparison is against a mixed
-	// vocabulary.
+	// NOTE: this only produces meaningful results once the corpus backfill has
+	// run. Until then the stored hashes come from an algorithm that does not
+	// reproduce itself, so the comparison is against a mixed vocabulary.
 	const query = `
         SELECT "Id"
         FROM "Images"

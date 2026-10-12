@@ -1,7 +1,7 @@
 # Perceptual-hash oracle
 
 This tool generates the **reference hashes** that the Go implementation must
-reproduce bit-for-bit. It is the oracle for the spike in PLAN.md section 6.1.
+reproduce bit-for-bit. See `internal/images/phash` for what it concluded.
 
 ## Why it exists
 
@@ -39,7 +39,7 @@ Output is a TSV: `<path>\t<hash:X16>\t<width>x<height>\t<dominant>\t<isAnimated>
 
 ## Current state
 
-**The spike is NOT closed.** See PLAN.md section 6.1 for the open findings.
+**Bit-exact porting was ruled out.** The findings below are why.
 
 Established so far:
 
@@ -57,8 +57,32 @@ Two genuine bugs were found and fixed on the Go side: a transposed output
 plane, and window bounds computed from a float radius with `Floor`/`Ceiling`
 instead of ImageSharp's integer radius with `Ceiling`/`Floor`.
 
-Remaining: lossless PNG images still mismatch at 107/212. The prime suspect is
-that `ResizeKernel.ConvolveCore` uses `Vector256.MultiplyAddEstimate`, whose
-precision differs from a separate multiply-add, so the reference may not be
-bit-reproducible across hardware at all. That needs confirming before more
-filter tuning is worthwhile.
+## Outcome
+
+**The reference does not reproduce itself.** Running the oracle twice on the
+same 554-image corpus — once normally, once with `DOTNET_EnableHWIntrinsic=0` —
+with identical library versions:
+
+| | |
+|---|---|
+| Hashes identical between the SIMD and scalar runs | 248 / 554 |
+| Hashes differing | 306 / 554 |
+| Largest divergence | 38 bits |
+| Diverging hashes still within the dedup threshold (<= 4) | 40 / 306 |
+
+The cause is `ResizeKernel.ConvolveCore`, which accumulates with
+`Vector256.MultiplyAddEstimate` when AVX2 is present and a plain float loop when
+it is not. Those paths do not agree, so the ~4,000 hashes already stored were
+produced by at least two algorithms, decided by whichever machine computed them.
+There was never a stable target to port to.
+
+Consequence: the Go hash does not match historical rows, so duplicate detection
+is blind across the boundary until a rehash backfill runs. It is worth knowing
+that this was a property of the C# service, not a defect in the port.
+
+## Do not resume filter tuning
+
+The work above was worth doing — it found two genuine bugs — but it is closed.
+Tuning the kernel further cannot close a gap whose far side moves with the CPU
+it ran on. `internal/images/phash` is the shipped implementation: deterministic
+and self-consistent, which is what a backfill actually needs.

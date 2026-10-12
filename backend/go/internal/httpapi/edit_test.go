@@ -16,9 +16,9 @@ import (
 // change) and PATCH /review/tasks/{id} (edit a pending task's content).
 //
 // It is the most intricate logic in the C# service — EditPreparer and EditApplier
-// are 335 lines between them — and PLAN.md section 6.2 singles it out as the
-// thing most likely to be misunderstood rather than mistranslated. Two of its
-// properties are easy to lose in a port and expensive when lost:
+// are 335 lines between them. It is the thing most likely to be misunderstood
+// rather than mistranslated. Two of its properties are easy to lose in a port
+// and expensive when lost:
 //
 //   - The stored payload is a DELTA. Only the fields that actually differ from
 //     the current value are written, so two people proposing different changes to

@@ -21,9 +21,8 @@ func nowRFC3339() string { return time.Now().UTC().Format(time.RFC3339Nano) }
 // POST /review/tasks and PATCH /review/tasks/{id}.
 //
 // They are the most intricate business logic in the C# codebase — 335 lines that
-// mutate four entity types behind a diff — and PLAN.md §6.2 calls out reading
-// them as the actual work rather than translating them. Two properties are
-// load-bearing and easy to lose:
+// mutate four entity types behind a diff. Reading them is the actual work, not
+// translating them. Two properties are load-bearing and easy to lose:
 //
 //   - The payload is a *delta*, not a replacement. A stored payload only
 //     contains the fields the user actually changed, so two people proposing

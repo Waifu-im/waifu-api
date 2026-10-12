@@ -15,11 +15,10 @@
 //
 // # Perceptual hash
 //
-// The hash is produced by internal/images/phash. See that package and
-// PLAN.md section 6.1: the C# reference is not reproducible against itself, so
-// this implementation does not attempt to match a particular machine's output.
-// It is deterministic and internally consistent, which is what the corpus
-// backfill depends on.
+// The hash is produced by internal/images/phash. See that package: the C#
+// reference is not reproducible against itself, so this implementation does not
+// attempt to match a particular machine's output. It is deterministic and
+// internally consistent, which is what a corpus backfill depends on.
 package imageproc
 
 import (

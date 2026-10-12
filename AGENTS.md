@@ -58,6 +58,26 @@ Six Labors license or replacing ImageSharp entirely.
   chars via `BitArrayHelper.ToHex`. Mixing the two up silently breaks
   comparison.
 
+### Perceptual hashes are not comparable across the two backends
+
+The C# service does not reproduce its own hashes. Running the oracle twice on
+one corpus with identical library versions, once normally and once with
+`DOTNET_EnableHWIntrinsic=0`, gave **248/554 identical** hashes, with
+divergences up to 38 bits — `ResizeKernel.ConvolveCore` accumulates with
+`Vector256.MultiplyAddEstimate` when AVX2 is present and a scalar float loop
+when it is not, and the two do not agree.
+
+So the ~4,000 stored hashes are a **mixture of at least two algorithms**,
+decided by whichever machine computed them. Consequences worth remembering:
+
+- A hash computed by the Go backend will **not** match historical rows, so
+  duplicate detection is blind across the boundary until a rehash backfill runs.
+- The Hamming threshold of 4 was chosen assuming a stable hash. It needs
+  re-validating after that backfill.
+- `internal/images/phash` is intentionally *not* chasing bit-exactness. Further
+  filter tuning cannot close a gap whose far side moves with the CPU. See
+  `backend/go/tools/oracle/README.md` for the full findings.
+
 ## Verifying your own work
 
 - Do not tell someone a command or a cache-buster works before reading the code
