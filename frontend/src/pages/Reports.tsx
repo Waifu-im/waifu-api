@@ -11,6 +11,7 @@ import ReportCard from '../components/ReportCard';
 import StatusTabs from '../components/StatusTabs';
 import { useRequireAuth } from '../hooks/useRequireAuth';
 import { invalidateNavBadges } from '../hooks/useNavBadges';
+import { MetaTags } from '../hooks/useMetaTags';
 
 type StatusFilter = 'All' | ReportStatus;
 
@@ -91,6 +92,7 @@ const Reports = () => {
 
     return (
         <div className="container mx-auto p-6 md:p-10 h-full flex flex-col">
+            <MetaTags title="Reports" description="Review and act on reported images." noindex />
             <div className="mb-6">
                 <h1 className="text-3xl font-black flex items-center gap-3 text-foreground"><Flag className="text-primary" size={32}/> Reports</h1>
                 <p className="text-muted-foreground mt-1">Review and act on reported images.</p>

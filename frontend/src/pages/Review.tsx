@@ -33,6 +33,7 @@ import { StatusBadge as SharedStatusBadge, StatusTone } from '../components/Stat
 import { resolveTagsBySlugs, resolveArtistsByIds } from '../utils/metadataResolve';
 import { imgCard } from '../utils/cfImage';
 import { invalidateNavBadges } from '../hooks/useNavBadges';
+import { MetaTags } from '../hooks/useMetaTags';
 import {
     Check, X, ExternalLink, Image as ImageIcon, Tag as TagIcon,
     Palette, Clock, Ban, ArrowRight, Sparkles, GitPullRequest, Edit2, Link as LinkIcon,
@@ -755,6 +756,13 @@ const Review = () => {
 
     return (
         <div className="container mx-auto p-6 md:p-10">
+            <MetaTags
+                title={isModerator ? 'Review queue' : 'My submissions'}
+                description={isModerator
+                    ? 'Review new submissions and proposed edits from the community.'
+                    : 'Track your uploads and suggested edits.'}
+                noindex
+            />
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
                 <div>
                     <h1 className="text-3xl font-black flex items-center gap-3 text-foreground">

@@ -1,5 +1,6 @@
 ﻿import { useLocation } from 'react-router-dom';
 import { getEnv } from '../utils/env';
+import { MetaTags } from '../hooks/useMetaTags';
 
 const Login = () => {
     const location = useLocation();
@@ -25,6 +26,11 @@ const Login = () => {
 
     return (
         <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4">
+            <MetaTags
+                title="Sign in"
+                description="Sign in with Discord to manage your uploads, albums and API keys."
+                noindex
+            />
             <div className="w-full max-w-sm bg-card p-8 rounded-2xl border border-border shadow-2xl text-center">
                 <h1 className="text-3xl font-black mb-2">Welcome Back</h1>
                 <p className="text-muted-foreground mb-8">Access your collection and manage your uploads.</p>

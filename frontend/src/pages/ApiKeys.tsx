@@ -6,6 +6,7 @@ import Modal from '../components/Modal';
 import ConfirmModal from '../components/modals/ConfirmModal';
 import { Key, Plus, Trash2, Copy, Calendar, Shield, Clock, Edit2, AlertTriangle } from 'lucide-react';
 import { useRequireAuth } from '../hooks/useRequireAuth';
+import { MetaTags } from '../hooks/useMetaTags';
 
 const ApiKeys = () => {
     const user = useRequireAuth();
@@ -102,6 +103,11 @@ const ApiKeys = () => {
 
     return (
         <div className="container mx-auto p-6 md:p-10">
+            <MetaTags
+                title="API keys"
+                description="Create and revoke API keys for accessing the API from your own applications."
+                noindex
+            />
             <div className="flex justify-between items-center mb-10">
                 <div>
                     <h1 className="text-3xl font-black flex items-center gap-3 text-foreground"><Key className="text-primary" size={32}/> API Keys</h1>

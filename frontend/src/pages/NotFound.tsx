@@ -1,9 +1,14 @@
 ﻿import { Link } from 'react-router-dom';
 import { Home, ArrowLeft } from 'lucide-react';
+import { MetaTags } from '../hooks/useMetaTags';
 
 const NotFound = () => {
     return (
         <div className="flex flex-col items-center justify-center min-h-[80vh] text-center px-4">
+            <MetaTags
+                title="Page not found"
+                description="The page you were looking for does not exist or has moved."
+            />
             <div className="relative mb-8">
                 <h1 className="text-9xl font-black text-primary/10 select-none">404</h1>
                 <div className="absolute inset-0 flex items-center justify-center">

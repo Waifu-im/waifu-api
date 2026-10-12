@@ -110,41 +110,33 @@ const config: Config = {
 
   themes: ["docusaurus-theme-openapi-docs"],
 
+  // themeConfig.image is the supported way to set the Open Graph image: Docusaurus
+  // resolves it against `url` + `baseUrl` and emits absolute og:image/twitter:image.
+  // A relative path in headTags is dropped by every crawler.
   headTags: [
     {
       tagName: "meta",
       attributes: {
-        property: "og:image",
-        content: "img/favicon.png",
+        property: "og:type",
+        content: "website",
       },
     },
     {
       tagName: "meta",
       attributes: {
-        name: "twitter:card",
-        content: "summary",
-      },
-    },
-    {
-      tagName: "meta",
-      attributes: {
-        name: "twitter:image",
-        content: "img/favicon.png",
+        property: "og:site_name",
+        content: appName,
       },
     },
   ],
 
   themeConfig: {
-    metadata: [
-      {
-        name: "description",
-        content: appTagline,
-      },
-      {
-        property: "og:description",
-        content: appTagline,
-      },
-    ],
+    // Absolute og:image + twitter:image, applied to every page.
+    image: "img/favicon.png",
+    // Per-page titles and descriptions come from each page's own metadata
+    // (frontmatter / Layout props). A site-wide description here would race
+    // with them, so only tags that no page sets itself belong in this list.
+    metadata: [],
     colorMode: {
       defaultMode: "dark",
       respectPrefersColorScheme: true,

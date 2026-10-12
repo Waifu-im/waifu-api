@@ -2,7 +2,8 @@
   "openapi": "3.1.1",
   "info": {
     "title": "Waifu API",
-    "version": "0.0.0-local"
+    "version": "0.0.0-local",
+    "description": "REST API for browsing and fetching categorized anime images - images, tags, artists, albums and users, with filtering, pagination and authentication."
   },
   "servers": [
     {

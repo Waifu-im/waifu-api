@@ -2,6 +2,7 @@
 import api from '../services/api';
 import { BarChart, Activity, Calendar, Image as ImageIcon, Tag as TagIcon, Users, Trophy, ShieldCheck, UserX, Key, Globe, Scale, Upload } from 'lucide-react';
 import { useRequireAuth } from '../hooks/useRequireAuth';
+import { MetaTags } from '../hooks/useMetaTags';
 import { Role } from '../types';
 import { Link } from 'react-router-dom';
 
@@ -91,6 +92,7 @@ const AdminStats = () => {
 
     return (
         <div className="container mx-auto p-6 md:p-10">
+            <MetaTags title="Admin dashboard" description="Usage, upload and moderation statistics." noindex />
             <div className="flex items-center gap-3 mb-8">
                 <BarChart className="text-primary" size={32} />
                 <h1 className="text-3xl font-black text-foreground">Admin Dashboard</h1>

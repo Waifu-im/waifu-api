@@ -169,7 +169,14 @@ builder.Services.AddOpenApi(options =>
    options.AddDocumentTransformer<DescriptionSanitizerTransformer>();
    options.AddDocumentTransformer((document, context, cancellationToken) =>
     {
-        document.Info = new OpenApiInfo { Title = "Waifu API", Version = apiVersion };
+        document.Info = new OpenApiInfo
+       {
+           Title = "Waifu API",
+           Version = apiVersion,
+           // Surfaced by the docs generator as the API reference overview page's
+           // meta description, so keep it to one sentence.
+           Description = "REST API for browsing and fetching categorized anime images - images, tags, artists, albums and users, with filtering, pagination and authentication."
+       };
 
         var apiBaseUrl = builder.Configuration[ConfigurationKeys.ApiBaseUrl]!;
         var serverUrl = !string.IsNullOrEmpty(basePath) && basePath != "/"

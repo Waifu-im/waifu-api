@@ -11,6 +11,7 @@ import SearchInput from '../components/SearchInput';
 import Pagination from '../components/Pagination'; // Import Pagination
 import { useResource } from '../hooks/useResource';
 import { useRequireAuth } from '../hooks/useRequireAuth';
+import { MetaTags } from '../hooks/useMetaTags';
 
 const Users = () => {
     const user = useRequireAuth();
@@ -91,6 +92,7 @@ const Users = () => {
 
     return (
         <div className="container mx-auto p-6 md:p-10">
+            <MetaTags title="User management" description="Manage user roles and access." noindex />
             <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
                 <div>
                     <h1 className="text-3xl font-black flex items-center gap-3 text-foreground"><UsersIcon className="text-primary" size={32}/> User Management</h1>
