@@ -3,6 +3,7 @@ import logging
 import asyncio
 import random
 import time
+import urllib.parse
 import discord
 from discord.ext import commands
 import aiohttp
@@ -94,7 +95,13 @@ async def fetch_images(**params):
     sess = session
     if sess is None or sess.closed:
         sess = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30))
-    query = "&".join(f"{k}={v}" for k, v in params.items() if v not in (None, "", []))
+    # urlencode, not string joining: a tag containing a space, "&" or "#"
+    # would otherwise produce a malformed URL or, worse, silently inject an
+    # extra parameter. Today's slugs are all lowercase and hyphenated so nothing
+    # trips it yet, but tags come from whatever users upload.
+    query = urllib.parse.urlencode(
+        {k: v for k, v in params.items() if v not in (None, "", [])}
+    )
     try:
         async with sess.get(f"{API_BASE}/images?{query}") as resp:
             if resp.status >= 400:
