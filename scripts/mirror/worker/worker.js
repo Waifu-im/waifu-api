@@ -278,6 +278,25 @@ function isCacheableApiRequest(request, url) {
   return true;
 }
 
+// withCors makes an API response readable from a browser.
+//
+// ASP.NET only emits Access-Control-Allow-Origin when it sees an Origin header,
+// and buildUpstreamHeaders deliberately does not forward one, so proxied JSON
+// came back without it and every browser client of this path was blocked. The
+// image branch has always set the header itself, for the same reason.
+//
+// Applied on the way out rather than before caching, so entries stored before
+// this change pick it up on their next read instead of staying broken until
+// they expire.
+function withCors(response) {
+  const headers = new Headers(response.headers);
+  headers.set("access-control-allow-origin", "*");
+  return new Response(response.body, {
+    status: response.status,
+    headers,
+  });
+}
+
 // handleApi proxies a non-image request to the API, caching anonymous reads.
 //
 // Authenticated requests are never stored, so two users can never be served
@@ -294,7 +313,7 @@ async function handleApi(request, env, ctx, url) {
   if (cacheable) {
     const cached = await cache.match(cacheKey);
     if (cached) {
-      return cached;
+      return withCors(cached);
     }
   }
 
@@ -315,12 +334,12 @@ async function handleApi(request, env, ctx, url) {
       headers,
     });
     ctx.waitUntil(cache.put(cacheKey, stored.clone()));
-    return stored;
+    return withCors(stored);
   }
 
   // Pass the upstream response through unchanged, including its own caching
   // headers, so an authenticated client keeps whatever the API intended.
-  return response;
+  return withCors(response);
 }
 
 // buildUpstreamHeaders forwards the headers the API needs, and nothing else.
