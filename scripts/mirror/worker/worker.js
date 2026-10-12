@@ -87,6 +87,32 @@ async function signGet(host, path, region, accessKey, secretKey) {
   };
 }
 
+// CACHE_VERSION namespaces the edge cache.
+//
+// This Worker runs on workers.dev and stores entries through the Cache API
+// (caches.default), which Cloudflare cannot purge by host and which no
+// zone-level purge reaches. There is also no dashboard control for it. Bumping
+// this constant is therefore the only way to invalidate everything already
+// cached: the new generation is written under different keys, so the previous
+// entries become unreachable and expire on their own.
+//
+// Bump it whenever the bytes served for an unchanged URL change - a format
+// migration, a different encoder, a content-type fix. Nothing else will.
+const CACHE_VERSION = "v2";
+
+// cacheKeyFor builds the key an entry is stored under.
+//
+// Only the path and query are preserved; the origin is included so two
+// deployments sharing a Worker never collide. The version prefix is what makes
+// the whole store discardable.
+function cacheKeyFor(request) {
+  const url = new URL(request.url);
+  return new Request(
+    `${url.origin}${CACHE_VERSION}/cache${url.pathname}${url.search}`,
+    { method: request.method }
+  );
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -115,8 +141,12 @@ export default {
     }
 
     // Serve from edge cache when warm; otherwise fetch and cache.
+    //
+    // The cache is keyed on a versioned path rather than the request URL. See
+    // CACHE_VERSION for why that indirection is necessary.
     const cache = caches.default;
-    const cached = await cache.match(request);
+    const cacheKey = cacheKeyFor(request);
+    const cached = await cache.match(cacheKey);
     if (cached) {
       return cached;
     }
@@ -191,10 +221,10 @@ export default {
       },
     });
 
-    // Cached under the URL that was requested, not the object that was served,
-    // so /8616.png and /8616.webp do not fight over one entry and the mapping
-    // never has to be consulted twice.
-    ctx.waitUntil(cache.put(request, response.clone()));
+    // Cached under the versioned key, not the request URL, so that bumping
+    // CACHE_VERSION orphans the previous generation instead of requiring a purge
+    // that cannot be performed against a workers.dev Worker.
+    ctx.waitUntil(cache.put(cacheKey, response.clone()));
     return response;
   },
 };
