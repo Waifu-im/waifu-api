@@ -2164,6 +2164,38 @@
         }
       }
     },
+    "/ping": {
+      "get": {
+        "tags": [
+          "Ping"
+        ],
+        "summary": "Check that the API is up.",
+        "description": "Returns the plain text body `pong` as soon as the request reaches the API.\nNo authentication required.",
+        "responses": {
+          "200": {
+            "description": "Returns `pong`.",
+            "content": {
+              "text/plain": { }
+            }
+          }
+        }
+      },
+      "head": {
+        "tags": [
+          "Ping"
+        ],
+        "summary": "Check that the API is up.",
+        "description": "Returns the plain text body `pong` as soon as the request reaches the API.\nNo authentication required.",
+        "responses": {
+          "200": {
+            "description": "Returns `pong`.",
+            "content": {
+              "text/plain": { }
+            }
+          }
+        }
+      }
+    },
     "/reports": {
       "post": {
         "tags": [
@@ -7026,6 +7058,9 @@
     },
     {
       "name": "Images"
+    },
+    {
+      "name": "Ping"
     },
     {
       "name": "Reports"
