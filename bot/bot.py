@@ -337,8 +337,8 @@ ACTIVITY_STATUSES = {
 
 
 @bot.event
-async def on_command_completion(ctx, command):
-    _last_activity["command"] = command.name
+async def on_command_completion(ctx):
+    _last_activity["command"] = ctx.command.name
     _last_activity["at"] = time.monotonic()
 
 
