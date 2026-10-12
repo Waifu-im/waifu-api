@@ -45,8 +45,30 @@ Use the API host whenever your bot carries any credential.
 | `!gallery` | Five random images with prev/next buttons, private to the caller |
 | `!tags` | List tags with image counts |
 | `!ping` | Bot + API health check |
+| `!stats` | Live numbers: API latency, catalogue size, uptime, errors |
 
 Flags can be combined: `!waifu nsfw gif portrait maid`.
+
+## The status line
+
+The bot rotates a presence line every 8–13 minutes. Some are jokes; the rest
+report something measured:
+
+| Slot | Shows |
+| --- | --- |
+| every 3rd | A joke |
+| every 4th | Whatever the last command was doing, for 30 minutes after it |
+| live | API latency, as measured against the configured host |
+| live | Catalogue size, cycled across images/tags/artists |
+| live | Uptime and images served, or how long ago the last API error was |
+
+The live lines come from a background probe that hits `/ping` every 60 seconds
+and `/stats/public` every 30 minutes, so they stay current whether or not anyone
+is running a command. Counts come from the same endpoint, so they are never
+hardcoded. A live line with nothing to report falls back to a joke, so the
+presence is never blank on a cold start or during an outage.
+
+`!stats` shows the same numbers on demand.
 
 ## NSFW channels
 
