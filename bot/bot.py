@@ -13,9 +13,10 @@ load_dotenv()
 
 # Default to the Cloudflare Worker rather than the API host directly.
 #
-# The worker caches anonymous reads at the edge for 60s, so this avoids both the
-# round trip to Render and its free-tier cold starts, where a sleeping instance
-# can return 502 mid-command. The response shape is identical either way.
+# The worker caches anonymous reads at the edge for 60s, so a repeat command is
+# answered from the cache instead of the database. The API host is responsive in
+# its own right; the caching is the advantage, not a workaround for a sleeping
+# backend. The response shape is identical either way.
 API_BASE = os.getenv("WAIFU_API", "https://waifu-cdn.waifu-api.workers.dev").rstrip("/")
 PREFIX = os.getenv("PREFIX", "!")
 NSFW_CHANNELS = {int(c) for c in os.getenv("NSFW_CHANNELS", "").split(",") if c.strip().lstrip("-").isdigit()}

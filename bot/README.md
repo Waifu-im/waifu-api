@@ -4,9 +4,8 @@ A minimal bot for the [waifu.im API](https://github.com/KorryKatti/waifu-api).
 
 It talks to the Cloudflare Worker (`https://waifu-cdn.waifu-api.workers.dev`) by
 default rather than the API host. The worker caches anonymous reads at the edge
-for 60 seconds, which keeps commands fast and means a sleeping Render free-tier
-instance cannot return a 502 mid-command. Set `WAIFU_API` to the API host to
-bypass the cache.
+for 60 seconds, so a repeat command is answered from the cache instead of the
+database. Set `WAIFU_API` to the API host to bypass the cache.
 
 That default is safe *because this bot is anonymous*. If you adapt it to send
 credentials, point `WAIFU_API` at the API host instead — see
@@ -19,11 +18,13 @@ credentials, point `WAIFU_API` at the API host instead — see
 | Fetches images (`GET /images`, `/images/sfw`, ...) | `https://waifu-cdn.waifu-api.workers.dev` — edge-cached, and image bytes never touch Render |
 | Anything authenticated | `https://waifu-api-031n.onrender.com` — read below first |
 
-Anonymous reads are faster through the Worker, and an image URL is served
-straight from the edge without a database round trip at all.
+Anonymous reads are faster through the Worker, because a repeat of the same
+request within 60 seconds is served from the edge instead of the database. The
+API host is responsive in its own right — the caching is the advantage, not a
+workaround for an unreliable backend.
 
 But the Worker forwards only `Authorization`, `Accept` and `Accept-Language`
-(`worker.js:332`). It **drops `X-Api-Key`**, which is one of the two ways this
+(`worker.js:351`). It **drops `X-Api-Key`**, which is one of the two ways this
 API authenticates — an API-key client pointed at the Worker gets a silent
 `401`, with no error explaining why. Bearer tokens are forwarded correctly,
 they just aren't cached; `/users`, `/albums`, `/reports` and friends are never
@@ -41,6 +42,7 @@ Use the API host whenever your bot carries any credential.
 | `!waifu landscape` | Filter by orientation (`landscape`/`portrait`/`square`) |
 | `!waifu gif` | Only animated images |
 | `!waifu nsfw` | NSFW, only in an NSFW channel (see below) |
+| `!gallery` | Five random images with prev/next buttons, private to the caller |
 | `!tags` | List tags with image counts |
 | `!ping` | Bot + API health check |
 
