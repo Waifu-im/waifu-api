@@ -169,6 +169,11 @@ const config: Config = {
           label: "API Reference",
         },
         {
+          to: "/playground",
+          position: "left",
+          label: "Playground",
+        },
+        {
           href: frontendUrl,
           label: "Website",
           position: "right",
