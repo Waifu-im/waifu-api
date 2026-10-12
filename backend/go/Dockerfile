@@ -3,12 +3,13 @@
 # Multi-stage build producing a small, dependency-free runtime image.
 #
 # The free tier this service targets allows 512 MB of RAM, and the C# runtime
-# image alone is around 230 MB before the application. A statically linked Go
-# binary on a distroless base is roughly 20 MB total, which leaves real
-# headroom for connection pools and request buffers.
+# image alone is around 230 MB before the application. The Go image is roughly
+# 79 MB, which still leaves real headroom for connection pools and request
+# buffers. It was closer to 34 MB while the binary was fully static; the WebP
+# encoder's dependency on libwebp-through-WASM moved it back onto glibc.
 
 # ---- Build ----------------------------------------------------------------
-FROM golang:1.27-alpine AS build
+FROM golang:1.27-bookworm AS build
 
 WORKDIR /src
 
@@ -34,7 +35,18 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
       ./cmd/server
 
 # ---- Runtime --------------------------------------------------------------
-FROM gcr.io/distroless/static-debian12:nonroot
+#
+# NOTE: this is `base`, not `static`, and the distinction is load-bearing.
+#
+# The WebP encoder (github.com/gen2brain/webp) depends on ebitengine/purego,
+# which ships a fake cgo shim. That forces the external linker even under
+# CGO_ENABLED=0, so the binary keeps a PT_INTERP and cannot start on a glibc-free
+# base — it fails with `exec /server: no such file or directory`.
+#
+# -linkmode=internal does not undo it; the shim is what keeps the linker out.
+# The glibc base accepts the dynamic binary, so that is what this stage uses.
+# Switching back to `static` requires dropping the WebP dependency first.
+FROM gcr.io/distroless/base-debian12:nonroot
 
 # Copy CA certificates so outbound TLS works for Discord OAuth and S3. Without
 # these, every outbound HTTPS request fails with a certificate error.
