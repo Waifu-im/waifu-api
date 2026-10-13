@@ -22,6 +22,31 @@ docker run --rm -v "$PWD":/src -w /src mcr.microsoft.com/dotnet/sdk:10.0 dotnet 
 There is no local `dotnet`; use the SDK container. It is the same SDK Render
 builds with.
 
+## The Go rewrite: validated, not deployed
+
+`backend/go` is a complete, tested replacement for the C# service. **It is not
+running in production and must not be.** The owner has decided this explicitly.
+
+- `docker-compose.yml`, `.github/workflows/docker-image.yml` and Render all
+  still point at the C# service, and that is correct. Do not repoint them.
+- The C# service stays deployed and must keep building in Release. It is the
+  behavioural oracle the Go tests compare against, so removing it removes the
+  thing that makes the rewrite trustworthy.
+- What *is* safe to run against production is the one-off fingerprint backfill,
+  in order: migration, then `tools/legacyload`, then `tools/backfill`. Those
+  touch the database only, and `tools/backfill` refuses to write until the
+  legacy column is populated.
+
+Full record, including two bugs this found and how they were measured:
+`plans/cutover-validation-log.md`. Plan and reasoning:
+`backend/go/internal/images/phash/MIGRATION.md`.
+
+### Never point the Go service at the production database
+
+`background.runJob` runs each cleanup job **once at startup**, before its daily
+ticker, matching the C# behaviour. `StatsCleanup` is unconditional and issues
+`DeleteDailyStatsBefore`. Booting Go against production deletes rows immediately.
+
 ### Known licensing trap
 
 `SixLabors.ImageSharp` **4.x is commercially licensed** and fails Release
