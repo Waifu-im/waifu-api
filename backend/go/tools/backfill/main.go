@@ -325,8 +325,10 @@ func process(ctx context.Context, files storage.Store, rows []imageRow, concurre
 func hashOne(ctx context.Context, files storage.Store, row imageRow) result {
 	res := result{id: row.ID, current: row.Current}
 
+	// GetWithFallback, not Get: PNGs are stored as WebP, so a plain Get misses
+	// every PNG row and reports it as absent.
 	key := storage.ObjectKey(row.ID, storage.NormalizeExtension(row.Extension))
-	data, err := files.Get(ctx, key)
+	data, actualKey, err := files.GetWithFallback(ctx, row.ID, row.Extension)
 	if err != nil {
 		res.err = fmt.Errorf("fetch %s: %w", key, err)
 		return res
@@ -334,7 +336,7 @@ func hashOne(ctx context.Context, files storage.Store, row imageRow) result {
 
 	hash, err := imageproc.Hash(data)
 	if err != nil {
-		res.err = fmt.Errorf("hash %s: %w", key, err)
+		res.err = fmt.Errorf("hash %s: %w", actualKey, err)
 		return res
 	}
 

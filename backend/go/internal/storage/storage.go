@@ -35,6 +35,14 @@ type Store interface {
 	// never silently left holding a stale value.
 	Get(ctx context.Context, key string) ([]byte, error)
 
+	// GetWithFallback reads an image, trying each key ObjectKeyCandidates
+	// returns until one exists.
+	//
+	// Exists so the WebP fallback cannot be forgotten by one caller and
+	// implemented by another, which is how the corpus backfill ended up
+	// reporting every PNG as missing while the Worker served them.
+	GetWithFallback(ctx context.Context, id int64, extension string) ([]byte, string, error)
+
 	// Delete removes an object.
 	//
 	// Deleting something that is already absent is not an error, because the
@@ -84,4 +92,35 @@ func NormalizeExtension(extension string) string {
 		return ".jpg"
 	}
 	return cleaned
+}
+
+// webpExtension is the stored form of every PNG in the bucket.
+const webpExtension = ".webp"
+
+// ObjectKeyCandidates returns the keys an image may be stored under, in the
+// order they should be tried.
+//
+// PNGs were converted to WebP when they were uploaded, for storage reasons, and
+// are still served back at their original .png path for compatibility. That
+// decision lives in two places — the upload path and the Cloudflare Worker in
+// scripts/mirror/worker, which rewrites a .png request to the .webp object when
+// the former is absent.
+//
+// Anything reading the corpus straight from the bucket has to repeat that
+// fallback or it silently misses every PNG. About 27% of the catalogue, so a
+// run without it looks like mass data loss rather than a key convention.
+//
+// Hashing the WebP is correct rather than a compromise: the conversion happens
+// before the fingerprint is computed, so the stored object is what the
+// duplicate check was always comparing.
+//
+// Only PNG falls back, matching the Worker. A missing JPEG has no WebP sibling
+// and should be reported missing.
+func ObjectKeyCandidates(id int64, extension string) []string {
+	key := ObjectKey(id, extension)
+	normalized := NormalizeExtension(extension)
+	if normalized != ".png" {
+		return []string{key}
+	}
+	return []string{key, ObjectKey(id, webpExtension)}
 }

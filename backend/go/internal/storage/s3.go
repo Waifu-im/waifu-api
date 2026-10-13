@@ -277,6 +277,30 @@ func (s *S3Store) Get(ctx context.Context, key string) ([]byte, error) {
 	return data, nil
 }
 
+// GetWithFallback reads an image, trying each candidate key in turn.
+//
+// The returned string is the key that actually held the object, so callers
+// writing to disk name the file after what they read rather than after what the
+// catalogue claimed.
+func (s *S3Store) GetWithFallback(ctx context.Context, id int64, extension string) ([]byte, string, error) {
+	candidates := ObjectKeyCandidates(id, extension)
+
+	var lastErr error
+	for _, key := range candidates {
+		data, err := s.Get(ctx, key)
+		if err == nil {
+			return data, key, nil
+		}
+		if !errors.Is(err, ErrNotFound) {
+			// A transport or permission failure is not an absent object, and
+			// trying the next candidate would only obscure it.
+			return nil, key, err
+		}
+		lastErr = err
+	}
+	return nil, "", lastErr
+}
+
 // Delete removes an object.
 //
 // A missing object is not an error, because the upload rollback calls this after

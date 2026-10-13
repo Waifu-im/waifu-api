@@ -79,6 +79,16 @@ func (f *fakeStore) Get(_ context.Context, key string) ([]byte, error) {
 	return append([]byte(nil), data...), nil
 }
 
+func (f *fakeStore) GetWithFallback(_ context.Context, id int64, extension string) ([]byte, string, error) {
+	for _, key := range storage.ObjectKeyCandidates(id, extension) {
+		data, err := f.Get(context.Background(), key)
+		if err == nil {
+			return data, key, nil
+		}
+	}
+	return nil, "", fmt.Errorf("get object %d%s: %w", id, extension, storage.ErrNotFound)
+}
+
 func (f *fakeStore) Delete(_ context.Context, key string) error {
 	delete(f.objects, key)
 	return nil
