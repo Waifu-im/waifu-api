@@ -10,6 +10,7 @@ import ArtistModal from '../components/modals/ArtistModal';
 import { useMetadata } from '../hooks/useMetadata';
 import { ImageDto, Role } from '../types';
 import { useRequireAuth } from '../hooks/useRequireAuth';
+import { MetaTags } from '../hooks/useMetaTags';
 import { getEnv } from '../utils/env';
 
 interface UploadForm {
@@ -82,6 +83,11 @@ const Upload = () => {
 
   return (
       <div className="max-w-5xl mx-auto p-4 md:p-8">
+        <MetaTags
+          title="Upload"
+          description="Submit a new image with source, artist and tags. Uploads are reviewed before they go live."
+          noindex
+        />
         {/* Review Notice */}
         <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 mb-8 flex items-start gap-3">
           <Info className="text-blue-500 shrink-0 mt-0.5" size={20} />

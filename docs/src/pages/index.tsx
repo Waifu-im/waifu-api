@@ -122,8 +122,10 @@ function BottomCTA() {
 
 export default function Home(): React.JSX.Element {
   const { siteConfig } = useDocusaurusContext();
+  // Homepage: the site name is already the title, so no " | Waifu API" suffix.
+  const description = `${siteConfig.tagline} Browse the documentation, the full API reference and a live playground.`;
   return (
-    <Layout title="Documentation" description={siteConfig.tagline}>
+    <Layout title={siteConfig.title} description={description}>
       <HomepageHero />
       <main>
         <Features />

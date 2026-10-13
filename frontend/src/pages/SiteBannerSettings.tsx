@@ -7,6 +7,7 @@ import { usePermissions, invalidateBanner } from '../hooks/useBanner';
 import { useNotification } from '../context/NotificationContext';
 import { BannerView } from '../components/SiteBanner';
 import { BannerSettings, BannerVariant } from '../types';
+import { MetaTags } from '../hooks/useMetaTags';
 
 const MAX_MESSAGE_LENGTH = 500;
 
@@ -68,6 +69,7 @@ const SiteBannerSettings = () => {
 
     return (
         <div className="container mx-auto p-6 md:p-10 max-w-4xl">
+            <MetaTags title="Site banner" description="Edit the notice shown at the top of every page." noindex />
             <div className="flex justify-between items-center gap-4 mb-10">
                 <div>
                     <h1 className="text-3xl font-black flex items-center gap-3 text-foreground"><Megaphone className="text-primary" size={32} /> Site Banner</h1>

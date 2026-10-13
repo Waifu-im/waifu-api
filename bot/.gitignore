@@ -1,0 +1,8 @@
+# Local Discord credentials. Never commit this.
+.env
+
+# Python build and tooling artefacts.
+__pycache__/
+.ruff_cache/
+.venv/
+*.pyc

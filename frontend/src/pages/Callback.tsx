@@ -1,6 +1,7 @@
 ﻿import { useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { MetaTags } from '../hooks/useMetaTags';
 import api from '../services/api';
 
 const Callback = () => {
@@ -36,6 +37,7 @@ const Callback = () => {
 
   return (
     <div className="flex justify-center items-center h-screen">
+      <MetaTags title="Signing in" description="Completing Discord sign-in." noindex />
       <p className="text-xl">Logging in...</p>
     </div>
   );

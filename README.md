@@ -1,6 +1,6 @@
 <div align="center">
   <a href="https://waifu-api-eosin.vercel.app">
-    <img src="frontend/public/brand/logo.jpg" alt="Waifu.im Logo" width="200" style="border-radius: 20px; box-shadow: 0 8px 30px rgba(0,0,0,0.12);">
+    <img src="https://waifu-cdn.waifu-api.workers.dev/8613.jpg" alt="Waifu.im Logo" width="200" style="border-radius: 20px; box-shadow: 0 8px 30px rgba(0,0,0,0.12);">
   </a>
 
   <h1>Waifu.im API</h1>
@@ -13,6 +13,7 @@
   <p>
     <a href="https://waifu-api-eosin.vercel.app"><strong>Website</strong></a> •
     <a href="https://waifu-api-docs.vercel.app"><strong>Documentation</strong></a> •
+    <a href="https://waifu-api-docs.vercel.app/playground"><strong>Playground</strong></a> •
     <a href="https://discord.gg/qceZ92p2xK"><strong>Support</strong></a>
   </p>
 
@@ -34,9 +35,11 @@
 | | |
 |---|---|
 | API | `https://waifu-api-031n.onrender.com` |
+| CDN | `https://waifu-cdn.waifu-api.workers.dev` |
 | Website | `https://waifu-api-eosin.vercel.app` |
 | Documentation | `https://waifu-api-docs.vercel.app` |
-| Uploads | Disabled until moderation is sorted out |
+| Playground | `https://waifu-api-docs.vercel.app/playground` |
+| Uploads | Open — requires a Discord login; new images go to a review queue |
 | Users | Discord OAuth works; existing accounts did not carry over |
 
 Image URLs are served through a Cloudflare Worker in front of a private object
@@ -62,6 +65,8 @@ Waifu.im provides a robust REST API designed for ease of use and flexibility.
 - 👤 **User Accounts**: Discord-based authentication to manage favorites and albums.
 - 🛡️ **Moderation Tools**: Report system and review queues for community safety.
 - ⚡ **Performance**: Optimized for speed with caching and CDN integration.
+- 🎛️ **Playground**: Try filter combinations in the browser and see results immediately.
+- 🤖 **Discord Bot**: A sample bot showing how to use the API from chat commands.
 - 📊 **Statistics**: Track API usage and popular tags.
 - 🎲 **Flexible Sorting**: Sort by date, popularity, or get random results.
 
@@ -70,6 +75,38 @@ Waifu.im provides a robust REST API designed for ease of use and flexibility.
 Deploy your own instance of the Waifu.im API using Docker. See
 [`scripts/mirror/`](scripts/mirror/) for tooling that imports a database export
 and mirrors an image archive into any S3-compatible bucket.
+
+A Discord bot lives in [`bot/`](bot/): random images, tag and orientation
+filters, and an NSFW channel gate. It talks to the Cloudflare Worker rather
+than the API host, so repeat commands are answered from the edge cache instead
+of the database. See [`bot/README.md`](bot/README.md).
+
+#### Which host should your bot use?
+
+This is the same trade-off the frontend makes, and it is worth picking
+deliberately:
+
+| What your bot does | Point it at |
+|---|---|
+| Fetches images (`GET /images`, `/images/sfw`, ...) | `https://waifu-cdn.waifu-api.workers.dev` — edge-cached, and image bytes never touch Render |
+| Anything authenticated | `https://waifu-api-031n.onrender.com` — read below first |
+
+For anonymous reads the Worker is the faster host, because a repeat of the same
+request within 60 seconds is served from the edge and never reaches the API
+host. The API host itself is responsive — the caching is the advantage, not a
+workaround. But **the Worker strips the `X-Api-Key` header** — it only forwards
+`Authorization`, `Accept` and `Accept-Language` (`worker.js:351`). An API-key
+client pointed at the Worker is silently unauthenticated and gets `401`.
+
+Bearer tokens *are* forwarded, so they work through the Worker — they just
+bypass the cache, and requests to `/users`, `/albums` and friends are never
+cached regardless. If your bot authenticates in any form, use the API host.
+It is the only host that passes every credential through.
+
+Anonymous reads are also reachable from a browser: the Worker sets
+`access-control-allow-origin: *` on its own responses, since it does not
+forward your `Origin` header upstream and so never gets one back. That is what
+lets the Playground on the docs site call it directly.
 
 ### Prerequisites
 
@@ -83,7 +120,7 @@ and mirrors an image archive into any S3-compatible bucket.
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/waifu-im/waifu-api.git
+   git clone https://github.com/KorryKatti/waifu-api.git
    cd waifu-api
    ```
 
@@ -156,10 +193,22 @@ storage directly:
 |---|---|
 | API | Render — JSON metadata, Postgres queries |
 | Images | Cloudflare Worker — signs SigV4 to a private object store, caches at the edge |
+| Anonymous API reads | Cloudflare Worker — proxies to Render, caches for 60s |
 
 This matters if you self-host. IDrive (among others) no longer allows public
 buckets to be created, so the Worker exists to fetch from a private one. AWS S3
 or MinIO can be made public directly and don't need it.
+
+The Worker fronts API reads too, not just images. A request without an image
+extension is proxied to the API host, and an anonymous `GET` is cached for 60
+seconds so a page load's `/images` + `/tags` + `/stats` is one round trip
+instead of three. Authenticated requests are never stored, so users can't be
+served each other's favourites or albums.
+
+Invalidating that cache needs a `CACHE_VERSION` bump in
+[`scripts/mirror/worker/worker.js`](scripts/mirror/worker/worker.js) followed by
+a redeploy. There is no purge for a `workers.dev` Worker — see
+[`scripts/mirror/README.md`](scripts/mirror/README.md).
 
 #### Storage backend
 

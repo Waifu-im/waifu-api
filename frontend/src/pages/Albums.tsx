@@ -7,6 +7,7 @@ import { AlbumDto, PaginatedList, User } from '../types';
 import AlbumModal, { AlbumFormData } from '../components/modals/AlbumModal';
 import ConfirmModal from '../components/modals/ConfirmModal';
 import { useRequireAuth } from '../hooks/useRequireAuth';
+import { MetaTags } from '../hooks/useMetaTags';
 import NotFound from './NotFound';
 
 const Albums = () => {
@@ -101,6 +102,12 @@ const Albums = () => {
 
     return (
         <div className="container mx-auto p-6 md:p-10">
+            <MetaTags
+                title={isViewingOther ? `${targetUserName || `User ${userId}`}'s Albums` : 'My Albums'}
+                description={isViewingOther
+                    ? `Browse the image albums of ${targetUserName || `user ${userId}`}.`
+                    : 'Create and organise your own image albums.'}
+            />
             <div className="flex justify-between items-center gap-4 mb-4">
                 <div className="min-w-0">
                     <h1 className="text-3xl font-black flex items-center gap-3 text-foreground flex-wrap"><Library className="text-primary shrink-0" size={32}/> {isViewingOther ? `${targetUserName || `User ${userId}`}'s Albums` : 'My Albums'}</h1>

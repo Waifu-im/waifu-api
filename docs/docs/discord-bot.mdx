@@ -1,0 +1,205 @@
+---
+sidebar_position: 3
+sidebar_label: Discord Bots
+title: Building a Discord Bot
+description: Put the API behind a Discord slash command - build a random-waifu bot, pick tags per channel, and handle rate limits.
+---
+
+import CodeBlock from '@theme/CodeBlock';
+import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
+
+export const useApiBaseUrl = () => {
+  const { siteConfig } = useDocusaurusContext();
+  return siteConfig.customFields.apiBaseUrl;
+};
+
+export const ApiHost = () => <code>{useApiBaseUrl()}</code>;
+
+# Building a Discord Bot
+
+The API is a good fit for chat commands: a random image is one anonymous `GET`
+with no authentication, and the response already carries a direct `url` you can
+drop straight into an embed.
+
+This page is about using the API from a bot. It doesn't assume a language or
+library — discord.py, discord.js, JDA, or raw HTTP all work the same way.
+
+## Which host to use
+
+There are two hosts. They serve the same endpoints and return the same
+responses — they differ in what they cache and which headers they forward.
+
+export const HostTable = () => {
+  const api = useApiBaseUrl();
+  return (
+    <table>
+      <thead>
+        <tr><th>What your bot does</th><th>Point it at</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Fetches images<br />(<code>/images</code>, <code>/tags</code>)</td>
+          <td><code>https://waifu-cdn.waifu-api.workers.dev</code> — edge-cached, and image bytes never reach the API host</td>
+        </tr>
+        <tr>
+          <td>Anything authenticated</td>
+          <td><code>{api}</code> — the API host</td>
+        </tr>
+      </tbody>
+    </table>
+  );
+};
+
+<HostTable />
+
+Anonymous reads through the CDN are cached at the edge for 60 seconds, so a
+repeat of the same request inside that window never reaches the API host at
+all. That caching is the whole reason to prefer it — the API host itself is
+perfectly responsive; the CDN just answers more of them without a round trip.
+
+:::warning X-Api-Key does not survive the CDN
+The CDN forwards `Authorization` but drops `X-Api-Key`. An API-key client
+pointed at the CDN is silently unauthenticated and gets a bare `401`. If your
+bot sends credentials, use the API host — it is the only one that passes every
+credential through.
+:::
+
+## Calling the API host
+
+For anonymous commands the CDN is the better default. But nothing stops you
+using the API host for everything — it serves the same paths, so switching is
+a one-line change to your base URL.
+
+Keep two constants rather than deriving one from the other at the call site.
+It makes the authenticated paths obvious to anyone reading the code later, and
+means there's no string surgery to get wrong:
+
+```python
+CDN = "https://waifu-cdn.waifu-api.workers.dev"
+API = "https://waifu-api-031n.onrender.com"
+
+# random image -- CDN, anonymous, edge-cached
+await session.get(f"{CDN}/images?PageSize=1")
+
+# user's favourites -- API host, API key
+await session.get(
+    f"{API}/users/me/albums/favorites",
+    headers={"X-Api-Key": key},
+)
+```
+
+**Both hosts are responsive.** The CDN is the faster of the two for anonymous
+reads because it answers repeat requests from the edge, not because the API
+host is slow or unreliable. Use whichever suits your bot; the only hard rule is
+that credentials go to the API host.
+
+## The shape of a command
+
+Three steps, in any language:
+
+1. `GET /images?IsNsfw=False&PageSize=1&OrderBy=Random`
+2. Take `items[0].url` and hand it to your embed
+3. Cite `source` and the artist if you show them
+
+Here it is in discord.py:
+
+```python
+import aiohttp
+import discord
+from discord.ext import commands
+
+CDN = "https://waifu-cdn.waifu-api.workers.dev"
+
+intents = discord.Intents.default()
+# Required for prefix commands to see the message text at all.
+intents.message_content = True
+
+bot = commands.Bot(command_prefix="!", intents=intents)
+
+
+@bot.command()
+async def waifu(ctx):
+    query = "IsNsfw=False&IsAnimated=All&OrderBy=Random&PageSize=1"
+    # One ClientSession per command is fine. Reuse a single session across
+    # commands if you care about latency -- it avoids a TCP handshake each time.
+    async with ctx.typing(), aiohttp.ClientSession() as session:
+        async with session.get(f"{CDN}/images?{query}") as resp:
+            resp.raise_for_status()
+            items = (await resp.json())["items"]
+
+    if not items:
+        await ctx.reply("No images matched.")
+        return
+
+    image = items[0]
+    embed = discord.Embed(title=f"Image #{image['id']}")
+    embed.set_image(url=image["url"])
+    if image.get("source"):
+        embed.set_footer(text=image["source"])
+    await ctx.send(embed=embed)
+
+
+bot.run("YOUR_BOT_TOKEN")
+```
+
+The discord.js version is the same three steps:
+
+```javascript
+const query = new URLSearchParams({
+  IsNsfw: "False",
+  PageSize: 1,
+  OrderBy: "Random",
+});
+const res = await fetch(
+  `https://waifu-cdn.waifu-api.workers.dev/images?${query}`
+);
+const [image] = (await res.json()).items;
+
+await interaction.reply({
+  embeds: [{ title: `Image #${image.id}`, image: { url: image.url } }],
+});
+```
+
+Two details worth copying: `PageSize=1` keeps the response small, and linking
+the image with `set_image(url=...)` rather than re-uploading it. The CDN serves
+images with a one-year immutable cache, so Discord fetches them directly and
+the file never passes through your bot.
+
+## Rate limits
+
+[Rate limiting](./rate-limiting.md) is 20 requests per second with a burst
+allowance, and `429` responses carry `Retry-After`. Because anonymous reads
+through the CDN are cached for 60 seconds, most bot traffic never reaches the
+origin at all — but implement the backoff anyway, since it costs ten lines and
+a rate-limited bot reads as broken.
+
+## NSFW content and Discord's rules
+
+The API will happily serve `IsNsfw=All`. Discord requires that content to go
+only into an age-restricted channel, and bots that ignore this get removed.
+Default to `IsNsfw=False` everywhere, and only raise it where Discord allows:
+
+```python
+# Wrong: NSFW whenever the user asks, regardless of channel
+is_nsfw = "nsfw" in parts
+
+# Right: NSFW only where Discord allows it
+if "nsfw" in parts and not ctx.channel.is_nsfw():
+    await ctx.reply("This channel isn't age-restricted.")
+    return
+is_nsfw = "nsfw" in parts
+```
+
+`is_nsfw()` reflects Discord's own *Channel Settings > Age Restriction*, which
+also gates non-bot members. It is stronger than maintaining your own channel ID
+allowlist.
+
+Sending NSFW to a normal channel is what gets a bot removed, so make the safe
+value the default rather than the one you have to remember to set.
+
+## Worked example
+
+[`bot/`](https://github.com/KorryKatti/waifu-api/tree/main/bot) in this
+repository is a working discord.py bot you can read or run to see how these
+calls fit together. It's a sample for experimentation, not a library to depend
+on — take the ideas, not the import.

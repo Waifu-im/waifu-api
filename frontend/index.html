@@ -9,6 +9,7 @@
     <link rel="manifest" href="/site.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="description" content="The API for your Waifu content. Access thousands of categorized anime illustrations via our robust REST API or browse freely." />
+    <meta property="og:site_name" content="Waifu API" />
     <meta property="og:title" content="Waifu API" />
     <meta property="og:description" content="The API for your Waifu content. Access thousands of categorized anime illustrations via our robust REST API or browse freely." />
     <meta property="og:image" content="/android-chrome-512x512.png" />
@@ -30,8 +31,20 @@
         const ogTitle = document.querySelector('meta[property="og:title"]');
         if (ogTitle) ogTitle.content = appTitle;
 
+        const ogSiteName = document.querySelector('meta[property="og:site_name"]');
+        if (ogSiteName) ogSiteName.content = appTitle;
+
         const twitterTitle = document.querySelector('meta[name="twitter:title"]');
         if (twitterTitle) twitterTitle.content = appTitle;
+
+        // Crawlers only accept absolute og:image / twitter:image URLs. Resolve
+        // before the page is ever handed to a bot, since the per-page Helmet
+        // tags only exist once React has mounted.
+        document.querySelectorAll('meta[property="og:image"], meta[name="twitter:image"]').forEach(function(tag) {
+          if (tag.content && tag.content.charAt(0) === '/') {
+            tag.content = window.location.origin + tag.content;
+          }
+        });
       })();
 
       // Immediate theme application to prevent flash of unstyled content (FOUC)

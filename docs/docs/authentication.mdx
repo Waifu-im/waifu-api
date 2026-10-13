@@ -1,7 +1,8 @@
 ---
-sidebar_position: 3
+sidebar_position: 4
 sidebar_label: Authentication
 title: Authentication
+description: Which endpoints need auth, and how to authenticate - a long-lived API key for servers, or a Discord JWT for the website.
 ---
 
 import CodeBlock from '@theme/CodeBlock';
@@ -37,6 +38,14 @@ export const ApiKeyExample = () => {
 <ApiKeyExample />
 
 API keys are the recommended method for programmatic access. You can create and manage your keys via the `/auth/api-keys` endpoint once authenticated.
+
+:::warning Not every host accepts API keys
+The CDN in front of the API (`https://waifu-cdn.waifu-api.workers.dev`) forwards
+`Authorization` but **drops `X-Api-Key`**. Send an API key there and you get a
+bare `401` with nothing to indicate the cause. Authenticate against the API
+host -- see [Building a Discord Bot](./discord-bot.mdx) for which host suits
+which call.
+:::
 
 ### JWT Token (Discord OAuth2)
 

@@ -1,0 +1,21 @@
+# Public browse surface only. Everything below is either auth-gated or admin-only
+# and has nothing a crawler can index -- see frontend/src/App.tsx for the route table.
+
+User-agent: *
+Disallow: /login
+Disallow: /auth/
+Disallow: /upload
+Disallow: /albums
+Disallow: /api-keys
+Disallow: /review
+Disallow: /reports
+Disallow: /my-reports
+Disallow: /users
+Disallow: /stats
+Disallow: /storage-diff
+Disallow: /site-banner
+
+Allow: /
+
+# Generated at build time by scripts/generate-sitemap.mjs
+Sitemap: https://waifu-api-eosin.vercel.app/sitemap.xml

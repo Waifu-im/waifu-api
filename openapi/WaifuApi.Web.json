@@ -2,7 +2,8 @@
   "openapi": "3.1.1",
   "info": {
     "title": "Waifu API",
-    "version": "0.0.0-local"
+    "version": "0.0.0-local",
+    "description": "REST API for browsing and fetching categorized anime images - images, tags, artists, albums and users, with filtering, pagination and authentication."
   },
   "servers": [
     {
@@ -2159,6 +2160,38 @@
                   "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
+            }
+          }
+        }
+      }
+    },
+    "/ping": {
+      "get": {
+        "tags": [
+          "Ping"
+        ],
+        "summary": "Check that the API is up.",
+        "description": "Returns the plain text body `pong` as soon as the request reaches the API.\nNo authentication required.",
+        "responses": {
+          "200": {
+            "description": "Returns `pong`.",
+            "content": {
+              "text/plain": { }
+            }
+          }
+        }
+      },
+      "head": {
+        "tags": [
+          "Ping"
+        ],
+        "summary": "Check that the API is up.",
+        "description": "Returns the plain text body `pong` as soon as the request reaches the API.\nNo authentication required.",
+        "responses": {
+          "200": {
+            "description": "Returns `pong`.",
+            "content": {
+              "text/plain": { }
             }
           }
         }
@@ -7026,6 +7059,9 @@
     },
     {
       "name": "Images"
+    },
+    {
+      "name": "Ping"
     },
     {
       "name": "Reports"

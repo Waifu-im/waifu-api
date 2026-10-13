@@ -1,7 +1,8 @@
 ---
-sidebar_position: 4
+sidebar_position: 5
 sidebar_label: Rate Limiting
 title: Rate Limiting
+description: The request rate, burst allowance and how limits are counted per IP, API key or JWT - plus what to do on HTTP 429.
 ---
 
 # Rate Limiting

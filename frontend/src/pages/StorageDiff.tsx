@@ -8,6 +8,7 @@ import ConfirmModal from '../components/modals/ConfirmModal';
 import Pagination from '../components/Pagination';
 import { useRequireAuth } from '../hooks/useRequireAuth';
 import { useImageUpdate } from '../hooks/useImageUpdate';
+import { MetaTags } from '../hooks/useMetaTags';
 
 interface StorageDiffDto {
     id: number | null;
@@ -141,6 +142,7 @@ const StorageDiff = () => {
 
     return (
         <div className="container mx-auto p-6 md:p-10 h-full flex flex-col">
+            <MetaTags title="Storage diff" description="Find and resolve S3 / database inconsistencies." noindex />
             <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
                 <div>
                     <h1 className="text-3xl font-black flex items-center gap-3 text-foreground">

@@ -87,25 +87,49 @@ async function signGet(host, path, region, accessKey, secretKey) {
   };
 }
 
+// CACHE_VERSION namespaces the edge cache.
+//
+// This Worker runs on workers.dev and stores entries through the Cache API
+// (caches.default), which Cloudflare cannot purge by host and which no
+// zone-level purge reaches. There is also no dashboard control for it. Bumping
+// this constant is therefore the only way to invalidate everything already
+// cached: the new generation is written under different keys, so the previous
+// entries become unreachable and expire on their own.
+//
+// Bump it whenever the bytes served for an unchanged URL change - a format
+// migration, a different encoder, a content-type fix. Nothing else will.
+const CACHE_VERSION = "v2";
+
+// cacheKeyFor builds the key an entry is stored under.
+//
+// Only the path and query are preserved; the origin is included so two
+// deployments sharing a Worker never collide. The version prefix is what makes
+// the whole store discardable.
+function cacheKeyFor(request) {
+  const url = new URL(request.url);
+  return new Request(
+    `${url.origin}${CACHE_VERSION}/cache${url.pathname}${url.search}`,
+    { method: request.method }
+  );
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
-    if (request.method !== "GET" && request.method !== "HEAD") {
-      return new Response("Method Not Allowed", { status: 405 });
+    const looksLikeImage = /\.(png|jpe?g|gif|webp)$/i.test(url.pathname);
+
+    // Anything that is not an image is an API request.
+    //
+    // This used to be a 302 to API_ORIGIN, which sent the browser straight to
+    // Render and meant the edge could never help: /images took 0.7-1.2s from
+    // Oregon. Proxying instead lets anonymous reads be served from the edge.
+    if (!looksLikeImage) {
+      return handleApi(request, env, ctx, url);
     }
 
-    // Query strings on non-image paths (/images?limit=...) belong to the API.
-    //
-    // An image path with a query string is still an image request, though, so a
-    // "?fresh=1" style cache-buster reaches the image logic below instead of
-    // being bounced to the API. Keying on the extension is what makes that
-    // distinction safe.
-    const looksLikeImage = /\.(png|jpe?g|gif|webp)$/i.test(url.pathname);
-    if (url.search && !looksLikeImage) {
-      // API_ORIGIN already carries its scheme; prefixing one produced a
-      // "https://https://" URL that the browser mangled into https//.
-      return Response.redirect(`${env.API_ORIGIN}${url.pathname}${url.search}`, 302);
+    if (request.method !== "GET" && request.method !== "HEAD") {
+      return new Response("Method Not Allowed", { status: 405 });
     }
 
     // Reject traversal before it reaches the origin.
@@ -115,8 +139,12 @@ export default {
     }
 
     // Serve from edge cache when warm; otherwise fetch and cache.
+    //
+    // The cache is keyed on a versioned path rather than the request URL. See
+    // CACHE_VERSION for why that indirection is necessary.
     const cache = caches.default;
-    const cached = await cache.match(request);
+    const cacheKey = cacheKeyFor(request);
+    const cached = await cache.match(cacheKey);
     if (cached) {
       return cached;
     }
@@ -191,10 +219,140 @@ export default {
       },
     });
 
-    // Cached under the URL that was requested, not the object that was served,
-    // so /8616.png and /8616.webp do not fight over one entry and the mapping
-    // never has to be consulted twice.
-    ctx.waitUntil(cache.put(request, response.clone()));
+    // Cached under the versioned key, not the request URL, so that bumping
+    // CACHE_VERSION orphans the previous generation instead of requiring a purge
+    // that cannot be performed against a workers.dev Worker.
+    ctx.waitUntil(cache.put(cacheKey, response.clone()));
     return response;
   },
 };
+// ---------------------------------------------------------------------------
+// API proxying
+// ---------------------------------------------------------------------------
+
+// JSON_TTL is how long an anonymous API read is served from the edge.
+//
+// Sixty seconds is short enough that nobody sees a stale gallery and long
+// enough to absorb the burst a page load produces: the frontend asks for
+// /images, /tags and /stats together, and on a cold edge all three would
+// otherwise be three separate round trips to Oregon.
+
+const JSON_TTL_SECONDS = 60;
+
+// NEVER_CACHE lists API paths that must not be served from the edge even for an
+// anonymous caller.
+//
+// Some of these already require a token, but relying on that is fragile: if a
+// future change ever serves one of them without authentication, the cached copy
+// would outlive the fix. Listing them here means the decision is explicit and
+// survives the change.
+const NEVER_CACHE = [
+  /^\/users(\/|$)/,
+  /^\/review(\/|$)/,
+  /^\/auth(\/|$)/,
+  /^\/stats\/admin(\/|$)/,
+  /^\/reports(\/|$)/,
+  /^\/albums(\/|$)/,
+];
+
+// isCacheableApiRequest decides whether a response may be stored.
+//
+// The rule is deliberately conservative: one header is enough to opt out.
+// GET /images is personalised even without a token in the sense that it
+// carries viewer-dependent fields, so anything authenticated is passed straight
+// through and never written to the cache.
+function isCacheableApiRequest(request, url) {
+  if (request.method !== "GET") {
+    return false;
+  }
+
+  // Any credential, however it arrived, means this response is not for everyone.
+  if (request.headers.get("Authorization") || request.headers.get("Cookie")) {
+    return false;
+  }
+
+  if (NEVER_CACHE.some((pattern) => pattern.test(url.pathname))) {
+    return false;
+  }
+
+  return true;
+}
+
+// withCors makes an API response readable from a browser.
+//
+// ASP.NET only emits Access-Control-Allow-Origin when it sees an Origin header,
+// and buildUpstreamHeaders deliberately does not forward one, so proxied JSON
+// came back without it and every browser client of this path was blocked. The
+// image branch has always set the header itself, for the same reason.
+//
+// Applied on the way out rather than before caching, so entries stored before
+// this change pick it up on their next read instead of staying broken until
+// they expire.
+function withCors(response) {
+  const headers = new Headers(response.headers);
+  headers.set("access-control-allow-origin", "*");
+  return new Response(response.body, {
+    status: response.status,
+    headers,
+  });
+}
+
+// handleApi proxies a non-image request to the API, caching anonymous reads.
+//
+// Authenticated requests are never stored, so two users can never be served
+// each other's favourites, likedAt, album membership or pending content.
+async function handleApi(request, env, ctx, url) {
+  // API_ORIGIN already carries its scheme; prefixing one produced a
+  // "https://https://" URL that the browser mangled into https//.
+  const upstream = `${env.API_ORIGIN}${url.pathname}${url.search}`;
+  const cacheable = isCacheableApiRequest(request, url);
+
+  const cache = caches.default;
+  const cacheKey = cacheKeyFor(request);
+
+  if (cacheable) {
+    const cached = await cache.match(cacheKey);
+    if (cached) {
+      return withCors(cached);
+    }
+  }
+
+  const response = await fetch(upstream, {
+    method: request.method,
+    headers: buildUpstreamHeaders(request),
+  });
+
+  // Only a clean 200 is worth storing. Caching a 500 or a 403 would serve a
+  // transient failure to everyone for the next minute.
+  if (cacheable && response.status === 200 && !response.headers.get("set-cookie")) {
+    const headers = new Headers(response.headers);
+    headers.set("cache-control", `public, max-age=${JSON_TTL_SECONDS}`);
+    headers.delete("set-cookie");
+
+    const stored = new Response(response.body, {
+      status: response.status,
+      headers,
+    });
+    ctx.waitUntil(cache.put(cacheKey, stored.clone()));
+    return withCors(stored);
+  }
+
+  // Pass the upstream response through unchanged, including its own caching
+  // headers, so an authenticated client keeps whatever the API intended.
+  return withCors(response);
+}
+
+// buildUpstreamHeaders forwards the headers the API needs, and nothing else.
+//
+// Range is dropped because a partial response is not a cacheable one and
+// forwarding it would let a client reassemble a body the edge stored whole.
+function buildUpstreamHeaders(request) {
+  const headers = new Headers();
+  for (const name of ["Authorization", "Accept", "Accept-Language"]) {
+    const value = request.headers.get(name);
+    if (value) {
+      headers.set(name, value);
+    }
+  }
+  return headers;
+}
