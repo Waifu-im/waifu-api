@@ -6,6 +6,13 @@
 -- authoritative definition remains the EF Core model snapshot at
 -- backend/WaifuApi.Infrastructure/Persistence/Migrations/WaifuDbContextModelSnapshot.cs.
 --
+-- One exception has been made, deliberately: Images.PerceptualHashLegacy, added
+-- 2026-10-13. Duplicate detection cannot work after cutover without replacing
+-- the values in PerceptualHash, and overwriting them in place would destroy the
+-- only record of what the previous implementation computed. Adding a column
+-- keeps both. It is the last change of this kind; see
+-- internal/images/phash/MIGRATION.md.
+--
 -- Two details matter more than the rest and are easy to get wrong:
 --
 --   1. Images.PerceptualHash is bit(64), not text or bigint. The Go service
@@ -51,6 +58,18 @@ CREATE TABLE IF NOT EXISTS "Images" (
     -- not reproduce itself, so a backfill is required before this column can be
     -- trusted to be internally consistent. See internal/images/phash.
     "PerceptualHash" bit(64)     NOT NULL,
+
+    -- Frozen history: the fingerprint as the C# implementation produced it,
+    -- captured before the Go backfill overwrote PerceptualHash. It is not
+    -- consistent — ImageSharp's resampler branches on AVX2, so the stored column
+    -- was already a mixture of two algorithms — which is why it is kept as
+    -- evidence rather than trusted for lookups.
+    --
+    -- Nullable on purpose: rows uploaded after the backfill never get a legacy
+    -- value, and nothing writes this column again once the backfill has run.
+    -- Drop it once the Go column has proven itself. See
+    -- internal/images/phash/MIGRATION.md.
+    "PerceptualHashLegacy" bit(64) NULL,
 
     -- 0 Pending, 1 Accepted. There is no Rejected value: a rejected image row
     -- is deleted, not flagged.

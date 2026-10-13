@@ -10,6 +10,19 @@ public class Image
 {
     public long Id { get; set; }
     public required BitArray PerceptualHash { get; set; }
+
+    /// <summary>
+    /// The fingerprint as the C# implementation produced it, preserved so the Go service's
+    /// column can be filled without destroying the history.
+    /// </summary>
+    /// <remarks>
+    /// Frozen after the one-off backfill. The C# service never wrote a consistent value —
+    /// ImageSharp's resampler branches on AVX2, so roughly half these rows came from a
+    /// different algorithm than the other half — which is why they are kept rather than
+    /// trusted. Nullable: rows uploaded after the switch have no legacy value.
+    /// See backend/go/internal/images/phash/MIGRATION.md.
+    /// </remarks>
+    public BitArray? PerceptualHashLegacy { get; set; }
     public required string Extension { get; set; }
     public required string DominantColor { get; set; }
     public string? Source { get; set; }

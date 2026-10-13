@@ -57,6 +57,11 @@ public class WaifuDbContext : DbContext, IWaifuDbContext
             entity.Property(e => e.PerceptualHash)
                 .HasColumnType("bit(64)")
                 .IsRequired();
+
+            // Frozen history from the C# implementation. Nullable and never written again
+            // once the Go backfill has run; see Image.PerceptualHashLegacy.
+            entity.Property(e => e.PerceptualHashLegacy)
+                .HasColumnType("bit(64)");
             
             entity.Property(e => e.Extension).IsRequired();
             entity.Property(e => e.DominantColor).IsRequired();

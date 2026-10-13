@@ -258,6 +258,9 @@ namespace WaifuApi.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("bit(64)");
 
+                    b.Property<BitArray>("PerceptualHashLegacy")
+                        .HasColumnType("bit(64)");
+
                     b.Property<int>("ReviewStatus")
                         .HasColumnType("integer");
 
