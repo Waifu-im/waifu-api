@@ -26,6 +26,15 @@ type Store interface {
 	// an error partway through, in which case nothing should be committed.
 	Put(ctx context.Context, key string, body io.Reader, contentType string) error
 
+	// Get reads an object's bytes.
+	//
+	// It is absent from the request path, which only ever writes, and exists
+	// for the perceptual hash backfill, which has to re-read every stored image
+	// to compute a comparable fingerprint. Returning ErrNotFound is required;
+	// the backfill needs to tell "absent" apart from "unreachable" so a row is
+	// never silently left holding a stale value.
+	Get(ctx context.Context, key string) ([]byte, error)
+
 	// Delete removes an object.
 	//
 	// Deleting something that is already absent is not an error, because the

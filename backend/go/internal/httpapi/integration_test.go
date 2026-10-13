@@ -71,6 +71,14 @@ func (f *fakeStore) Put(_ context.Context, key string, body io.Reader, contentTy
 	return nil
 }
 
+func (f *fakeStore) Get(_ context.Context, key string) ([]byte, error) {
+	data, ok := f.objects[key]
+	if !ok {
+		return nil, fmt.Errorf("get object %s: %w", key, storage.ErrNotFound)
+	}
+	return append([]byte(nil), data...), nil
+}
+
 func (f *fakeStore) Delete(_ context.Context, key string) error {
 	delete(f.objects, key)
 	return nil

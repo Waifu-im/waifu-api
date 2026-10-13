@@ -253,6 +253,30 @@ func (s *S3Store) Put(ctx context.Context, key string, body io.Reader, contentTy
 	return nil
 }
 
+// Get reads an object's bytes.
+//
+// A missing object returns ErrNotFound rather than a wrapped provider error, so
+// callers can distinguish an absent image from a broken bucket.
+func (s *S3Store) Get(ctx context.Context, key string) ([]byte, error) {
+	out, err := s.client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(s.bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		if isNotFound(err) {
+			return nil, fmt.Errorf("get object %s: %w", key, ErrNotFound)
+		}
+		return nil, fmt.Errorf("get object %s: %w", key, describe(err))
+	}
+	defer out.Body.Close()
+
+	data, err := io.ReadAll(out.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read object %s: %w", key, err)
+	}
+	return data, nil
+}
+
 // Delete removes an object.
 //
 // A missing object is not an error, because the upload rollback calls this after
