@@ -8,9 +8,12 @@
 // a PUT rather than a PATCH. Missing any of those produced a service that passed
 // its own tests while the application could not reach it.
 //
-// Run:
+// Run, from backend/go:
 //
-//	go run ./tools/routecheck -frontend ../frontend/src
+//	go run ./tools/routecheck
+//
+// The -frontend default is relative to this directory rather than to the
+// repository root, because that is where go run is invoked from.
 package main
 
 import (
@@ -340,7 +343,7 @@ func patternMatches(registeredPattern, calledPath string) bool {
 }
 
 func main() {
-	frontendDir := flag.String("frontend", "../frontend/src", "frontend source directory")
+	frontendDir := flag.String("frontend", "../../frontend/src", "frontend source directory")
 	backendDir := flag.String("backend", "internal/httpapi", "directory holding the route registrations")
 	flag.Parse()
 

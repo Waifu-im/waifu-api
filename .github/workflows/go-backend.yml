@@ -12,10 +12,15 @@ on:
     branches: [ 'go-rewrite', main ]
     paths:
       - 'backend/go/**'
+      # The route check reads frontend/src, so a frontend change can break this
+      # workflow. Without this path, renaming an api.get() call would fail in
+      # production and never run a build.
+      - 'frontend/src/**'
       - '.github/workflows/go-backend.yml'
   pull_request:
     paths:
       - 'backend/go/**'
+      - 'frontend/src/**'
       - '.github/workflows/go-backend.yml'
   workflow_dispatch:
 
@@ -35,7 +40,7 @@ defaults:
 jobs:
   # Gates the build: nothing downstream runs if this fails.
   verify:
-    name: Vet and format
+    name: Vet, format and route check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -64,6 +69,21 @@ jobs:
             echo "$unformatted"
             exit 1
           fi
+
+      # Compares the routes this service registers against the endpoints the
+      # frontend actually calls.
+      #
+      # This is here rather than in the test suite because routecheck reads the
+      # frontend source, and no Go test package does. Nothing else in this
+      # workflow notices a route that was renamed, moved or dropped on one side
+      # only: the Go tests would still pass, and the deployed service would
+      # return 404 to the running site.
+      #
+      # The flag is spelled out rather than left to the tool's default so the
+      # path is visible where it matters. Either way it is relative to
+      # backend/go, not to the repository root.
+      - name: Check frontend routes are served
+        run: go run ./tools/routecheck -frontend ../../frontend/src
 
   # The whole test suite, against a real Postgres with the frozen schema.
   #
