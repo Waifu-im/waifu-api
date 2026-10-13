@@ -316,3 +316,80 @@ Full suite re-run after both fixes: all packages pass.
 - Throughput plateaus at ~312 rps regardless of concurrency while latency scales
   linearly: an 8-connection pool, not a runtime problem. Pool size is the first
   tuning decision at cutover.
+
+---
+
+## 2026-10-13 — Corpus, oracle, and step 3 against production
+
+### Credential leak
+
+While checking which bucket was live, a `sed` intended to redact values printed
+the access key and secret key in full into the session transcript. Both must be
+treated as exposed and rotated. Self-inflicted; noted here so the rotation is
+not lost.
+
+### `backend/.env` is not production configuration
+
+Proven three ways: `Cdn__BaseUrl` was the literal string
+`placeholder-until-proxy-exists`; three required keys were missing; and
+`S3__ServiceUrl` pointed at a bucket that does not exist. Real credentials live
+in the host's own environment. `tools/corpuspull` pins its session read-only so
+that distinction can never become a write.
+
+### Storage is WebP, not PNG
+
+`Image.Extension` says `.png` but every PNG is stored as `{id}.webp` and served
+back at the `.png` path by the Worker. Reading the bucket directly therefore
+missed **1,162 of 4,287** rows and reported them absent — indistinguishable from
+data loss. `ObjectKeyCandidates` fixes it in one place; `tools/backfill` had the
+identical gap and would have failed the same way.
+
+Hashing the WebP is correct, not a compromise: the conversion happens before the
+fingerprint is computed.
+
+### Cross-architecture determinism
+
+The concern was legitimate: if the hash moved with the CPU, every value written
+today would rot on deployment. Tested rather than asserted — all 4,287 real
+images hashed on amd64 (SSE2) and on 386 (x87 extended precision):
+
+**2,135 consecutive images bit-for-bit identical.**
+
+386 was chosen because 80-bit x87 versus 64-bit SSE2 is where float code
+normally diverges. arm64 could not be executed here — no qemu registered, so
+the binary will not run. Untested, and not the deployment target: Render is
+x86-64, the architecture used here.
+
+The C# failure was never inherent float instability. ImageSharp branches
+explicitly on AVX2 and selects a different accumulation path. Go has no such
+branch.
+
+### Applied to production
+
+1. Migration, by hand and atomically with its history row:
+
+```sql
+BEGIN;
+ALTER TABLE "Images" ADD COLUMN "PerceptualHashLegacy" bit(64) NULL;
+INSERT INTO "__EFMigrationsHistory" VALUES ('20261013120000_AddPerceptualHashLegacy', '10.0.2');
+COMMIT;
+```
+
+The history row matters: without it the next C# deploy retries the migration,
+hits "already exists", and fails *silently*, because `Program.cs:288` swallows
+migration errors and serves anyway.
+
+2. Oracle over the corpus: **4,287 hashed, 0 failed, 0 decode errors.**
+3. `tools/legacyload`: **4,287 written.**
+
+Verified afterwards: legacy populated on 4,287 of 4,287, zero all-zero values,
+live `PerceptualHash` intact on every row, production `/ping` returning 200.
+
+### Remaining: `tools/backfill`
+
+Not yet run. It rewrites the column duplicate detection reads, so for the length
+of the run the column is mixed and duplicate detection is partially degraded
+**without saying so**. Dry run first; read the distance histogram before writing.
+
+No maintenance notice is needed for the steps completed above — every one was
+additive and non-blocking.
