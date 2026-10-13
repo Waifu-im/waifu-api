@@ -526,7 +526,14 @@ func Load(l *Loader) (*Config, error) {
 	cfg.Permissions.TagCreationMinRole = l.requireRole("Permissions__TagCreationMinRole", &missing)
 	cfg.Permissions.ArtistCreationMinRole = l.requireRole("Permissions__ArtistCreationMinRole", &missing)
 	cfg.Permissions.ImageUploadMinRole = l.requireRole("Permissions__ImageUploadMinRole", &missing)
-	cfg.Permissions.SubmitEditMinRole = l.requireRole("Permissions__SubmitEditMinRole", &missing)
+	// Permissions::SubmitEditMinRole is declared in ConfigurationKeys and read
+	// nowhere in the C# service, so it must not be able to stop a deployment
+	// from booting. The default is what .env.example documents.
+	submitEditRole, err := l.optionalRole("Permissions__SubmitEditMinRole", RoleUser)
+	if err != nil {
+		missing = append(missing, err.Error())
+	}
+	cfg.Permissions.SubmitEditMinRole = submitEditRole
 
 	// Banner management defaults to Moderator rather than being required,
 	// because unlike the others its absence is not an open door: the fallback
@@ -627,7 +634,7 @@ func Load(l *Loader) (*Config, error) {
 	cfg.Pages.Album = l.requirePageSize("Album", &missing)
 	cfg.Pages.User = l.requirePageSize("User", &missing)
 	cfg.Pages.Report = l.requirePageSize("Report", &missing)
-	cfg.Pages.Review = l.requirePageSize("Review", &missing)
+	cfg.Pages.Review = l.optionalPageSize("Review", 30, -1, &missing)
 	cfg.Pages.StorageDiff = l.requirePageSize("StorageDiff", &missing)
 
 	if len(missing) > 0 {
@@ -654,6 +661,25 @@ func (l *Loader) requirePageSize(prefix string, missing *[]string) PageSize {
 	return PageSize{
 		Default: l.requireInt(prefix+"__DefaultPageSize", missing),
 		Max:     l.requireInt(prefix+"__MaxPageSize", missing),
+	}
+}
+
+// optionalPageSize reads a page size that the C# service does not require.
+//
+// The Review pair is the case that matters. Review:DefaultPageSize and
+// Review:MaxPageSize are declared in ConfigurationKeys but read nowhere in the
+// C# service — not by Program.cs's required list and not by any handler — while
+// every other section's page size is required in both. Requiring them here
+// invented a startup failure the reference implementation does not have, and it
+// was found the hard way: a deployment whose environment is a faithful copy of
+// production's refuses to boot over two keys nothing reads.
+//
+// The defaults match .env.example, so a deployment that sets them behaves
+// exactly as before.
+func (l *Loader) optionalPageSize(prefix string, defaultSize, maxSize int, missing *[]string) PageSize {
+	return PageSize{
+		Default: l.optionalIntOrAccumulate(prefix+"__DefaultPageSize", defaultSize, missing),
+		Max:     l.optionalIntOrAccumulate(prefix+"__MaxPageSize", maxSize, missing),
 	}
 }
 
