@@ -54,9 +54,19 @@ func run() error {
 		return err
 	}
 
+	// LOG_LEVEL is this service's own key. Logging__LogLevel__Default is the
+	// C# key, and an existing deployment will have that one set rather than this
+	// one. Falling back to it means an environment carried over from the C#
+	// service silences logs the way it already does, instead of silently
+	// reverting to info because a key nobody had heard of was unset.
+	level := os.Getenv("LOG_LEVEL")
+	if level == "" {
+		level = os.Getenv("Logging__LogLevel__Default")
+	}
+
 	log := logging.New(logging.Options{
 		Environment: cfg.Environment,
-		Level:       os.Getenv("LOG_LEVEL"),
+		Level:       level,
 	})
 	slog.SetDefault(log)
 
