@@ -46,6 +46,8 @@ import (
 	"math/bits"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"sort"
@@ -96,16 +98,17 @@ func main() {
 		afterID     = flag.Int64("after-id", 0, "only rows with a greater Id; used to resume")
 		limit       = flag.Int("limit", 0, "stop after this many rows; 0 means all of them")
 		sampleSize  = flag.Int("sample", 10, "before/after pairs printed in dry-run mode")
+		corpusDir   = flag.String("corpus-dir", "", "read images from this directory instead of object storage")
 	)
 	flag.Parse()
 
-	if err := run(*dryRun, *concurrency, *afterID, *limit, *sampleSize); err != nil {
+	if err := run(*dryRun, *concurrency, *afterID, *limit, *sampleSize, *corpusDir); err != nil {
 		fmt.Fprintln(os.Stderr, "backfill:", err)
 		os.Exit(1)
 	}
 }
 
-func run(dryRun bool, concurrency int, afterID int64, limit, sampleSize int) error {
+func run(dryRun bool, concurrency int, afterID int64, limit, sampleSize int, corpusDir string) error {
 	if concurrency < 1 {
 		return errors.New("-concurrency must be at least 1")
 	}
@@ -124,17 +127,26 @@ func run(dryRun bool, concurrency int, afterID int64, limit, sampleSize int) err
 	}
 	defer db.Close()
 
-	files, err := storage.NewS3Store(storage.Config{
-		Provider:       storage.Provider(cfg.S3.Provider),
-		AccessKey:      cfg.S3.AccessKey,
-		SecretKey:      cfg.S3.SecretKey,
-		ServiceURL:     cfg.S3.ServiceURL,
-		Region:         cfg.S3.Region,
-		BucketName:     cfg.S3.BucketName,
-		ForcePathStyle: cfg.S3.ForcePathStyle,
-	})
-	if err != nil {
-		return fmt.Errorf("configure object storage: %w", err)
+	// Object storage is only constructed when it will actually be used. With
+	// -corpus-dir the run needs no bucket credentials at all, and requiring
+	// them would make the flag a convenience rather than a real alternative.
+	var files storage.Store
+	if strings.TrimSpace(corpusDir) == "" {
+		store, err := storage.NewS3Store(storage.Config{
+			Provider:       storage.Provider(cfg.S3.Provider),
+			AccessKey:      cfg.S3.AccessKey,
+			SecretKey:      cfg.S3.SecretKey,
+			ServiceURL:     cfg.S3.ServiceURL,
+			Region:         cfg.S3.Region,
+			BucketName:     cfg.S3.BucketName,
+			ForcePathStyle: cfg.S3.ForcePathStyle,
+		})
+		if err != nil {
+			return fmt.Errorf("configure object storage: %w", err)
+		}
+		files = store
+	} else {
+		fmt.Printf("reading images from %s, object storage not contacted\n", corpusDir)
 	}
 
 	rows, err := loadRows(ctx, db, afterID, limit)
@@ -161,7 +173,8 @@ func run(dryRun bool, concurrency int, afterID int64, limit, sampleSize int) err
 	}
 
 	started := time.Now()
-	results := process(ctx, files, rows, concurrency)
+	src := newSource(files, corpusDir)
+	results := process(ctx, src, rows, concurrency)
 
 	if dryRun {
 		printSample(results, sampleSize)
@@ -273,7 +286,7 @@ func loadRows(ctx context.Context, db *store.DB, afterID int64, limit int) ([]im
 }
 
 // process fetches and hashes every row, at most concurrency at a time.
-func process(ctx context.Context, files storage.Store, rows []imageRow, concurrency int) []result {
+func process(ctx context.Context, src imageSource, rows []imageRow, concurrency int) []result {
 	results := make([]result, 0, len(rows))
 	jobs := make(chan imageRow)
 
@@ -288,7 +301,7 @@ func process(ctx context.Context, files storage.Store, rows []imageRow, concurre
 		go func() {
 			defer wg.Done()
 			for row := range jobs {
-				res := hashOne(ctx, files, row)
+				res := hashOne(ctx, src, row)
 
 				mu.Lock()
 				// Progress on one line, so a long run is not silent.
@@ -321,15 +334,62 @@ func process(ctx context.Context, files storage.Store, rows []imageRow, concurre
 	return results
 }
 
-// hashOne fetches one image and computes its fingerprint.
-func hashOne(ctx context.Context, files storage.Store, row imageRow) result {
-	res := result{id: row.ID, current: row.Current}
+// imageSource supplies image bytes for one row, reporting the name it was read
+// from so a failure says which object was at fault.
+type imageSource interface {
+	Fetch(ctx context.Context, id int64, extension string) (data []byte, name string, err error)
+}
 
+// storageSource reads from object storage.
+type storageSource struct{ store storage.Store }
+
+func (s storageSource) Fetch(ctx context.Context, id int64, extension string) ([]byte, string, error) {
 	// GetWithFallback, not Get: PNGs are stored as WebP, so a plain Get misses
 	// every PNG row and reports it as absent.
-	key := storage.ObjectKey(row.ID, storage.NormalizeExtension(row.Extension))
-	data, actualKey, err := files.GetWithFallback(ctx, row.ID, row.Extension)
+	return s.store.GetWithFallback(ctx, id, extension)
+}
+
+// dirSource reads from a directory pulled by tools/corpuspull.
+//
+// Preferred for a real run. The corpus is already on disk, and re-fetching
+// roughly 4.5 GB from the live bucket costs transfer time and puts load on the
+// same connection users are uploading over, for no additional information.
+type dirSource struct{ dir string }
+
+func (d dirSource) Fetch(_ context.Context, id int64, extension string) ([]byte, string, error) {
+	// The corpus is named after the catalogue extension, which is what
+	// corpuspull wrote, so the fallback is only a safety net for a hand-built
+	// directory.
+	var tried []string
+	for _, key := range storage.ObjectKeyCandidates(id, extension) {
+		path := filepath.Join(d.dir, filepath.Base(key))
+		tried = append(tried, path)
+		data, err := os.ReadFile(path)
+		if err == nil {
+			return data, path, nil
+		}
+		if !errors.Is(err, os.ErrNotExist) {
+			return nil, path, fmt.Errorf("read %s: %w", path, err)
+		}
+	}
+	return nil, "", fmt.Errorf("no corpus file for id %d (tried %s)", id, strings.Join(tried, ", "))
+}
+
+// newSource picks the corpus directory when given one.
+func newSource(files storage.Store, dir string) imageSource {
+	if strings.TrimSpace(dir) != "" {
+		return dirSource{dir: strings.TrimSpace(dir)}
+	}
+	return storageSource{store: files}
+}
+
+// hashOne fetches one image and computes its fingerprint.
+func hashOne(ctx context.Context, src imageSource, row imageRow) result {
+	res := result{id: row.ID, current: row.Current}
+
+	data, actualKey, err := src.Fetch(ctx, row.ID, row.Extension)
 	if err != nil {
+		key := storage.ObjectKey(row.ID, storage.NormalizeExtension(row.Extension))
 		res.err = fmt.Errorf("fetch %s: %w", key, err)
 		return res
 	}
