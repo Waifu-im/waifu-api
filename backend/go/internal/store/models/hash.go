@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -90,6 +91,28 @@ func PerceptualHashToHex(hash uint64) string {
 	var bytes [HashBits / 8]byte
 	binary.BigEndian.PutUint64(bytes[:], hash)
 	return hex.EncodeToString(bytes[:])
+}
+
+// PerceptualHashFromHex parses the uppercase X16 form the C# service produces.
+//
+// BitArray.ToString("X16") is what ImageProcessingService.cs writes, and it is
+// also what tools/oracle emits, so this is the inverse of the C# value and the
+// entry point for anything reading a C#-produced hash rather than one this
+// implementation computed.
+//
+// Case-insensitive, because the C# form is uppercase and PerceptualHashToHex
+// here is lowercase, so a round trip through either must work.
+func PerceptualHashFromHex(value string) (uint64, error) {
+	trimmed := strings.TrimSpace(value)
+	if len(trimmed) != HashBits/4 {
+		return 0, fmt.Errorf("perceptual hash hex must be %d characters, got %d",
+			HashBits/4, len(trimmed))
+	}
+	parsed, err := strconv.ParseUint(trimmed, 16, 64)
+	if err != nil {
+		return 0, fmt.Errorf("perceptual hash is not valid hex: %w", err)
+	}
+	return parsed, nil
 }
 
 // HammingDistance returns the number of differing bits between two hashes.

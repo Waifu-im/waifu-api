@@ -1,6 +1,9 @@
 package models
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // TestHashBitStringRoundTrip checks the bit(64) conversion against hand-computed
 // values.
@@ -201,6 +204,54 @@ func TestBannerVariantWireNames(t *testing.T) {
 	for variant, want := range cases {
 		if got := variant.String(); got != want {
 			t.Errorf("BannerVariant(%d).String() = %q, want %q", int(variant), got, want)
+		}
+	}
+}
+
+func TestPerceptualHashFromHex(t *testing.T) {
+	// The C# form is uppercase; the Go form is lowercase. Both must parse, and
+	// both must agree with the bit-string form, because a value read out of the
+	// legacy column has to be comparable with one computed here.
+	for _, tc := range []struct {
+		name string
+		hex  string
+		bits string
+	}{
+		{"all zeroes", "0000000000000000", "0000000000000000000000000000000000000000000000000000000000000000"},
+		{"all ones", "FFFFFFFFFFFFFFFF", "1111111111111111111111111111111111111111111111111111111111111111"},
+		{"msb set", "8000000000000000", "1000000000000000000000000000000000000000000000000000000000000000"},
+		{"lsb set", "0000000000000001", "0000000000000000000000000000000000000000000000000000000000000001"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			fromUpper, err := PerceptualHashFromHex(tc.hex)
+			if err != nil {
+				t.Fatalf("uppercase: %v", err)
+			}
+			fromLower, err := PerceptualHashFromHex(strings.ToLower(tc.hex))
+			if err != nil {
+				t.Fatalf("lowercase: %v", err)
+			}
+			if fromUpper != fromLower {
+				t.Errorf("case changed the value: %016X vs %016X", fromUpper, fromLower)
+			}
+			fromBits, err := PerceptualHashFromBitString(tc.bits)
+			if err != nil {
+				t.Fatalf("bit string: %v", err)
+			}
+			if fromUpper != fromBits {
+				t.Errorf("hex %s = %016X, bit string = %016X", tc.hex, fromUpper, fromBits)
+			}
+			if got := PerceptualHashToHex(fromUpper); got != strings.ToLower(tc.hex) {
+				t.Errorf("round trip = %s, want %s", got, strings.ToLower(tc.hex))
+			}
+		})
+	}
+}
+
+func TestPerceptualHashFromHexRejectsBadInput(t *testing.T) {
+	for _, bad := range []string{"", "abc", "00000000000000000", "00000000000000000G", "0x1234"} {
+		if _, err := PerceptualHashFromHex(bad); err == nil {
+			t.Errorf("PerceptualHashFromHex(%q) accepted an invalid hash", bad)
 		}
 	}
 }
