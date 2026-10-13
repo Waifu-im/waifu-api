@@ -393,3 +393,72 @@ of the run the column is mixed and duplicate detection is partially degraded
 
 No maintenance notice is needed for the steps completed above — every one was
 additive and non-blocking.
+
+---
+
+## 2026-10-13 — Backfill run against production
+
+Dry run first, over the whole corpus, reading from the local copy so the live
+bucket took no load:
+
+```
+  22  #     34     26  #  261     30  #  739     34  #  776   >40 #  57
+  24  #     89     28  #  513     32  #  840     36  #  516
+  30  total: 4287 compared, 0 failed
+```
+
+Peak at exactly **32**, the expected distance between two unrelated random
+64-bit values, and nothing at 0. That is what "these two implementations compute
+unrelated things" looks like when it is working. Matches the 22–38 range in
+MIGRATION.md.
+
+### I interrupted the first write run
+
+The progress counter prints before appending, so `4286/4287` read as "one row
+left" when in fact the fetch phase had finished and `report()` was committing
+batches. I sent SIGQUIT to get a goroutine dump and killed it at 1,800 of 4,287
+rows written.
+
+A dry run then proved the column was genuinely mixed: 1,800 rows at distance 0,
+2,487 still at 20–38. Exactly the state this whole exercise exists to avoid, and
+I produced it myself.
+
+Two things about the tool made recovery cheap: writes are idempotent because
+every row is recomputed from the image rather than trusted, and the legacy column
+meant nothing was lost. Re-running finished it.
+
+Worth fixing: the counter should report after appending, and the run should
+handle SIGTERM by finishing the batch in flight rather than abandoning it.
+
+### Completed run
+
+25m18s, 4,287 rows, 0 failures. Verified afterwards by sampling the full id
+range rather than trusting the exit code:
+
+| Range | Rows | Distance |
+|---|---|---|
+| 1–300 | 300 | all 0 |
+| 2,001–3,200 | 1,200 | all 0 |
+| 4,101–4,287 | 2,171 | all 0 |
+
+Production stayed up throughout: `/ping` 200, `/stats/public` reporting 4,287
+images and 5,563 requests served.
+
+The 25 minutes is worth recording because the estimate given beforehand was
+five. That came from an 85-image synthetic fixture; real images are megabytes
+each and decoding dominates. Any future maintenance window should be sized from
+this figure.
+
+### State
+
+`PerceptualHash` is internally consistent for the first time.
+`PerceptualHashLegacy` holds all 4,287 C# values as the undo.
+
+C# duplicate detection is now 0% rather than the ~50% a mixed column gave it,
+and is the reason the cutover is worth doing soon — though nothing breaks
+without it. Reverse backfill from the legacy column restores C# behaviour if
+ever needed.
+
+Still to do: rotate the Tigris keys leaked earlier, cut over, re-validate the
+duplicate threshold against the real distribution, and drop the legacy column
+in three to four months.
