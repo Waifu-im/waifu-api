@@ -1,3 +1,27 @@
+## ⚠️ API Shutdown Notice
+
+As of **October 24, 2026**, **waifu.im has been permanently shut down** and is no longer maintained.
+
+This repository will remain available temporarily but **will eventually be removed**.
+
+If you wish to continue using the API, you're free to migrate to one of the community-maintained alternatives listed below.
+
+### 🔄 Alternative Instances
+
+**KorryKatti's Instance**
+- **API:** https://waifu-api-eosin.vercel.app/
+- **Documentation:** https://waifu-api-docs.vercel.app/
+- **GitHub:** https://github.com/KorryKatti/waifu-api
+
+**Marek-SWK's Instance**
+- **API:** https://waifu.marek-server.com/
+- **Documentation:** https://waifu-docs.marek-server.com/
+- **GitHub:** https://github.com/Marek-SWK/waifu-api
+
+These instances are independently maintained. Their availability and continued operation are the responsibility of their respective maintainers.
+
+Thank you to everyone who used and supported waifu.im over the years. ❤️
+
 <div align="center">
   <a href="https://waifu.im">
     <img src="https://cdn.waifu.im/7892.jpg" alt="Waifu.im Logo" width="200" style="border-radius: 20px; box-shadow: 0 8px 30px rgba(0,0,0,0.12);">
