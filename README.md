@@ -23,6 +23,11 @@ If you wish to continue using the API, you're free to migrate to one of the comm
 - **Documentation:** https://docs.waifu.best/
 - **GitHub:** https://github.com/MaximilianGT500/waifu-api
 
+**ZhaoHf666's Instance**
+- **API:** https://waifu.imnb.cn:8443/
+- **Documentation:** https://home.imnb.cn:8443/openapi/detail/items-service/IMAGE_RANDOM
+- **GitHub:** https://github.com/ZhaoHf666/waifu-api
+
 These instances are independently maintained. Their availability and continued operation are the responsibility of their respective maintainers.
 
 Thank you to everyone who used and supported waifu.im over the years. ❤️
