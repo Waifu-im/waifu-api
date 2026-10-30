@@ -33,10 +33,6 @@ These instances are independently maintained. Their availability and continued o
 Thank you to everyone who used and supported waifu.im over the years. ❤️
 
 <div align="center">
-  <a href="https://waifu.im">
-    <img src="https://cdn.waifu.im/7892.jpg" alt="Waifu.im Logo" width="200" style="border-radius: 20px; box-shadow: 0 8px 30px rgba(0,0,0,0.12);">
-  </a>
-
   <h1>Waifu.im API</h1>
 
   <p>
@@ -182,3 +178,4 @@ A huge thank you to our community contributors who help expand our database:
 <div align="center">
   <sub>Built with ❤️ by the Waifu.im team.</sub>
 </div>
+ 
