@@ -28,6 +28,9 @@ If you wish to continue using the API, you're free to migrate to one of the comm
 - **Documentation:** https://home.imnb.cn:8443/openapi/detail/items-service/IMAGE_RANDOM
 - **GitHub:** https://github.com/ZhaoHf666/waifu-api
 
+**theta's Instance**
+- **API:** https://meow.photos/
+
 These instances are independently maintained. Their availability and continued operation are the responsibility of their respective maintainers.
 
 Thank you to everyone who used and supported waifu.im over the years. ❤️
